@@ -53,7 +53,7 @@ class _ChatHeader extends StatelessWidget {
         children: [
           const SizedBox(width: 12),
           const Text(
-            'WhatsApp',
+            'Monitor de Imagenes',
             style: TextStyle(
               color: Colors.green,
               fontWeight: FontWeight.w600,

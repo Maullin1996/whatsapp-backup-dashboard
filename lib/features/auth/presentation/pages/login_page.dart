@@ -106,14 +106,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Image.asset(
-                      'assets/images/WhatsApp_icon.png',
+                      'assets/images/edicion-de-fotos.png',
                       width: 100,
                       height: 100,
                       cacheWidth: 110,
                     ),
                     const SizedBox(height: 16),
                     const Text(
-                      'WhatsApp Monitor Viewer',
+                      'Monitor de Imagenes',
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,

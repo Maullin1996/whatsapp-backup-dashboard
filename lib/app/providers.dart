@@ -9,7 +9,6 @@ import 'package:whatsapp_monitor_viewer/features/chats/data/datasources/chats_fi
 import 'package:whatsapp_monitor_viewer/features/chats/data/repositories/chats_repository_impl.dart';
 import 'package:whatsapp_monitor_viewer/features/chats/domain/repositories/chats_repository.dart';
 
-//lib/app/providers.dart
 /// ===============================
 /// 🔐 FirebaseAuth (infraestructura)
 /// ===============================
