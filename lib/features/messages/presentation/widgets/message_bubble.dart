@@ -20,8 +20,12 @@ class MessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isMobile = screenWidth < 600;
+    final double maximumBubbleWidth = isMobile ? screenWidth * 0.92 : 420.0;
+
     return Container(
-      constraints: const BoxConstraints(maxWidth: 420),
+      constraints: BoxConstraints(maxWidth: maximumBubbleWidth),
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: const Color(0xFFFFFFFF),
@@ -80,6 +84,10 @@ class _ImagePreview extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final urlAsync = ref.watch(imageUrlProvider(storagePath));
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isMobile = screenWidth < 600;
+    final double imageDisplayWidth = isMobile ? screenWidth * 0.85 : 420.0;
+    final int cacheDimension = isMobile ? 640 : 900;
 
     return GestureDetector(
       onTap: () {
@@ -101,9 +109,10 @@ class _ImagePreview extends ConsumerWidget {
             child: RepaintBoundary(
               child: ExtendedImage.network(
                 urlAsync,
+                width: imageDisplayWidth,
                 fit: BoxFit.cover,
-                cacheHeight: 800,
-                cacheWidth: 800,
+                cacheHeight: cacheDimension,
+                cacheWidth: cacheDimension,
                 cache: true,
                 border: Border.all(color: Colors.transparent, width: 0),
                 borderRadius: BorderRadius.circular(6),
