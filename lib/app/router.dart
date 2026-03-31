@@ -5,6 +5,7 @@ import 'package:whatsapp_monitor_viewer/features/auth/presentation/pages/login_p
 import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_providers.dart';
 import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_session_state.dart';
 import 'package:whatsapp_monitor_viewer/features/home/presentation/pages/home_page.dart';
+import 'package:whatsapp_monitor_viewer/features/messages/presentation/viewer/image_detail_page.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final router = GoRouter(
@@ -12,6 +13,13 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(path: '/login', builder: (_, _) => const LoginPage()),
       GoRoute(path: '/home', builder: (_, _) => const HomePage()),
+      GoRoute(
+        path: '/home/viewer/:initialIndex',
+        builder: (context, state) {
+          final initialIndex = int.parse(state.pathParameters['initialIndex']!);
+          return ImageDetailPage(initialIndex: initialIndex);
+        },
+      ),
     ],
     redirect: (context, state) {
       final authState = ref.read(authSessionProvider);
