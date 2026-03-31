@@ -27,6 +27,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   void _onLoginPressed() {
+    FocusScope.of(context).unfocus();
     setState(() => _isPasswordVisible = false);
 
     ref.read(loginFormProvider.notifier).submit();
@@ -44,148 +45,166 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     });
 
     final formState = ref.watch(loginFormProvider);
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isMobile = screenWidth < 600;
+    final horizontalPadding = isMobile ? 16.0 : 24.0;
+    final cardPadding = isMobile ? 20.0 : 24.0;
 
-    final errorMessage = formState.error?.when(
-      invalidEmail: () => 'Correo inválido',
-      wrongPassword: () => 'Contraseña Incorrecta',
-      userNotFound: () => 'Usuario no encontrado',
-      userDisabled: () => 'Usuario deshabilitado',
-      networkError: () => 'Error de conexión',
-      tooManyRequests: () => 'Demasiados intentos',
-      unknown: () => 'Error inesperado',
-    );
+    final errorMessage = formState.error?.message;
 
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              AppColors.upLoginBackground,
-              AppColors.downLoginBackground,
-            ],
-          ),
-        ),
-        child: Center(
-          child: Container(
-            decoration: BoxDecoration(
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
-                  blurRadius: 20,
-                  offset: const Offset(0, 5),
-                  spreadRadius: 5,
-                ),
+      body: SafeArea(
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.upLoginBackground,
+                AppColors.downLoginBackground,
               ],
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
             ),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 400, maxHeight: 450),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Image.asset(
-                      'assets/images/edicion-de-fotos.png',
-                      width: 100,
-                      height: 100,
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Monitor de Imagenes',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
+          ),
+          child: Center(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.symmetric(
+                horizontal: horizontalPadding,
+                vertical: 24,
+              ),
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 400),
+                child: Container(
+                  decoration: BoxDecoration(
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 20,
+                        offset: const Offset(0, 5),
+                        spreadRadius: 5,
                       ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    /// EMAIL
-                    CustomLoginTextFormField(
-                      textController: _emailController,
-                      labelText: 'email',
-                      keyboardType: TextInputType.emailAddress,
-                      onChanged: (value) {
-                        ref
-                            .read(loginFormProvider.notifier)
-                            .onEmailChanged(value);
-                      },
-                    ),
-
-                    const SizedBox(height: 18),
-
-                    /// PASSWORD
-                    CustomLoginTextFormField(
-                      textController: _passwordController,
-                      autocorrect: false,
-                      enableSuggestions: false,
-                      labelText: 'Contraseña',
-                      obscureText: !_isPasswordVisible,
-                      onSubmit: _onLoginPressed,
-                      onChanged: (value) {
-                        ref
-                            .read(loginFormProvider.notifier)
-                            .onPasswordChanged(value);
-                      },
-                      suffixIcon: IconButton(
-                        onPressed: () {
-                          setState(() {
-                            _isPasswordVisible = !_isPasswordVisible;
-                          });
-                        },
-                        icon: Icon(
-                          _isPasswordVisible
-                              ? Icons.visibility
-                              : Icons.visibility_off,
+                    ],
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.all(cardPadding),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Image.asset(
+                          'assets/images/edicion-de-fotos.png',
+                          width: isMobile ? 84 : 100,
+                          height: isMobile ? 84 : 100,
                         ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    /// ERROR
-                    if (errorMessage != null)
-                      Column(
-                        children: [
-                          Text(
-                            errorMessage,
-                            style: TextStyle(color: AppColors.errorMessage),
-                          ),
-                          const SizedBox(height: 16),
-                        ],
-                      ),
-
-                    /// BOTÓN
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ButtonStyle(
-                          padding: WidgetStateProperty.all<EdgeInsetsGeometry>(
-                            EdgeInsets.symmetric(vertical: 20),
-                          ),
-                          backgroundColor: WidgetStateProperty.all<Color>(
-                            AppColors.primaryGreen,
+                        SizedBox(height: isMobile ? 12 : 16),
+                        Text(
+                          'Monitor de Imagenes',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: isMobile ? 20 : 22,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                        onPressed: formState.isLoading ? null : _onLoginPressed,
-                        child: formState.isLoading
-                            ? const CircularProgressIndicator(
-                                color: AppColors.loadingColor,
-                              )
-                            : const Text(
-                                'Ingresar',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
+                        SizedBox(height: isMobile ? 20 : 24),
+
+                        /// EMAIL
+                        CustomLoginTextFormField(
+                          textController: _emailController,
+                          labelText: 'email',
+                          keyboardType: TextInputType.emailAddress,
+                          onChanged: (value) {
+                            ref
+                                .read(loginFormProvider.notifier)
+                                .onEmailChanged(value);
+                          },
+                        ),
+
+                        const SizedBox(height: 18),
+
+                        /// PASSWORD
+                        CustomLoginTextFormField(
+                          textController: _passwordController,
+                          autocorrect: false,
+                          enableSuggestions: false,
+                          labelText: 'Contraseña',
+                          obscureText: !_isPasswordVisible,
+                          onSubmit: _onLoginPressed,
+                          onChanged: (value) {
+                            ref
+                                .read(loginFormProvider.notifier)
+                                .onPasswordChanged(value);
+                          },
+                          suffixIcon: IconButton(
+                            onPressed: () {
+                              setState(() {
+                                _isPasswordVisible = !_isPasswordVisible;
+                              });
+                            },
+                            icon: Icon(
+                              _isPasswordVisible
+                                  ? Icons.visibility
+                                  : Icons.visibility_off,
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        /// ERROR
+                        if (errorMessage != null)
+                          Column(
+                            children: [
+                              Text(
+                                errorMessage,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: AppColors.errorMessage),
                               ),
-                      ),
+                              const SizedBox(height: 16),
+                            ],
+                          ),
+
+                        /// BOTÓN
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            style: ButtonStyle(
+                              minimumSize: WidgetStateProperty.all<Size>(
+                                const Size.fromHeight(56),
+                              ),
+                              padding:
+                                  WidgetStateProperty.all<EdgeInsetsGeometry>(
+                                    const EdgeInsets.symmetric(vertical: 16),
+                                  ),
+                              backgroundColor: WidgetStateProperty.all<Color>(
+                                AppColors.primaryGreen,
+                              ),
+                            ),
+                            onPressed: formState.isLoading
+                                ? null
+                                : _onLoginPressed,
+                            child: formState.isLoading
+                                ? const SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      color: AppColors.loadingColor,
+                                    ),
+                                  )
+                                : const Text(
+                                    'Ingresar',
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
