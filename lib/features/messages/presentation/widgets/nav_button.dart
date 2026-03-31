@@ -15,7 +15,7 @@ class NavButton extends StatelessWidget {
           width: 48,
           height: 48,
           decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: Colors.black.withValues(alpha: 0.20),
             shape: BoxShape.circle,
           ),
           child: Icon(icon, size: 32),
