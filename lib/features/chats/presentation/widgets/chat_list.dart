@@ -69,17 +69,43 @@ class _ChatHeader extends StatelessWidget {
   }
 }
 
-class _ChateSearchBar extends ConsumerWidget {
+class _ChateSearchBar extends ConsumerStatefulWidget {
   const _ChateSearchBar();
 
   @override
-  Widget build(BuildContext contex, WidgetRef ref) {
+  ConsumerState<_ChateSearchBar> createState() => _ChateSearchBarState();
+}
+
+class _ChateSearchBarState extends ConsumerState<_ChateSearchBar> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+    _controller.addListener(() {
+      ref.read(chatSearchQueryProvider.notifier).state = _controller.text;
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen(chatSearchQueryProvider, (previous, next) {
+      if (_controller.text != next) {
+        _controller.text = next;
+      }
+    });
+
     return Padding(
       padding: const EdgeInsets.all(8),
       child: TextFormField(
-        onChanged: (value) {
-          ref.read(chatSearchQueryProvider.notifier).state = value;
-        },
+        controller: _controller,
         decoration: InputDecoration(
           hintText: 'Buscar grupo',
           prefixIcon: const Icon(Icons.search),
