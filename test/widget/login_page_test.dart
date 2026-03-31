@@ -40,12 +40,10 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          authRepositoryProvider.overrideWithValue(fakeRepo),
-        ],
+        overrides: [authRepositoryProvider.overrideWithValue(fakeRepo)],
         child: const MaterialApp(
           home: MediaQuery(
-            data: MediaQueryData(textScaleFactor: 0.85),
+            data: MediaQueryData(textScaler: TextScaler.linear(0.85)),
             child: LoginPage(),
           ),
         ),

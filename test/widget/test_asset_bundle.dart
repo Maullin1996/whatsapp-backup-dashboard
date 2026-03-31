@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,10 +13,13 @@ void setUpMockAssets() {
   final imageData = ByteData.view(Uint8List.fromList(imageBytes).buffer);
 
   final manifestJson = utf8.encode('{}');
-  final manifestJsonData = ByteData.view(Uint8List.fromList(manifestJson).buffer);
+  final manifestJsonData = ByteData.view(
+    Uint8List.fromList(manifestJson).buffer,
+  );
 
-  final manifestBinData =
-      const StandardMessageCodec().encodeMessage(<String, List<String>>{});
+  final manifestBinData = const StandardMessageCodec().encodeMessage(
+    <String, List<String>>{},
+  );
 
   ServicesBinding.instance.defaultBinaryMessenger.setMockMessageHandler(
     'flutter/assets',

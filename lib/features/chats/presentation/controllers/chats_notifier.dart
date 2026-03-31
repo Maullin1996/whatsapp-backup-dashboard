@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:whatsapp_monitor_viewer/app/providers.dart';
+import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_providers.dart';
+import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_session_state.dart';
 import 'package:whatsapp_monitor_viewer/features/chats/domain/entities/chat.dart';
 
 //lib/feature/chats/presentation/provider/chats_notifier.dart
@@ -19,6 +21,15 @@ class ChatsNotifier extends AsyncNotifier<List<Chat>> {
 
   @override
   Future<List<Chat>> build() async {
+    final authState = ref.watch(authSessionProvider);
+    final isAuthenticated = authState.maybeWhen(
+      authenticated: (_) => true,
+      orElse: () => false,
+    );
+    if (!isAuthenticated) {
+      reset();
+      return [];
+    }
     ref.onDispose(() {
       _realtimeSub?.cancel();
       _realtimeSub = null;

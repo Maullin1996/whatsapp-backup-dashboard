@@ -1,64 +1,43 @@
+//auth_provider.dart
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:whatsapp_monitor_viewer/app/providers.dart';
+import 'package:whatsapp_monitor_viewer/features/auth/domain/entities/authenticated_user.dart';
 import 'package:whatsapp_monitor_viewer/features/auth/domain/repositories/auth_repository.dart';
-import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_state.dart';
-import 'package:whatsapp_monitor_viewer/features/chats/presentation/provider/chats_provider.dart';
-import 'package:whatsapp_monitor_viewer/features/messages/presentation/providers/messages_provider.dart';
+import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_providers.dart';
+import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_session_state.dart';
 
-class AuthNotifier extends Notifier<AuthState> {
+class AuthSessionNotifier extends Notifier<AuthSessionState> {
   late final AuthRepository _repository;
 
   @override
-  AuthState build() {
+  AuthSessionState build() {
     _repository = ref.read(authRepositoryProvider);
-
     _loadSession();
-
-    return const AuthState.loading();
+    return const AuthSessionState.loading();
   }
 
   Future<void> _loadSession() async {
     final result = await _repository.getCurrentUser();
 
-    result.fold((failure) => state = AuthState.error(failure: failure), (user) {
+    result.fold((_) => state = const AuthSessionState.unauthenticated(), (
+      user,
+    ) {
       if (user == null) {
-        state = const AuthState.unauthenticated();
+        state = const AuthSessionState.unauthenticated();
       } else {
-        state = AuthState.authenticated(user: user);
+        state = AuthSessionState.authenticated(user);
       }
     });
   }
 
-  Future<void> login({required String email, required String password}) async {
-    state = const AuthState.loading();
-
-    final result = await _repository.login(email: email, password: password);
-
-    result.fold(
-      (failure) => state = AuthState.error(failure: failure),
-      (user) => state = AuthState.authenticated(user: user),
-    );
-  }
-
   Future<void> logout() async {
-    state = const AuthState.loading();
-
-    ref.read(messagesProvider.notifier).reset();
-    ref.read(chatsProvider.notifier).reset();
-
-    final result = await _repository.logout();
-
-    result.fold(
-      (failure) => state = AuthState.error(failure: failure),
-      (_) => state = const AuthState.unauthenticated(),
-    );
+    await _repository.logout();
+    //ref.invalidate(loginFormProvider);
+    state = const AuthSessionState.unauthenticated();
   }
 
-  void clearError() {
-    state = const AuthState.unauthenticated();
+  void setAuthenticated(AuthenticatedUser user) {
+    state = AuthSessionState.authenticated(user);
   }
 }
-
-final authProvider = NotifierProvider<AuthNotifier, AuthState>(
-  AuthNotifier.new,
-);

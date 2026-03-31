@@ -6,7 +6,10 @@ class CustomLoginTextFormField extends StatelessWidget {
   final String labelText;
   final VoidCallback? onSubmit;
   final bool obscureText;
-
+  final Widget? suffixIcon;
+  final ValueChanged<String>? onChanged;
+  final bool enableSuggestions;
+  final bool autocorrect;
   const CustomLoginTextFormField({
     super.key,
     required this.textController,
@@ -14,6 +17,10 @@ class CustomLoginTextFormField extends StatelessWidget {
     required this.labelText,
     this.obscureText = false,
     this.onSubmit,
+    this.suffixIcon,
+    this.onChanged,
+    this.enableSuggestions = true,
+    this.autocorrect = true,
   });
 
   @override
@@ -29,11 +36,15 @@ class CustomLoginTextFormField extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
       ),
       child: TextFormField(
+        onChanged: onChanged,
+        enableSuggestions: enableSuggestions,
+        autocorrect: autocorrect,
         controller: textController,
         textInputAction: TextInputAction.done,
         keyboardType: keyboardType,
         onFieldSubmitted: (_) => onSubmit?.call(),
         decoration: InputDecoration(
+          suffixIcon: suffixIcon,
           border: InputBorder.none,
           labelText: labelText,
           floatingLabelStyle: TextStyle(color: Colors.black),

@@ -1,43 +1,46 @@
+//router.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:whatsapp_monitor_viewer/features/auth/presentation/pages/login_page.dart';
-import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_provider.dart';
-import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_state.dart';
+import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_providers.dart';
+import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_session_state.dart';
 import 'package:whatsapp_monitor_viewer/features/home/presentation/pages/home_page.dart';
-import 'package:whatsapp_monitor_viewer/features/messages/presentation/viewer/image_detail_page.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authProvider);
-
-  return GoRouter(
+  final router = GoRouter(
     initialLocation: '/login',
-    redirect: (context, state) {
-      return authState.when(
-        loading: () => null,
-        authenticated: (_) {
-          if (state.matchedLocation == '/login') return '/home';
-          return null;
-        },
-        unauthenticated: () =>
-            state.matchedLocation == '/login' ? null : '/login',
-        error: (_) => '/login',
-      );
-    },
     routes: [
-      GoRoute(path: '/login', builder: (context, state) => const LoginPage()),
-      GoRoute(
-        path: '/home',
-        builder: (context, state) => const HomePage(),
-        routes: [
-          GoRoute(
-            path: 'viewer/:index',
-            builder: (context, state) {
-              final index = int.parse(state.pathParameters['index']!);
-              return ImageDetailPage(initialIndex: index);
-            },
-          ),
-        ],
-      ),
+      GoRoute(path: '/login', builder: (_, _) => const LoginPage()),
+      GoRoute(path: '/home', builder: (_, _) => const HomePage()),
     ],
+    redirect: (context, state) {
+      final authState = ref.read(authSessionProvider);
+
+      // ✅ Maneja el estado loading — no redirigir todavía
+      final isLoading = authState.maybeWhen(
+        loading: () => true,
+        orElse: () => false,
+      );
+      if (isLoading) return null;
+
+      final isLoggedIn = authState.maybeWhen(
+        authenticated: (_) => true,
+        orElse: () => false,
+      );
+
+      final isGoingToLogin = state.matchedLocation == '/login';
+
+      if (!isLoggedIn) return isGoingToLogin ? null : '/login';
+      if (isGoingToLogin) return '/home';
+
+      return null;
+    },
   );
+
+  // ✅ Escucha cambios y refresca el router directamente
+  ref.listen(authSessionProvider, (_, _) {
+    router.refresh();
+  });
+
+  return router;
 });

@@ -1,9 +1,9 @@
+//login_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:whatsapp_monitor_viewer/core/errors/auth_failure.dart';
 import 'package:whatsapp_monitor_viewer/core/theme/app_colors.dart';
-import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_provider.dart';
-import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_state.dart';
+import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_providers.dart';
 import 'package:whatsapp_monitor_viewer/features/auth/presentation/widget/custom_login_text_form_field.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
@@ -14,24 +14,10 @@ class LoginPage extends ConsumerStatefulWidget {
 }
 
 class _LoginPageState extends ConsumerState<LoginPage> {
+  bool _isPasswordVisible = false;
+
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    _emailController.addListener(_clearErrorIfNeeded);
-    _passwordController.addListener(_clearErrorIfNeeded);
-  }
-
-  void _clearErrorIfNeeded() {
-    final authState = ref.read(authProvider);
-
-    authState.maybeWhen(
-      error: (failure) => ref.read(authProvider.notifier).clearError(),
-      orElse: () {},
-    );
-  }
 
   @override
   void dispose() {
@@ -41,35 +27,32 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   void _onLoginPressed() {
-    final email = _emailController.text.trim();
-    final password = _passwordController.text.trim();
+    setState(() => _isPasswordVisible = false);
 
-    if (email.isEmpty || password.isEmpty) {
-      return;
-    }
-    ref.read(authProvider.notifier).login(email: email, password: password);
+    ref.read(loginFormProvider.notifier).submit();
   }
 
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(authProvider);
+    ref.listen(loginFormProvider, (previous, next) {
+      if (!next.isLoading &&
+          previous?.isLoading == true &&
+          next.error == null) {
+        _emailController.clear();
+        _passwordController.clear();
+      }
+    });
 
-    final isLoading = authState.maybeWhen(
-      loading: () => true,
-      orElse: () => false,
-    );
+    final formState = ref.watch(loginFormProvider);
 
-    final errorMessage = authState.maybeWhen(
-      error: (failure) => failure.when(
-        invalidEmail: () => 'Correo inválido',
-        wrongPassword: () => 'Contraseña Incorrecta',
-        userNotFound: () => 'Usuario no encontrado',
-        userDisabled: () => 'Usuario deshabilitado',
-        networkError: () => 'Error de conexión',
-        tooManyRequests: () => 'Demasiados intentos',
-        unknown: () => 'Error inesperado',
-      ),
-      orElse: () => null,
+    final errorMessage = formState.error?.when(
+      invalidEmail: () => 'Correo inválido',
+      wrongPassword: () => 'Contraseña Incorrecta',
+      userNotFound: () => 'Usuario no encontrado',
+      userDisabled: () => 'Usuario deshabilitado',
+      networkError: () => 'Error de conexión',
+      tooManyRequests: () => 'Demasiados intentos',
+      unknown: () => 'Error inesperado',
     );
 
     return Scaffold(
@@ -109,7 +92,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       'assets/images/edicion-de-fotos.png',
                       width: 100,
                       height: 100,
-                      cacheWidth: 110,
                     ),
                     const SizedBox(height: 16),
                     const Text(
@@ -120,21 +102,51 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       ),
                     ),
                     const SizedBox(height: 24),
+
+                    /// EMAIL
                     CustomLoginTextFormField(
                       textController: _emailController,
                       labelText: 'email',
                       keyboardType: TextInputType.emailAddress,
+                      onChanged: (value) {
+                        ref
+                            .read(loginFormProvider.notifier)
+                            .onEmailChanged(value);
+                      },
                     ),
+
                     const SizedBox(height: 18),
+
+                    /// PASSWORD
                     CustomLoginTextFormField(
                       textController: _passwordController,
+                      autocorrect: false,
+                      enableSuggestions: false,
                       labelText: 'Contraseña',
-                      obscureText: true,
+                      obscureText: !_isPasswordVisible,
                       onSubmit: _onLoginPressed,
+                      onChanged: (value) {
+                        ref
+                            .read(loginFormProvider.notifier)
+                            .onPasswordChanged(value);
+                      },
+                      suffixIcon: IconButton(
+                        onPressed: () {
+                          setState(() {
+                            _isPasswordVisible = !_isPasswordVisible;
+                          });
+                        },
+                        icon: Icon(
+                          _isPasswordVisible
+                              ? Icons.visibility
+                              : Icons.visibility_off,
+                        ),
+                      ),
                     ),
 
                     const SizedBox(height: 24),
 
+                    /// ERROR
                     if (errorMessage != null)
                       Column(
                         children: [
@@ -145,6 +157,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           const SizedBox(height: 16),
                         ],
                       ),
+
+                    /// BOTÓN
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
@@ -156,8 +170,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                             AppColors.primaryGreen,
                           ),
                         ),
-                        onPressed: isLoading ? null : _onLoginPressed,
-                        child: isLoading
+                        onPressed: formState.isLoading ? null : _onLoginPressed,
+                        child: formState.isLoading
                             ? const CircularProgressIndicator(
                                 color: AppColors.loadingColor,
                               )

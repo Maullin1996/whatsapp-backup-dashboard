@@ -1,16 +1,17 @@
+//custom_popup_menu_logout_button.dart
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_provider.dart';
+import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_providers.dart';
 
 class CustomPopupMenuLogoutButton extends ConsumerWidget {
   const CustomPopupMenuLogoutButton({super.key});
 
   void _onLogout(BuildContext context, WidgetRef ref) async {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Cerrando sesión')));
-    await ref.read(authProvider.notifier).logout();
+    final messenger = ScaffoldMessenger.of(context);
+    await ref.read(authSessionProvider.notifier).logout();
+
+    messenger.showSnackBar(const SnackBar(content: Text('Sesión cerrada')));
   }
 
   @override

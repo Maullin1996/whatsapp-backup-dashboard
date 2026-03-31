@@ -1,3 +1,4 @@
+//chat_list.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:whatsapp_monitor_viewer/features/chats/presentation/widgets/chats_loading_view.dart';
