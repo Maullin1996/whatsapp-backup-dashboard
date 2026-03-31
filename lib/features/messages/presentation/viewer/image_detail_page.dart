@@ -235,6 +235,10 @@ class _ImageCanvas extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isMobile = screenWidth < 700;
+    final cacheDimension = isMobile ? (screenWidth * 1.25).round() : 1600;
+
     return Center(
       child: Listener(
         onPointerSignal: (event) {
@@ -242,50 +246,54 @@ class _ImageCanvas extends StatelessWidget {
             zoom.onScroll(event);
           }
         },
-        child: InteractiveViewer(
-          transformationController: zoom.tc,
-          minScale: ImageZoomController.minScale,
-          maxScale: ImageZoomController.maxScale,
-          panEnabled: zoom.scale > 1.0,
-          scaleEnabled: false,
-          child: ExtendedImage.network(
-            urlAsync,
-            fit: BoxFit.contain,
-            cache: true,
-            cacheWidth: 1600,
-            cacheHeight: 1600,
-            loadStateChanged: (ExtendedImageState state) {
-              switch (state.extendedImageLoadState) {
-                case LoadState.loading:
-                  return SizedBox(
-                    height: 200,
-                    width: 200,
-                    child: const Center(child: CircularProgressIndicator()),
-                  );
-                case LoadState.completed:
-                  return null; // Muestra la imagen normalmente
-                case LoadState.failed:
-                  return GestureDetector(
-                    onTap: () {
-                      state.reLoadImage();
-                    },
-                    child: SizedBox(
+        child: GestureDetector(
+          onDoubleTap: () => zoom.reset(),
+          child: InteractiveViewer(
+            transformationController: zoom.tc,
+            minScale: ImageZoomController.minScale,
+            maxScale: ImageZoomController.maxScale,
+            panEnabled: true,
+            scaleEnabled: true,
+            boundaryMargin: const EdgeInsets.all(20),
+            child: ExtendedImage.network(
+              urlAsync,
+              fit: BoxFit.contain,
+              cache: true,
+              cacheWidth: cacheDimension,
+              cacheHeight: cacheDimension,
+              loadStateChanged: (ExtendedImageState state) {
+                switch (state.extendedImageLoadState) {
+                  case LoadState.loading:
+                    return SizedBox(
                       height: 200,
                       width: 200,
-                      child: const Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.broken_image, size: 40),
-                            SizedBox(height: 8),
-                            Text('Toca para reintentar'),
-                          ],
+                      child: const Center(child: CircularProgressIndicator()),
+                    );
+                  case LoadState.completed:
+                    return null; // Muestra la imagen normalmente
+                  case LoadState.failed:
+                    return GestureDetector(
+                      onTap: () {
+                        state.reLoadImage();
+                      },
+                      child: SizedBox(
+                        height: 200,
+                        width: 200,
+                        child: const Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.broken_image, size: 40),
+                              SizedBox(height: 8),
+                              Text('Toca para reintentar'),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  );
-              }
-            },
+                    );
+                }
+              },
+            ),
           ),
         ),
       ),
@@ -314,6 +322,12 @@ class _ViwerTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isMobile = screenWidth < 700;
+    final avatarSize = isMobile ? 40.0 : 55.0;
+    final fontSize = isMobile ? 14.0 : 16.0;
+    final iconSize = isMobile ? 24.0 : 28.0;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       child: Row(
@@ -321,9 +335,9 @@ class _ViwerTopBar extends StatelessWidget {
           ClipOval(
             child: Image.asset(
               'assets/images/blank-profile.png',
-              width: 55,
+              width: avatarSize,
               fit: BoxFit.cover,
-              cacheWidth: 110,
+              cacheWidth: (avatarSize * 2).round(),
             ),
           ),
           const SizedBox(width: 12),
@@ -333,35 +347,35 @@ class _ViwerTopBar extends StatelessWidget {
               children: [
                 SelectableText(
                   name,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                    fontSize: fontSize,
                   ),
                 ),
-                SelectableText(localTime, style: const TextStyle(fontSize: 16)),
-                SelectableText(shift, style: const TextStyle(fontSize: 16)),
+                SelectableText(localTime, style: TextStyle(fontSize: fontSize)),
+                SelectableText(shift, style: TextStyle(fontSize: fontSize)),
               ],
             ),
           ),
           IconButton(
             tooltip: 'Zoom -',
             onPressed: zoomOut,
-            icon: const Icon(Icons.zoom_out_rounded, size: 28),
+            icon: Icon(Icons.zoom_out_rounded, size: iconSize),
           ),
           IconButton(
             tooltip: 'Reset',
             onPressed: zoomRest,
-            icon: const Icon(Icons.refresh, size: 28),
+            icon: Icon(Icons.refresh, size: iconSize),
           ),
           IconButton(
             tooltip: 'Zoom +',
             onPressed: zoomIn,
-            icon: const Icon(Icons.zoom_in_rounded, size: 28),
+            icon: Icon(Icons.zoom_in_rounded, size: iconSize),
           ),
           IconButton(
             tooltip: 'Cerrar',
             onPressed: close,
-            icon: const Icon(Icons.close, size: 28),
+            icon: Icon(Icons.close, size: iconSize),
           ),
         ],
       ),
