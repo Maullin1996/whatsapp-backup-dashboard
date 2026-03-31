@@ -12,3 +12,16 @@ abstract class AuthFailure with _$AuthFailure {
   const factory AuthFailure.tooManyRequests() = _TooManyRequests;
   const factory AuthFailure.unknown() = _Unknown;
 }
+
+extension AuthFailureMessageX on AuthFailure {
+  String get message => switch (this) {
+    _InvalidEmail() => 'Correo inválido',
+    _WrongPassword() => 'Contraseña Incorrecta',
+    _UserNotFound() => 'Usuario no encontrado',
+    _UserDisabled() => 'Usuario deshabilitado',
+    _NetworkError() => 'Error de conexión',
+    _TooManyRequests() => 'Demasiados intentos',
+    _Unknown() => 'Error inesperado',
+    _ => 'Error inesperado',
+  };
+}
