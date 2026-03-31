@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:whatsapp_monitor_viewer/app/providers.dart';
 import 'package:whatsapp_monitor_viewer/features/auth/domain/entities/authenticated_user.dart';
 import 'package:whatsapp_monitor_viewer/features/auth/domain/repositories/auth_repository.dart';
-import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_providers.dart';
 import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_session_state.dart';
 
 class AuthSessionNotifier extends Notifier<AuthSessionState> {
@@ -33,7 +32,6 @@ class AuthSessionNotifier extends Notifier<AuthSessionState> {
 
   Future<void> logout() async {
     await _repository.logout();
-    //ref.invalidate(loginFormProvider);
     state = const AuthSessionState.unauthenticated();
   }
 
