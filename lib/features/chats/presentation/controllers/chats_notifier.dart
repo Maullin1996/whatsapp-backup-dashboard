@@ -21,15 +21,6 @@ class ChatsNotifier extends AsyncNotifier<List<Chat>> {
 
   @override
   Future<List<Chat>> build() async {
-    final authState = ref.watch(authSessionProvider);
-    final isAuthenticated = authState.maybeWhen(
-      authenticated: (_) => true,
-      orElse: () => false,
-    );
-    if (!isAuthenticated) {
-      reset();
-      return [];
-    }
     ref.onDispose(() {
       _realtimeSub?.cancel();
       _realtimeSub = null;
@@ -74,7 +65,12 @@ class ChatsNotifier extends AsyncNotifier<List<Chat>> {
 
     final repository = ref.read(chatsRepositoryProvider);
 
-    _realtimeSub = repository.listenChatUpdate().listen(_onRealtimeChat);
+    _realtimeSub = repository.listenChatUpdate().listen(
+      _onRealtimeChat,
+      onError: (error) {
+        if (error.toString().contains('permission-denied')) return;
+      },
+    );
   }
 
   void _onRealtimeChat(Chat update) {
@@ -145,5 +141,14 @@ class ChatsNotifier extends AsyncNotifier<List<Chat>> {
     _chatsByJid.clear();
 
     _lastKnownTimestamp = 0;
+  }
+
+  void cancelStream() {
+    _realtimeSub?.cancel();
+    _realtimeSub = null;
+    _flushTimer?.cancel();
+    _flushTimer = null;
+    _buffer.clear();
+    _isFlushing = false;
   }
 }

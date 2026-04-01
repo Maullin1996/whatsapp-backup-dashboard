@@ -5,6 +5,8 @@ import 'package:whatsapp_monitor_viewer/app/providers.dart';
 import 'package:whatsapp_monitor_viewer/features/auth/domain/entities/authenticated_user.dart';
 import 'package:whatsapp_monitor_viewer/features/auth/domain/repositories/auth_repository.dart';
 import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_session_state.dart';
+import 'package:whatsapp_monitor_viewer/features/chats/presentation/provider/chats_provider.dart';
+import 'package:whatsapp_monitor_viewer/features/messages/presentation/providers/messages_provider.dart';
 
 class AuthSessionNotifier extends Notifier<AuthSessionState> {
   late final AuthRepository _repository;
@@ -31,6 +33,8 @@ class AuthSessionNotifier extends Notifier<AuthSessionState> {
   }
 
   Future<void> logout() async {
+    ref.read(chatsProvider.notifier).cancelStream();
+    ref.read(messagesProvider.notifier).cancelStream();
     await _repository.logout();
     state = const AuthSessionState.unauthenticated();
   }

@@ -128,7 +128,13 @@ class MessagesNotifier extends AsyncNotifier<List<Message>> {
           chatJid: chatJid,
           afterTimestamp: _lastKnownTimestamp,
         )
-        .listen(_onRealtimerMessage);
+        .listen(
+          _onRealtimerMessage,
+          // ✅ Ignora el error de permisos al cerrar sesión
+          onError: (error) {
+            if (error.toString().contains('permission-denied')) return;
+          },
+        );
   }
 
   void _onRealtimerMessage(Message message) {
@@ -185,5 +191,15 @@ class MessagesNotifier extends AsyncNotifier<List<Message>> {
     _lastKnownTimestamp = 0;
 
     state = const AsyncData([]);
+  }
+
+  // messages_notifier.dart
+  void cancelStream() {
+    _newMessagesSub?.cancel();
+    _newMessagesSub = null;
+    _flushTimer?.cancel();
+    _flushTimer = null;
+    _buffer.clear();
+    _isFlushing = false;
   }
 }
