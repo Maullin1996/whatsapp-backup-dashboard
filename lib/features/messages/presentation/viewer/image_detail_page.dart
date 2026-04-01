@@ -328,57 +328,77 @@ class _ViwerTopBar extends StatelessWidget {
     final fontSize = isMobile ? 14.0 : 16.0;
     final iconSize = isMobile ? 24.0 : 28.0;
 
+    final controls = Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        IconButton(
+          tooltip: 'Zoom -',
+          onPressed: zoomOut,
+          icon: Icon(Icons.zoom_out_rounded, size: iconSize),
+        ),
+        IconButton(
+          tooltip: 'Reset',
+          onPressed: zoomRest,
+          icon: Icon(Icons.refresh, size: iconSize),
+        ),
+        IconButton(
+          tooltip: 'Zoom +',
+          onPressed: zoomIn,
+          icon: Icon(Icons.zoom_in_rounded, size: iconSize),
+        ),
+        IconButton(
+          tooltip: 'Cerrar',
+          onPressed: close,
+          icon: Icon(Icons.close, size: iconSize),
+        ),
+      ],
+    );
+
+    final info = Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        ClipOval(
+          child: Image.asset(
+            'assets/images/blank-profile.png',
+            width: avatarSize,
+            fit: BoxFit.cover,
+            cacheWidth: (avatarSize * 2).round(),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SelectableText(
+                name,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: fontSize,
+                ),
+              ),
+              SelectableText(localTime, style: TextStyle(fontSize: fontSize)),
+              SelectableText(shift, style: TextStyle(fontSize: fontSize)),
+            ],
+          ),
+        ),
+      ],
+    );
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-      child: Row(
-        children: [
-          ClipOval(
-            child: Image.asset(
-              'assets/images/blank-profile.png',
-              width: avatarSize,
-              fit: BoxFit.cover,
-              cacheWidth: (avatarSize * 2).round(),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: isMobile
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [controls, const SizedBox(height: 10), info],
+            )
+          : Row(
               children: [
-                SelectableText(
-                  name,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: fontSize,
-                  ),
-                ),
-                SelectableText(localTime, style: TextStyle(fontSize: fontSize)),
-                SelectableText(shift, style: TextStyle(fontSize: fontSize)),
+                Expanded(child: info),
+                const SizedBox(width: 8),
+                controls,
               ],
             ),
-          ),
-          IconButton(
-            tooltip: 'Zoom -',
-            onPressed: zoomOut,
-            icon: Icon(Icons.zoom_out_rounded, size: iconSize),
-          ),
-          IconButton(
-            tooltip: 'Reset',
-            onPressed: zoomRest,
-            icon: Icon(Icons.refresh, size: iconSize),
-          ),
-          IconButton(
-            tooltip: 'Zoom +',
-            onPressed: zoomIn,
-            icon: Icon(Icons.zoom_in_rounded, size: iconSize),
-          ),
-          IconButton(
-            tooltip: 'Cerrar',
-            onPressed: close,
-            icon: Icon(Icons.close, size: iconSize),
-          ),
-        ],
-      ),
     );
   }
 }

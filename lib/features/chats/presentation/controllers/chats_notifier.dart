@@ -2,8 +2,6 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:whatsapp_monitor_viewer/app/providers.dart';
-import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_providers.dart';
-import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_session_state.dart';
 import 'package:whatsapp_monitor_viewer/features/chats/domain/entities/chat.dart';
 
 //lib/feature/chats/presentation/provider/chats_notifier.dart
