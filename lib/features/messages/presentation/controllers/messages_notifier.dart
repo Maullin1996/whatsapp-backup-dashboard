@@ -12,7 +12,7 @@ class MessagesNotifier extends AsyncNotifier<List<Message>> {
 
   final List<Message> _items = [];
 
-  //BATCHING
+  // BATCHING
   final List<Message> _buffer = [];
   Timer? _flushTimer;
   bool _isFlushing = false;
@@ -130,7 +130,6 @@ class MessagesNotifier extends AsyncNotifier<List<Message>> {
         )
         .listen(
           _onRealtimerMessage,
-          // ✅ Ignora el error de permisos al cerrar sesión
           onError: (error) {
             if (error.toString().contains('permission-denied')) return;
           },
@@ -138,7 +137,8 @@ class MessagesNotifier extends AsyncNotifier<List<Message>> {
   }
 
   void _onRealtimerMessage(Message message) {
-    if (message.messageTimestamp <= _lastKnownTimestamp) return;
+    // ✅ FIX 1: < en vez de <= para no descartar mensajes con mismo timestamp
+    if (message.messageTimestamp < _lastKnownTimestamp) return;
     _buffer.add(message);
     _scheduleFlush();
   }
@@ -148,7 +148,8 @@ class MessagesNotifier extends AsyncNotifier<List<Message>> {
   // =========================
 
   void _scheduleFlush() {
-    if (_isFlushing) return;
+    // ✅ FIX 2: no bloquear schedule si está flushing,
+    // el flush al terminar revisará si hay más en el buffer
     _flushTimer?.cancel();
     _flushTimer = Timer(const Duration(milliseconds: 200), _flushBuffer);
   }
@@ -161,17 +162,30 @@ class MessagesNotifier extends AsyncNotifier<List<Message>> {
     final batch = List<Message>.from(_buffer);
     _buffer.clear();
 
-    for (final msg in batch) {
-      final exists = _items.any((m) => m.id == msg.id);
-      if (!exists) {
-        _items.insert(0, msg); // reverse:true
-        _lastKnownTimestamp = _lastKnownTimestamp < msg.messageTimestamp
-            ? msg.messageTimestamp
-            : _lastKnownTimestamp;
-      }
+    // ✅ FIX 3: O(1) lookup con Set en vez de O(n) por cada mensaje
+    final existingIds = _items.map((m) => m.id).toSet();
+
+    final newMessages = batch
+        .where((msg) => !existingIds.contains(msg.id))
+        .toList();
+
+    if (newMessages.isNotEmpty) {
+      // Un solo insertAll en vez de N inserts individuales
+      _items.insertAll(0, newMessages);
+
+      // Actualizar timestamp con el mayor del batch
+      _lastKnownTimestamp = newMessages.fold(
+        _lastKnownTimestamp,
+        (max, msg) => msg.messageTimestamp > max ? msg.messageTimestamp : max,
+      );
+
+      state = AsyncData(List.unmodifiable(_items));
     }
-    state = AsyncData(List.unmodifiable(_items));
+
     _isFlushing = false;
+
+    // ✅ Si llegaron más mensajes mientras flusheábamos, procesar
+    if (_buffer.isNotEmpty) _scheduleFlush();
   }
 
   void reset() {
@@ -193,7 +207,6 @@ class MessagesNotifier extends AsyncNotifier<List<Message>> {
     state = const AsyncData([]);
   }
 
-  // messages_notifier.dart
   void cancelStream() {
     _newMessagesSub?.cancel();
     _newMessagesSub = null;
