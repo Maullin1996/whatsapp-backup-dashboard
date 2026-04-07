@@ -190,6 +190,7 @@ class _ImagePager extends ConsumerWidget {
         PageView.builder(
           controller: controller,
           itemCount: items.length,
+          reverse: true,
           onPageChanged: onPageChanged,
           itemBuilder: (_, index) {
             final item = items[index];
@@ -235,9 +236,9 @@ class _ImageCanvas extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.sizeOf(context).width;
-    final isMobile = screenWidth < 700;
-    final cacheDimension = isMobile ? (screenWidth * 1.25).round() : 1600;
+    //final screenWidth = MediaQuery.sizeOf(context).width;
+    //final isMobile = screenWidth < 700;
+    //final cacheDimension = isMobile ? (screenWidth * 1.25).round() : 1600;
 
     return Center(
       child: Listener(
@@ -259,8 +260,6 @@ class _ImageCanvas extends StatelessWidget {
               urlAsync,
               fit: BoxFit.contain,
               cache: true,
-              cacheWidth: cacheDimension,
-              cacheHeight: cacheDimension,
               loadStateChanged: (ExtendedImageState state) {
                 switch (state.extendedImageLoadState) {
                   case LoadState.loading:

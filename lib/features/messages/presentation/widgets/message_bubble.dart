@@ -87,7 +87,7 @@ class _ImagePreview extends ConsumerWidget {
     final screenWidth = MediaQuery.sizeOf(context).width;
     final isMobile = screenWidth < 600;
     final double imageDisplayWidth = isMobile ? screenWidth * 0.85 : 420.0;
-    final int cacheDimension = isMobile ? 640 : 900;
+    //final int cacheDimension = isMobile ? 640 : 900;
 
     return GestureDetector(
       onTap: () {
@@ -111,8 +111,6 @@ class _ImagePreview extends ConsumerWidget {
                 urlAsync,
                 width: imageDisplayWidth,
                 fit: BoxFit.cover,
-                cacheHeight: cacheDimension,
-                cacheWidth: cacheDimension,
                 cache: true,
                 border: Border.all(color: Colors.transparent, width: 0),
                 borderRadius: BorderRadius.circular(6),
@@ -125,7 +123,7 @@ class _ImagePreview extends ConsumerWidget {
                         child: const Center(child: CircularProgressIndicator()),
                       );
                     case LoadState.completed:
-                      return null; // Muestra la imagen normalmente
+                      return null;
                     case LoadState.failed:
                       return GestureDetector(
                         onTap: () {
