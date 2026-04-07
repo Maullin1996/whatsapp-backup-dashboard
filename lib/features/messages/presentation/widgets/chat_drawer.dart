@@ -87,63 +87,121 @@ class ChatDrawer extends ConsumerWidget {
                         : DateTime.now(),
                     firstDate: DateTime(2020),
                     lastDate: DateTime.now(),
+                    builder: (context, child) {
+                      return Theme(
+                        data: Theme.of(context).copyWith(
+                          colorScheme: const ColorScheme.light(
+                            primary: Color.fromARGB(184, 47, 208, 23),
+                            onPrimary: Colors.white,
+                            surface: Colors.white,
+                            onSurface: Colors.black87,
+                          ),
+                          dialogBackgroundColor: Colors.white,
+                        ),
+                        child: child!,
+                      );
+                    },
                   );
                   if (picked != null && context.mounted) {
                     notifier.setFilter(DateFilterSpecificDay(date: picked));
                     Navigator.pop(context);
                   }
                 } else {
-                  // Mobile bottom sheet
                   DateTime? selectedDate = filter is DateFilterSpecificDay
                       ? filter.date
                       : DateTime.now();
                   await showModalBottomSheet(
                     context: context,
+                    backgroundColor: Colors.white,
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(20),
+                      ),
+                    ),
                     builder: (context) => StatefulBuilder(
-                      builder: (context, setState) => Container(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'Seleccionar fecha',
-                              style: Theme.of(context).textTheme.titleLarge,
-                            ),
-                            const SizedBox(height: 16),
-                            CalendarDatePicker(
-                              initialDate: selectedDate,
-                              firstDate: DateTime(2020),
-                              lastDate: DateTime.now(),
-                              onDateChanged: (date) {
-                                setState(() => selectedDate = date);
-                              },
-                            ),
-                            const SizedBox(height: 16),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context),
-                                  child: const Text('Cancelar'),
+                      builder: (context, setState) => Theme(
+                        data: Theme.of(context).copyWith(
+                          colorScheme: const ColorScheme.light(
+                            primary: Color.fromARGB(184, 47, 208, 23),
+                            onPrimary: Colors.white,
+                            surface: Colors.white,
+                            onSurface: Colors.black87,
+                          ),
+                        ),
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          color: Colors.white,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Handle
+                              Center(
+                                child: Container(
+                                  width: 40,
+                                  height: 4,
+                                  margin: const EdgeInsets.only(bottom: 16),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade300,
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
                                 ),
-                                const SizedBox(width: 8),
-                                ElevatedButton(
-                                  onPressed: () {
-                                    notifier.setFilter(
-                                      DateFilterSpecificDay(
-                                        date: selectedDate!,
+                              ),
+                              Text(
+                                'Seleccionar fecha',
+                                style: Theme.of(context).textTheme.titleMedium
+                                    ?.copyWith(fontWeight: FontWeight.w700),
+                              ),
+                              const SizedBox(height: 16),
+                              CalendarDatePicker(
+                                initialDate: selectedDate,
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime.now(),
+                                onDateChanged: (date) {
+                                  setState(() => selectedDate = date);
+                                },
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  TextButton(
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: Colors.black54,
+                                    ),
+                                    onPressed: () => Navigator.pop(context),
+                                    child: const Text('Cancelar'),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color.fromARGB(
+                                        184,
+                                        47,
+                                        208,
+                                        23,
                                       ),
-                                    );
-                                    Navigator.pop(
-                                      context,
-                                    ); // close bottom sheet
-                                    Navigator.pop(context); // close drawer
-                                  },
-                                  child: const Text('Seleccionar'),
-                                ),
-                              ],
-                            ),
-                          ],
+                                      foregroundColor: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                    onPressed: () {
+                                      notifier.setFilter(
+                                        DateFilterSpecificDay(
+                                          date: selectedDate!,
+                                        ),
+                                      );
+                                      Navigator.pop(
+                                        context,
+                                      ); // cierra bottom sheet
+                                      Navigator.pop(context); // cierra drawer
+                                    },
+                                    child: const Text('Seleccionar'),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
