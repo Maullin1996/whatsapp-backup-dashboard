@@ -15,7 +15,7 @@ class MessagesNotifier extends AsyncNotifier<List<Message>> {
   // BATCHING
   final List<Message> _buffer = [];
   Timer? _flushTimer;
-  bool _isFlushing = false;
+  bool isFlushing = false;
 
   StreamSubscription<Message>? _newMessagesSub;
 
@@ -157,7 +157,7 @@ class MessagesNotifier extends AsyncNotifier<List<Message>> {
   void _flushBuffer() {
     if (_buffer.isEmpty) return;
 
-    _isFlushing = true;
+    isFlushing = true;
 
     final batch = List<Message>.from(_buffer);
     _buffer.clear();
@@ -182,7 +182,7 @@ class MessagesNotifier extends AsyncNotifier<List<Message>> {
       state = AsyncData(List.unmodifiable(_items));
     }
 
-    _isFlushing = false;
+    isFlushing = false;
 
     // ✅ Si llegaron más mensajes mientras flusheábamos, procesar
     if (_buffer.isNotEmpty) _scheduleFlush();
@@ -195,7 +195,7 @@ class MessagesNotifier extends AsyncNotifier<List<Message>> {
     _flushTimer?.cancel();
     _flushTimer = null;
     _buffer.clear();
-    _isFlushing = false;
+    isFlushing = false;
 
     _items.clear();
     _cursor = null;
@@ -213,6 +213,6 @@ class MessagesNotifier extends AsyncNotifier<List<Message>> {
     _flushTimer?.cancel();
     _flushTimer = null;
     _buffer.clear();
-    _isFlushing = false;
+    isFlushing = false;
   }
 }
