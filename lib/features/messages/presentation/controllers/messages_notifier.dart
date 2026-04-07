@@ -109,11 +109,14 @@ class MessagesNotifier extends AsyncNotifier<List<Message>> {
     _isLoadingMore = true;
 
     final repo = ref.read(messagesRepositoryProvider);
+    final range = _activeFilter.toTimestampRange();
 
-    final result = await repo.fetchNext(
+    final result = await repo.fetchByDateRange(
       chatJid: _activeChatJid!,
-      cursor: _cursor!,
+      fromTimestamp: range.from,
+      toTimestamp: range.to,
       limit: _pageSize,
+      cursor: _cursor,
     );
 
     result.fold(

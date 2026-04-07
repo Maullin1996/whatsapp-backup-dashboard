@@ -20,6 +20,7 @@ abstract class MessagesRepository {
     required int fromTimestamp,
     required int toTimestamp,
     int limit = 50,
+    Object? cursor,
   });
 
   Stream<Message> listenNewMessages({

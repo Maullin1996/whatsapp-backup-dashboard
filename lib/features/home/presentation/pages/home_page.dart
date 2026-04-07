@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:whatsapp_monitor_viewer/features/chats/presentation/provider/active_chat_provider.dart';
 import 'package:whatsapp_monitor_viewer/features/chats/presentation/widgets/chat_list.dart';
 import 'package:whatsapp_monitor_viewer/features/home/presentation/widgets/custom_message_group.dart';
+import 'package:whatsapp_monitor_viewer/features/messages/presentation/widgets/chat_drawer.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/widgets/chat_header.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/widgets/message_list.dart';
 
@@ -91,11 +92,15 @@ class _ConversationView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        header ?? const ChatHeader(),
-        const Expanded(child: MessageList()),
-      ],
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      endDrawer: const ChatDrawer(),
+      body: Column(
+        children: [
+          header ?? const ChatHeader(),
+          const Expanded(child: MessageList()),
+        ],
+      ),
     );
   }
 }

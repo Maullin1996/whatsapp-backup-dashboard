@@ -80,25 +80,30 @@ class MessagesFirestoreDatasource {
     required int fromTimestamp,
     required int toTimestamp,
     int limit = _pageSize,
+    DocumentSnapshot? cursor, // <- nuevo parámetro
   }) async {
     try {
-      final query = await _firestore
+      var query = _firestore
           .collection('whatsapp_messages')
           .where('chatJid', isEqualTo: chatJid)
           .where('messageTimestamp', isGreaterThanOrEqualTo: fromTimestamp)
-          .where('messageTimestamp', isLessThanOrEqualTo: toTimestamp)
+          .where('messageTimestamp', isLessThan: toTimestamp)
           .orderBy('messageTimestamp', descending: true)
-          .limit(limit)
-          .get();
+          .limit(limit);
 
-      final items = query.docs
+      if (cursor != null) {
+        query = query.startAfterDocument(cursor); // <- paginación con filtro
+      }
+
+      final snapshot = await query.get();
+      final items = snapshot.docs
           .map((doc) => RawMessageModel.fromFirestore(doc.id, doc.data()))
           .toList();
 
       return Right(
         FirestoreMessagePage(
           items: items,
-          lastDoc: query.docs.isNotEmpty ? query.docs.last : null,
+          lastDoc: snapshot.docs.isNotEmpty ? snapshot.docs.last : null,
         ),
       );
     } catch (e) {

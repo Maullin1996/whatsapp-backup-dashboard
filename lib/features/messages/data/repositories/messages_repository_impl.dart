@@ -67,12 +67,14 @@ class MessagesRepositoryImpl implements MessagesRepository {
     required int fromTimestamp,
     required int toTimestamp,
     int limit = 50,
+    Object? cursor,
   }) async {
     final result = await datasource.fetchByDateRange(
       chatJid: chatJid,
       fromTimestamp: fromTimestamp,
       toTimestamp: toTimestamp,
       limit: limit,
+      cursor: cursor as DocumentSnapshot?,
     );
 
     return result.map(
