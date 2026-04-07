@@ -75,6 +75,37 @@ class MessagesFirestoreDatasource {
     }
   }
 
+  Future<Either<Failure, FirestoreMessagePage>> fetchByDateRange({
+    required String chatJid,
+    required int fromTimestamp,
+    required int toTimestamp,
+    int limit = _pageSize,
+  }) async {
+    try {
+      final query = await _firestore
+          .collection('whatsapp_messages')
+          .where('chatJid', isEqualTo: chatJid)
+          .where('messageTimestamp', isGreaterThanOrEqualTo: fromTimestamp)
+          .where('messageTimestamp', isLessThanOrEqualTo: toTimestamp)
+          .orderBy('messageTimestamp', descending: true)
+          .limit(limit)
+          .get();
+
+      final items = query.docs
+          .map((doc) => RawMessageModel.fromFirestore(doc.id, doc.data()))
+          .toList();
+
+      return Right(
+        FirestoreMessagePage(
+          items: items,
+          lastDoc: query.docs.isNotEmpty ? query.docs.last : null,
+        ),
+      );
+    } catch (e) {
+      return Left(mapFirestoreError(e));
+    }
+  }
+
   Stream<Message> listemNewMessages({
     required String chatJid,
     required int afterTimestamp,

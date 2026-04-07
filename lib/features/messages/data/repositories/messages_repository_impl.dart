@@ -60,4 +60,26 @@ class MessagesRepositoryImpl implements MessagesRepository {
       afterTimestamp: afterTimestamp,
     );
   }
+
+  @override
+  Future<Either<Failure, MessagesPage>> fetchByDateRange({
+    required String chatJid,
+    required int fromTimestamp,
+    required int toTimestamp,
+    int limit = 50,
+  }) async {
+    final result = await datasource.fetchByDateRange(
+      chatJid: chatJid,
+      fromTimestamp: fromTimestamp,
+      toTimestamp: toTimestamp,
+      limit: limit,
+    );
+
+    return result.map(
+      (page) => MessagesPage(
+        items: page.items.map((raw) => toDomain(raw)).toList(),
+        nextCursor: page.lastDoc,
+      ),
+    );
+  }
 }

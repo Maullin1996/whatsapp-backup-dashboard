@@ -15,6 +15,13 @@ abstract class MessagesRepository {
     int limit = 50,
   });
 
+  Future<Either<Failure, MessagesPage>> fetchByDateRange({
+    required String chatJid,
+    required int fromTimestamp,
+    required int toTimestamp,
+    int limit = 50,
+  });
+
   Stream<Message> listenNewMessages({
     required String chatJid,
     required int afterTimestamp,
