@@ -3,8 +3,10 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:whatsapp_monitor_viewer/features/chats/presentation/provider/active_chat_provider.dart';
+import 'package:whatsapp_monitor_viewer/features/messages/domain/entities/date_filter.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/domain/entities/message.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/domain/entities/messages_page.dart';
+import 'package:whatsapp_monitor_viewer/features/messages/presentation/providers/date_filter_provider.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/providers/messages_repository_provider.dart';
 
 class MessagesNotifier extends AsyncNotifier<List<Message>> {
@@ -23,27 +25,77 @@ class MessagesNotifier extends AsyncNotifier<List<Message>> {
   bool _isLoadingMore = false;
   bool _hasMore = true;
   String? _activeChatJid;
+  DateFilter _activeFilter = const DateFilterTodayAndYesterday();
 
   int _lastKnownTimestamp = 0;
 
   @override
   FutureOr<List<Message>> build() async {
     final chat = ref.watch(activeChatProvider);
+    final filter = ref.watch(dateFilterProvider);
 
     if (chat == null) {
       reset();
       return const [];
     }
 
-    if (_activeChatJid != chat.chatJid) {
+    final chatChanged = _activeChatJid != chat.chatJid;
+    final filterChanged =
+        _activeFilter.runtimeType != filter.runtimeType ||
+        _filterKey(filter) != _filterKey(_activeFilter);
+
+    if (chatChanged || filterChanged) {
       reset();
       _activeChatJid = chat.chatJid;
-      await _loadInitial(chat.chatJid);
+      _activeFilter = filter;
+      await _loadFiltered(chat.chatJid, filter);
     }
-
     return _items;
   }
 
+  String _filterKey(DateFilter f) {
+    if (f is DateFilterSpecificDay) {
+      return 'specific_${f.date.year}_${f.date.month}_${f.date.day}';
+    }
+    return f.runtimeType.toString();
+  }
+
+  Future<void> _loadFiltered(String chatJid, DateFilter filter) async {
+    state = const AsyncLoading();
+
+    final repo = ref.read(messagesRepositoryProvider);
+    final range = filter.toTimestampRange();
+
+    final result = await repo.fetchByDateRange(
+      chatJid: chatJid,
+      fromTimestamp: range.from,
+      toTimestamp: range.to,
+      limit: _pageSize,
+    );
+
+    result.fold(
+      (failure) {
+        state = AsyncError(failure, StackTrace.current);
+      },
+      (MessagesPage page) {
+        _items
+          ..clear()
+          ..addAll(page.items);
+        _cursor = page.nextCursor;
+        _hasMore = page.nextCursor != null;
+
+        _lastKnownTimestamp = _items.isNotEmpty
+            ? _items.first.messageTimestamp
+            : DateTime.now().millisecondsSinceEpoch;
+
+        state = AsyncData(List.unmodifiable(_items));
+
+        if (filter.includestoday) {
+          _startRealtime(chatJid);
+        }
+      },
+    );
+  }
   // =========================
   // PAGINACIÓN
   // =========================
@@ -81,38 +133,38 @@ class MessagesNotifier extends AsyncNotifier<List<Message>> {
     );
   }
 
-  // =========================
-  // CARGA INICIAL
-  // =========================
+  // // =========================
+  // // CARGA INICIAL
+  // // =========================
 
-  Future<void> _loadInitial(String chatJid) async {
-    state = const AsyncLoading();
+  // Future<void> _loadInitial(String chatJid) async {
+  //   state = const AsyncLoading();
 
-    final repo = ref.read(messagesRepositoryProvider);
+  //   final repo = ref.read(messagesRepositoryProvider);
 
-    final result = await repo.fetchInitial(chatJid: chatJid, limit: _pageSize);
+  //   final result = await repo.fetchInitial(chatJid: chatJid, limit: _pageSize);
 
-    result.fold(
-      (failure) {
-        state = AsyncError(failure, StackTrace.current);
-      },
-      (MessagesPage page) {
-        _items
-          ..clear()
-          ..addAll(page.items);
-        _cursor = page.nextCursor;
-        _hasMore = page.nextCursor != null;
+  //   result.fold(
+  //     (failure) {
+  //       state = AsyncError(failure, StackTrace.current);
+  //     },
+  //     (MessagesPage page) {
+  //       _items
+  //         ..clear()
+  //         ..addAll(page.items);
+  //       _cursor = page.nextCursor;
+  //       _hasMore = page.nextCursor != null;
 
-        _lastKnownTimestamp = _items.isNotEmpty
-            ? _items.first.messageTimestamp
-            : 0;
+  //       _lastKnownTimestamp = _items.isNotEmpty
+  //           ? _items.first.messageTimestamp
+  //           : 0;
 
-        state = AsyncData(List.unmodifiable(_items));
+  //       state = AsyncData(List.unmodifiable(_items));
 
-        _startRealtime(chatJid);
-      },
-    );
-  }
+  //       _startRealtime(chatJid);
+  //     },
+  //   );
+  // }
 
   // =========================
   // REALTIME
@@ -203,6 +255,7 @@ class MessagesNotifier extends AsyncNotifier<List<Message>> {
     _isLoadingMore = false;
     _activeChatJid = null;
     _lastKnownTimestamp = 0;
+    _activeFilter = const DateFilterTodayAndYesterday();
 
     state = const AsyncData([]);
   }
