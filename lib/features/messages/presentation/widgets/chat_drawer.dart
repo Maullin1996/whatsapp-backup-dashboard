@@ -1,5 +1,6 @@
 // lib/features/messages/presentation/widgets/chat_drawer.dart
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:whatsapp_monitor_viewer/core/time/shifts.dart';
@@ -78,17 +79,75 @@ class ChatDrawer extends ConsumerWidget {
               icon: Icons.calendar_month,
               isSelected: filter is DateFilterSpecificDay,
               onTap: () async {
-                final picked = await showDatePicker(
-                  context: context,
-                  initialDate: filter is DateFilterSpecificDay
+                if (kIsWeb) {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: filter is DateFilterSpecificDay
+                        ? filter.date
+                        : DateTime.now(),
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime.now(),
+                  );
+                  if (picked != null && context.mounted) {
+                    notifier.setFilter(DateFilterSpecificDay(date: picked));
+                    Navigator.pop(context);
+                  }
+                } else {
+                  // Mobile bottom sheet
+                  DateTime? selectedDate = filter is DateFilterSpecificDay
                       ? filter.date
-                      : DateTime.now(),
-                  firstDate: DateTime(2020),
-                  lastDate: DateTime.now(),
-                );
-                if (picked != null && context.mounted) {
-                  notifier.setFilter(DateFilterSpecificDay(date: picked));
-                  Navigator.pop(context);
+                      : DateTime.now();
+                  await showModalBottomSheet(
+                    context: context,
+                    builder: (context) => StatefulBuilder(
+                      builder: (context, setState) => Container(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Seleccionar fecha',
+                              style: Theme.of(context).textTheme.titleLarge,
+                            ),
+                            const SizedBox(height: 16),
+                            CalendarDatePicker(
+                              initialDate: selectedDate,
+                              firstDate: DateTime(2020),
+                              lastDate: DateTime.now(),
+                              onDateChanged: (date) {
+                                setState(() => selectedDate = date);
+                              },
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  child: const Text('Cancelar'),
+                                ),
+                                const SizedBox(width: 8),
+                                ElevatedButton(
+                                  onPressed: () {
+                                    notifier.setFilter(
+                                      DateFilterSpecificDay(
+                                        date: selectedDate!,
+                                      ),
+                                    );
+                                    Navigator.pop(
+                                      context,
+                                    ); // close bottom sheet
+                                    Navigator.pop(context); // close drawer
+                                  },
+                                  child: const Text('Seleccionar'),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
                 }
               },
             ),

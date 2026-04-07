@@ -11,6 +11,22 @@ import 'package:whatsapp_monitor_viewer/helpers/map_failure_to_message.dart';
 import 'package:whatsapp_monitor_viewer/features/chats/presentation/provider/active_chat_provider.dart';
 import 'package:whatsapp_monitor_viewer/features/chats/presentation/provider/chats_provider.dart';
 
+const _avatarColors = [
+  Color(0xFF25D366), // green
+  Color(0xFF128C7E), // teal
+  Color(0xFF34B7F1), // blue
+  Color(0xFFFFC107), // yellow
+  Color(0xFFFF5722), // orange
+  Color(0xFF9C27B0), // purple
+  Color(0xFFE91E63), // pink
+  Color(0xFF795548), // brown
+  Color(0xFF607D8B), // grey
+];
+
+bool _isLight(Color color) {
+  return color.computeLuminance() > 0.5;
+}
+
 class ChatList extends ConsumerWidget {
   const ChatList({super.key});
 
@@ -240,6 +256,14 @@ class _CustonGroupContainerState extends State<CustonGroupContainer> {
       131,
       131,
     ).withValues(alpha: 0.15);
+
+    final bgColor =
+        _avatarColors[widget.chat.groupName.hashCode % _avatarColors.length];
+    final textColor = _isLight(bgColor) ? Colors.black : Colors.white;
+    final initial = widget.chat.groupName.isNotEmpty
+        ? widget.chat.groupName[0].toUpperCase()
+        : '?';
+
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
@@ -257,12 +281,16 @@ class _CustonGroupContainerState extends State<CustonGroupContainer> {
 
             child: Row(
               children: [
-                ClipOval(
-                  child: Image.asset(
-                    'assets/images/blank-profile.png',
-                    width: 55,
-                    fit: BoxFit.cover,
-                    cacheWidth: 110,
+                CircleAvatar(
+                  radius: 27.5,
+                  backgroundColor: bgColor,
+                  child: Text(
+                    initial,
+                    style: TextStyle(
+                      color: textColor,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),

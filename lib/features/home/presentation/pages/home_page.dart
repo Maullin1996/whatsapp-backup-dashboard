@@ -32,6 +32,7 @@ class HomePage extends ConsumerWidget {
           },
           child: Scaffold(
             backgroundColor: const Color.fromARGB(255, 240, 239, 236),
+            endDrawer: const ChatDrawer(),
             body: SafeArea(
               child: isMobile
                   ? AnimatedSwitcher(
@@ -92,15 +93,11 @@ class _ConversationView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      endDrawer: const ChatDrawer(),
-      body: Column(
-        children: [
-          header ?? const ChatHeader(),
-          const Expanded(child: MessageList()),
-        ],
-      ),
+    return Column(
+      children: [
+        header ?? const ChatHeader(),
+        const Expanded(child: MessageList()),
+      ],
     );
   }
 }
@@ -166,6 +163,11 @@ class _MobileConversationView extends ConsumerWidget {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
+              ),
+              IconButton(
+                tooltip: 'Panel de control',
+                icon: const Icon(Icons.menu),
+                onPressed: () => Scaffold.of(context).openEndDrawer(),
               ),
             ],
           ),

@@ -1,5 +1,6 @@
 // lib/features/messages/presentation/widgets/chat_header.dart
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:whatsapp_monitor_viewer/features/chats/presentation/provider/active_chat_provider.dart';
@@ -28,13 +29,22 @@ class ChatHeader extends ConsumerWidget {
       child: Row(
         children: [
           Expanded(
-            child: SelectableText(
-              chat.groupName,
-              maxLines: 1,
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
-            ),
+            child: kIsWeb
+                ? SelectableText(
+                    chat.groupName,
+                    maxLines: 1,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  )
+                : Text(
+                    chat.groupName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
           ),
           // Badge filtro activo
           if (isFiltered)
