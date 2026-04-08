@@ -72,8 +72,8 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage> {
       actions: {
         NextImageIntent: CallbackAction<NextImageIntent>(
           onInvoke: (_) {
-            if (_index < items.length - 1) {
-              _controller.nextPage(
+            if (_index > 0) {
+              _controller.previousPage(
                 duration: const Duration(milliseconds: 200),
                 curve: Curves.easeOut,
               );
@@ -83,8 +83,8 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage> {
         ),
         PreviousImageIntent: CallbackAction<PreviousImageIntent>(
           onInvoke: (_) {
-            if (_index > 0) {
-              _controller.previousPage(
+            if (_index < items.length - 1) {
+              _controller.nextPage(
                 duration: const Duration(milliseconds: 200),
                 curve: Curves.easeOut,
               );
@@ -198,27 +198,27 @@ class _ImagePager extends ConsumerWidget {
             return _ImageCanvas(zoom: zoom, urlAsync: urlAsync);
           },
         ),
-        if (currentIndex > 0)
+        if (currentIndex < items.length - 1)
           Positioned(
             left: 12,
             top: 0,
             bottom: 0,
             child: NavButton(
               icon: Icons.chevron_left,
-              onTap: () => controller.previousPage(
+              onTap: () => controller.nextPage(
                 duration: const Duration(milliseconds: 200),
                 curve: Curves.easeOut,
               ),
             ),
           ),
-        if (currentIndex < items.length - 1)
+        if (currentIndex > 0)
           Positioned(
             right: 12,
             top: 0,
             bottom: 0,
             child: NavButton(
               icon: Icons.chevron_right,
-              onTap: () => controller.nextPage(
+              onTap: () => controller.previousPage(
                 duration: const Duration(milliseconds: 200),
                 curve: Curves.easeOut,
               ),

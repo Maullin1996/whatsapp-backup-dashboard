@@ -87,7 +87,7 @@ class _ImagePreview extends ConsumerWidget {
     final screenWidth = MediaQuery.sizeOf(context).width;
     final isMobile = screenWidth < 600;
     final double imageDisplayWidth = isMobile ? screenWidth * 0.85 : 420.0;
-    //final int cacheDimension = isMobile ? 640 : 900;
+    final int cacheDimension = isMobile ? 640 : 900;
 
     return GestureDetector(
       onTap: () {
@@ -110,6 +110,8 @@ class _ImagePreview extends ConsumerWidget {
               child: ExtendedImage.network(
                 urlAsync,
                 width: imageDisplayWidth,
+                cacheHeight: cacheDimension,
+                cacheWidth: cacheDimension,
                 fit: BoxFit.cover,
                 cache: true,
                 border: Border.all(color: Colors.transparent, width: 0),

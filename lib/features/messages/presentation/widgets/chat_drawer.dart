@@ -90,13 +90,15 @@ class ChatDrawer extends ConsumerWidget {
                     builder: (context, child) {
                       return Theme(
                         data: Theme.of(context).copyWith(
+                          dialogTheme: DialogThemeData(
+                            backgroundColor: Colors.white,
+                          ),
                           colorScheme: const ColorScheme.light(
                             primary: Color.fromARGB(184, 47, 208, 23),
                             onPrimary: Colors.white,
                             surface: Colors.white,
                             onSurface: Colors.black87,
                           ),
-                          dialogBackgroundColor: Colors.white,
                         ),
                         child: child!,
                       );
