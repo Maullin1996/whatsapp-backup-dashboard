@@ -67,14 +67,19 @@ class ChatsRepositoryImpl implements ChatsRepository {
   @override
   Stream<Chat> listenChatUpdate() {
     return datasource.listenNewMessages().map((data) {
-      final chatJid = data['chatJid'] as String;
-      final groupName = data['groupName'] as String;
+      // Casteo explícito para evitar LegacyJavaScriptObject en web
+      final chatJid = data['chatJid']?.toString() ?? '';
+      final groupName = data['groupName']?.toString() ?? '';
       final ts = data['lastMessageAt'];
       final tI = data['totalImages'];
 
-      final timestamp = ts is int ? ts : int.parse(ts.toString());
+      final timestamp = ts is int
+          ? ts
+          : int.tryParse(ts?.toString() ?? '') ?? 0;
 
-      final totalImages = tI is int ? tI : int.parse(tI.toString());
+      final totalImages = tI is int
+          ? tI
+          : int.tryParse(tI?.toString() ?? '') ?? 0;
 
       return Chat(
         chatJid: chatJid,

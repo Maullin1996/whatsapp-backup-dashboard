@@ -64,16 +64,49 @@ class _MessageListState extends ConsumerState<MessageList> {
       data: (messages) {
         if (messages.isEmpty) {
           return Container(
-            decoration: BoxDecoration(
+            width: double.infinity,
+            decoration: const BoxDecoration(
               image: DecorationImage(
                 fit: BoxFit.cover,
                 image: AssetImage('assets/images/fondo.png'),
               ),
             ),
-            child: const Center(
-              child: Text(
-                'Sin Mensajes',
-                style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold),
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 20,
+                ),
+                margin: const EdgeInsets.symmetric(horizontal: 32),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.chat_bubble_outline,
+                      size: 80,
+                      color: Colors.grey,
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'No hay mensajes aún',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Inicia una conversación para empezar',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 13, color: Colors.black87),
+                    ),
+                  ],
+                ),
               ),
             ),
           );

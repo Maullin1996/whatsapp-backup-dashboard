@@ -12,6 +12,7 @@ class ChatsNotifier extends AsyncNotifier<List<Chat>> {
   final List<Chat> _buffer = [];
   Timer? _flushTimer;
   bool _isFlushing = false;
+  bool _disposed = false;
 
   StreamSubscription<Chat>? _realtimeSub;
 
@@ -20,6 +21,7 @@ class ChatsNotifier extends AsyncNotifier<List<Chat>> {
   @override
   Future<List<Chat>> build() async {
     ref.onDispose(() {
+      _disposed = true;
       _realtimeSub?.cancel();
       _realtimeSub = null;
 
@@ -72,12 +74,14 @@ class ChatsNotifier extends AsyncNotifier<List<Chat>> {
   }
 
   void _onRealtimeChat(Chat update) {
+    if (_disposed) return;
     if (update.lastMessageAt <= _lastKnownTimestamp) return;
     _buffer.add(update);
     _scheduleFlush();
   }
 
   void _scheduleFlush() {
+    if (_disposed) return;
     if (_isFlushing) return;
 
     _flushTimer?.cancel();
@@ -85,6 +89,7 @@ class ChatsNotifier extends AsyncNotifier<List<Chat>> {
   }
 
   void _flushBuffer() {
+    if (_disposed) return;
     if (_buffer.isEmpty) return;
 
     _isFlushing = true;
