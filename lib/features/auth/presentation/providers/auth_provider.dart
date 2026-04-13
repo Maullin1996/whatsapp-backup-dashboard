@@ -36,10 +36,12 @@ class AuthSessionNotifier extends Notifier<AuthSessionState> {
     ref.read(chatsProvider.notifier).cancelStream();
     ref.read(messagesProvider.notifier).cancelStream();
     await _repository.logout();
+    ref.invalidate(chatsProvider);
     state = const AuthSessionState.unauthenticated();
   }
 
   void setAuthenticated(AuthenticatedUser user) {
+    ref.invalidate(chatsProvider);
     state = AuthSessionState.authenticated(user);
   }
 }

@@ -20,6 +20,11 @@ class ChatsNotifier extends AsyncNotifier<List<Chat>> {
 
   @override
   Future<List<Chat>> build() async {
+    _chatsByJid.clear();
+    _lastKnownTimestamp = 0;
+    _buffer.clear();
+    _isFlushing = false;
+
     ref.onDispose(() {
       _disposed = true;
       _realtimeSub?.cancel();

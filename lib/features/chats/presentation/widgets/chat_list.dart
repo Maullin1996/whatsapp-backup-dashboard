@@ -41,8 +41,11 @@ class ChatList extends ConsumerWidget {
         _ChateSearchBar(),
         state.when(
           loading: () => const Expanded(child: ChatsListLoading()),
-          error: (error, _) =>
-              Expanded(child: Center(child: Text(mapFailureToMessage(error)))),
+          error: (error, _) => Expanded(
+            child: SelectionArea(
+              child: Center(child: Text(mapFailureToMessage(error))),
+            ),
+          ),
           data: (chats) => Expanded(
             child: Column(
               children: [

@@ -6,15 +6,30 @@ import 'package:whatsapp_monitor_viewer/features/chats/data/datasources/chats_fi
 import 'package:whatsapp_monitor_viewer/features/chats/domain/entities/chat.dart';
 import 'package:whatsapp_monitor_viewer/features/chats/domain/repositories/chats_repository.dart';
 
-//lib/feature/chats/data/repositories/chats_repository_impl.dart
 class ChatsRepositoryImpl implements ChatsRepository {
   final ChatsFirestoreDatasource datasource;
 
   const ChatsRepositoryImpl(this.datasource);
+
+  @override
+  Future<List<String>> getAllowedGroups(String uid) async {
+    return datasource.fetchAllowedGroups(uid);
+  }
+
   @override
   Future<Either<Failure, List<Chat>>> getChats() async {
     try {
-      final rows = await datasource.fetchChats(limit: 200);
+      // Obtener uid del usuario actual
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return const Left(Failure.unknown());
+
+      // Obtener grupos permitidos
+      final allowedGroups = await datasource.fetchAllowedGroups(uid);
+
+      final rows = await datasource.fetchChats(
+        limit: 200,
+        allowedGroups: allowedGroups,
+      );
 
       final Map<String, Chat> chatsByJid = {};
 
@@ -29,7 +44,6 @@ class ChatsRepositoryImpl implements ChatsRepository {
         }
 
         final timestamp = ts is int ? ts : int.tryParse(ts.toString());
-
         final totalImages = tI is int ? tI : int.tryParse(tI.toString());
 
         if (timestamp == null || totalImages == null) continue;
@@ -66,27 +80,35 @@ class ChatsRepositoryImpl implements ChatsRepository {
 
   @override
   Stream<Chat> listenChatUpdate() {
-    return datasource.listenNewMessages().map((data) {
-      // Casteo explícito para evitar LegacyJavaScriptObject en web
-      final chatJid = data['chatJid']?.toString() ?? '';
-      final groupName = data['groupName']?.toString() ?? '';
-      final ts = data['lastMessageAt'];
-      final tI = data['totalImages'];
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return const Stream.empty();
 
-      final timestamp = ts is int
-          ? ts
-          : int.tryParse(ts?.toString() ?? '') ?? 0;
+    // Obtener grupos y luego iniciar stream
+    return Stream.fromFuture(datasource.fetchAllowedGroups(uid)).asyncExpand((
+      allowedGroups,
+    ) {
+      return datasource.listenNewMessages(allowedGroups: allowedGroups).map((
+        data,
+      ) {
+        final chatJid = data['chatJid']?.toString() ?? '';
+        final groupName = data['groupName']?.toString() ?? '';
+        final ts = data['lastMessageAt'];
+        final tI = data['totalImages'];
 
-      final totalImages = tI is int
-          ? tI
-          : int.tryParse(tI?.toString() ?? '') ?? 0;
+        final timestamp = ts is int
+            ? ts
+            : int.tryParse(ts?.toString() ?? '') ?? 0;
+        final totalImages = tI is int
+            ? tI
+            : int.tryParse(tI?.toString() ?? '') ?? 0;
 
-      return Chat(
-        chatJid: chatJid,
-        groupName: groupName,
-        lastMessageAt: timestamp,
-        totalImages: totalImages,
-      );
+        return Chat(
+          chatJid: chatJid,
+          groupName: groupName,
+          lastMessageAt: timestamp,
+          totalImages: totalImages,
+        );
+      });
     });
   }
 }
