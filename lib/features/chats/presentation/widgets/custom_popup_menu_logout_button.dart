@@ -2,7 +2,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_providers.dart';
+import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_session_state.dart';
 
 class CustomPopupMenuLogoutButton extends ConsumerWidget {
   const CustomPopupMenuLogoutButton({super.key});
@@ -14,21 +16,43 @@ class CustomPopupMenuLogoutButton extends ConsumerWidget {
     messenger.showSnackBar(const SnackBar(content: Text('Sesión cerrada')));
   }
 
+  void _onAdminPanel(BuildContext context) {
+    context.push('/admin');
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authSessionProvider);
+    final isAdmin = authState.maybeWhen(
+      authenticated: (user) => user.isAdmin,
+      orElse: () => false,
+    );
     return PopupMenuButton<_ChatMenuAction>(
       position: PopupMenuPosition.under,
       color: Colors.white,
       icon: const Icon(CupertinoIcons.ellipsis_vertical),
       onSelected: (action) {
         switch (action) {
+          case _ChatMenuAction.adminPanel:
+            _onAdminPanel(context);
+            break;
           case _ChatMenuAction.logout:
             _onLogout(context, ref);
             break;
         }
       },
-      itemBuilder: (context) => const [
-        PopupMenuItem<_ChatMenuAction>(
+      itemBuilder: (context) => [
+        if (isAdmin)
+          const PopupMenuItem<_ChatMenuAction>(
+            value: _ChatMenuAction.adminPanel,
+            padding: EdgeInsets.zero,
+            child: _HoverMenuItem(
+              icon: Icons.admin_panel_settings_rounded,
+              text: 'Panel de administración',
+              isAdmin: true,
+            ),
+          ),
+        const PopupMenuItem<_ChatMenuAction>(
           value: _ChatMenuAction.logout,
           padding: EdgeInsets.zero,
           child: _HoverMenuItem(
@@ -44,7 +68,12 @@ class CustomPopupMenuLogoutButton extends ConsumerWidget {
 class _HoverMenuItem extends StatefulWidget {
   final IconData icon;
   final String text;
-  const _HoverMenuItem({required this.icon, required this.text});
+  final bool isAdmin;
+  const _HoverMenuItem({
+    required this.icon,
+    required this.text,
+    this.isAdmin = false,
+  });
 
   @override
   State<_HoverMenuItem> createState() => __HoverMenuItemState();
@@ -78,4 +107,4 @@ class __HoverMenuItemState extends State<_HoverMenuItem> {
   }
 }
 
-enum _ChatMenuAction { logout }
+enum _ChatMenuAction { logout, adminPanel }

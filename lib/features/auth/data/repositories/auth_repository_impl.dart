@@ -20,7 +20,7 @@ class AuthRepositoryImpl implements AuthRepository {
         return const Right(null);
       }
 
-      return Right(mapToDomain(user));
+      return Right(await mapToDomain(user));
     } on AuthFailure catch (failure) {
       return Left(failure);
     } catch (_) {
@@ -35,7 +35,7 @@ class AuthRepositoryImpl implements AuthRepository {
   }) async {
     try {
       final user = await _datasource.login(email: email, password: password);
-      return Right(mapToDomain(user));
+      return Right(await mapToDomain(user));
     } on AuthFailure catch (failure) {
       return Left(failure);
     } catch (_) {

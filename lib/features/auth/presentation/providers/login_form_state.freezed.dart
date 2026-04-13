@@ -25,12 +25,12 @@ $LoginFormStateCopyWith<LoginFormState> get copyWith => _$LoginFormStateCopyWith
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is LoginFormState&&(identical(other.email, email) || other.email == email)&&(identical(other.password, password) || other.password == password)&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&const DeepCollectionEquality().equals(other.error, error));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is LoginFormState&&(identical(other.email, email) || other.email == email)&&(identical(other.password, password) || other.password == password)&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&(identical(other.error, error) || other.error == error));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,email,password,isLoading,const DeepCollectionEquality().hash(error));
+int get hashCode => Object.hash(runtimeType,email,password,isLoading,error);
 
 @override
 String toString() {
@@ -49,7 +49,7 @@ $Res call({
 });
 
 
-
+$AuthFailureCopyWith<$Res>? get error;
 
 }
 /// @nodoc
@@ -71,7 +71,19 @@ as bool,error: freezed == error ? _self.error : error // ignore: cast_nullable_t
 as AuthFailure?,
   ));
 }
+/// Create a copy of LoginFormState
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$AuthFailureCopyWith<$Res>? get error {
+    if (_self.error == null) {
+    return null;
+  }
 
+  return $AuthFailureCopyWith<$Res>(_self.error!, (value) {
+    return _then(_self.copyWith(error: value));
+  });
+}
 }
 
 
@@ -227,12 +239,12 @@ _$LoginFormStateCopyWith<_LoginFormState> get copyWith => __$LoginFormStateCopyW
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _LoginFormState&&(identical(other.email, email) || other.email == email)&&(identical(other.password, password) || other.password == password)&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&const DeepCollectionEquality().equals(other.error, error));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _LoginFormState&&(identical(other.email, email) || other.email == email)&&(identical(other.password, password) || other.password == password)&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&(identical(other.error, error) || other.error == error));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,email,password,isLoading,const DeepCollectionEquality().hash(error));
+int get hashCode => Object.hash(runtimeType,email,password,isLoading,error);
 
 @override
 String toString() {
@@ -251,7 +263,7 @@ $Res call({
 });
 
 
-
+@override $AuthFailureCopyWith<$Res>? get error;
 
 }
 /// @nodoc
@@ -274,7 +286,19 @@ as AuthFailure?,
   ));
 }
 
+/// Create a copy of LoginFormState
+/// with the given fields replaced by the non-null parameter values.
+@override
+@pragma('vm:prefer-inline')
+$AuthFailureCopyWith<$Res>? get error {
+    if (_self.error == null) {
+    return null;
+  }
 
+  return $AuthFailureCopyWith<$Res>(_self.error!, (value) {
+    return _then(_self.copyWith(error: value));
+  });
+}
 }
 
 // dart format on

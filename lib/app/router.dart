@@ -1,6 +1,7 @@
 //router.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:whatsapp_monitor_viewer/features/admin/presentation/pages/admin_page.dart';
 import 'package:whatsapp_monitor_viewer/features/auth/presentation/pages/login_page.dart';
 import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_providers.dart';
 import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_session_state.dart';
@@ -20,6 +21,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           return ImageDetailPage(initialIndex: initialIndex);
         },
       ),
+      GoRoute(path: '/admin', builder: (_, _) => const AdminPage()),
     ],
     redirect: (context, state) {
       final authState = ref.read(authSessionProvider);
@@ -36,10 +38,19 @@ final routerProvider = Provider<GoRouter>((ref) {
         orElse: () => false,
       );
 
+      final isAdmin = authState.maybeWhen(
+        orElse: () => false,
+        authenticated: (user) => user.isAdmin,
+      );
+
+      final location = state.matchedLocation;
+
       final isGoingToLogin = state.matchedLocation == '/login';
+      final isGoingToAdmin = location == '/admin';
 
       if (!isLoggedIn) return isGoingToLogin ? null : '/login';
       if (isGoingToLogin) return '/home';
+      if (isGoingToAdmin && !isAdmin) return '/home';
 
       return null;
     },

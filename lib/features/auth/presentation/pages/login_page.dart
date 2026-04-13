@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:whatsapp_monitor_viewer/core/errors/auth_failure.dart';
 import 'package:whatsapp_monitor_viewer/core/theme/app_colors.dart';
 import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_providers.dart';
-import 'package:whatsapp_monitor_viewer/features/auth/presentation/widget/custom_login_text_form_field.dart';
+import 'package:whatsapp_monitor_viewer/core/shared/widget/custom_login_text_form_field.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
@@ -109,7 +109,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         SizedBox(height: isMobile ? 20 : 24),
 
                         /// EMAIL
-                        CustomLoginTextFormField(
+                        CustomTextFormField(
                           textController: _emailController,
                           labelText: 'email',
                           keyboardType: TextInputType.emailAddress,
@@ -123,7 +123,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         const SizedBox(height: 18),
 
                         /// PASSWORD
-                        CustomLoginTextFormField(
+                        CustomTextFormField(
                           textController: _passwordController,
                           autocorrect: false,
                           enableSuggestions: false,
