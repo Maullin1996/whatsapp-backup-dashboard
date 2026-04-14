@@ -26,7 +26,7 @@ class _CreateUserDialogState extends ConsumerState<CreateUserDialog> {
   }
 
   Future<void> _submit() async {
-    final email = _emailController.text.trim();
+    final email = "${_displayNameController.text.trim()}@gmail.com";
     final password = _passwordController.text.trim();
     final displayName = _displayNameController.text.trim();
     if (email.isEmpty || password.isEmpty || displayName.isEmpty) return;
@@ -74,12 +74,12 @@ class _CreateUserDialogState extends ConsumerState<CreateUserDialog> {
                 prefixIcon: Icon(Icons.person_rounded),
               ),
               const SizedBox(height: 12),
-              CustomTextFormField(
-                textController: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                labelText: 'Correo',
-                prefixIcon: Icon(Icons.email_rounded),
-              ),
+              // CustomTextFormField(
+              //   textController: _emailController,
+              //   keyboardType: TextInputType.emailAddress,
+              //   labelText: 'Correo',
+              //   prefixIcon: Icon(Icons.email_rounded),
+              // ),
               const SizedBox(height: 12),
               CustomTextFormField(
                 textController: _passwordController,

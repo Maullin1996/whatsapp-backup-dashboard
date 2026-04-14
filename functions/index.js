@@ -88,6 +88,33 @@ exports.updateUserPassword = onCall(async (request) => {
   return { success: true };
 });
 
+// ─── Eliminar usuario ───────────────────────────────────────────────────────
+exports.deleteUser = onCall(
+  { invoker: "public" },
+  async (request) => {
+    assertAdmin(request);
+
+    const { uid } = request.data;
+
+    if (!uid) {
+      throw new HttpsError("invalid-argument", "uid es requerido.");
+    }
+
+    try {
+      // Eliminar de Firebase Auth
+      await admin.auth().deleteUser(uid);
+
+      // Eliminar documento de Firestore
+      await firestore.collection("users").doc(uid).delete();
+
+      return { success: true };
+    } catch (e) {
+      console.error("❌ Error en deleteUser:", e.code, e.message);
+      throw new HttpsError("internal", e.message ?? "Error interno del servidor.");
+    }
+  }
+);
+
 // ─── Listar usuarios ──────────────────────────────────────────────────────────
 exports.listUsers = onCall(async (request) => {
   assertAdmin(request);

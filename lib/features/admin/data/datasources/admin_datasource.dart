@@ -18,4 +18,5 @@ abstract class AdminDatasource {
     required String uid,
     required List<String> allowedGroups,
   });
+  Future<void> deleteUser({required String uid});
 }

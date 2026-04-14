@@ -101,4 +101,16 @@ class AdminRepositoryImpl implements AdminRepository {
       return Left(AdminFailure.unknown(e.toString()));
     }
   }
+
+  @override
+  Future<Either<AdminFailure, Unit>> deleteUser({required String uid}) async {
+    try {
+      await _datasource.deleteUser(uid: uid);
+      return const Right(unit);
+    } on FirebaseFunctionsException catch (e) {
+      return Left(mapFunctionsException(e));
+    } catch (e) {
+      return Left(AdminFailure.unknown(e.toString()));
+    }
+  }
 }

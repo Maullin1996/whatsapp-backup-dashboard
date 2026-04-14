@@ -9,6 +9,7 @@ import 'package:whatsapp_monitor_viewer/features/admin/presentation/providers/ad
 import 'package:whatsapp_monitor_viewer/features/admin/presentation/widgets/assign_groups_dialog.dart';
 import 'package:whatsapp_monitor_viewer/features/admin/presentation/widgets/change_password_dialog.dart';
 import 'package:whatsapp_monitor_viewer/features/admin/presentation/widgets/create_user_dialog.dart';
+import 'package:whatsapp_monitor_viewer/features/admin/presentation/widgets/loading_widget.dart';
 
 class AdminPage extends ConsumerWidget {
   const AdminPage({super.key});
@@ -80,32 +81,45 @@ class AdminPage extends ConsumerWidget {
               onPressed: () => _showCreateDialog(context),
             ),
       backgroundColor: Colors.white,
-      body: state.isLoadingUsers
-          ? const Center(
-              child: CircularProgressIndicator(color: AppColors.loadingColor),
-            )
-          : state.users.isEmpty
-          ? const Center(child: Text('No hay usuarios registrados'))
-          : Center(
-              child: ConstrainedBox(
-                // En web limita el ancho máximo para que no se estire
-                constraints: const BoxConstraints(maxWidth: 800),
-                child: ListView.separated(
-                  padding: EdgeInsets.all(isMobile ? 12 : 24),
-                  itemCount: state.users.length,
-                  separatorBuilder: (_, _) =>
-                      SizedBox(height: isMobile ? 8 : 12),
-                  itemBuilder: (context, index) {
-                    final user = state.users[index];
-                    return _UserCard(
-                      user: user,
-                      state: state,
-                      isMobile: isMobile,
-                    );
-                  },
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 400),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        transitionBuilder: (child, animation) =>
+            FadeTransition(opacity: animation, child: child),
+        child: state.isLoadingUsers
+            ? KeyedSubtree(
+                key: const ValueKey('loading'),
+                child: Center(child: const LoadingWidget()),
+              )
+            : state.users.isEmpty
+            ? KeyedSubtree(
+                key: const ValueKey('empty'),
+                child: const Center(child: Text('No hay usuarios registrados')),
+              )
+            : KeyedSubtree(
+                key: const ValueKey('users'),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 800),
+                    child: ListView.separated(
+                      padding: EdgeInsets.all(isMobile ? 12 : 24),
+                      itemCount: state.users.length,
+                      separatorBuilder: (_, _) =>
+                          SizedBox(height: isMobile ? 8 : 12),
+                      itemBuilder: (context, index) {
+                        final user = state.users[index];
+                        return _UserCard(
+                          user: user,
+                          state: state,
+                          isMobile: isMobile,
+                        );
+                      },
+                    ),
+                  ),
                 ),
               ),
-            ),
+      ),
     );
   }
 
@@ -156,11 +170,13 @@ class _UserCard extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        user.email,
-                        style: TextStyle(
-                          fontSize: isMobile ? 11 : 14,
-                          color: Colors.black,
+                      SelectionArea(
+                        child: Text(
+                          user.email,
+                          style: TextStyle(
+                            fontSize: isMobile ? 11 : 14,
+                            color: Colors.black,
+                          ),
                         ),
                       ),
                     ],
@@ -219,6 +235,10 @@ class _UserCard extends ConsumerWidget {
                       _actionButton(context, user),
                       const SizedBox(height: 4),
                       _groupsButton(context, user),
+                      if (user.email != "correodeprueba@gmail.com") ...[
+                        const SizedBox(height: 4),
+                        _deleteButton(context, user, ref),
+                      ],
                     ],
                   )
                 : Row(
@@ -227,6 +247,10 @@ class _UserCard extends ConsumerWidget {
                       _actionButton(context, user),
                       const SizedBox(width: 8),
                       _groupsButton(context, user),
+                      if (user.email != "correodeprueba@gmail.com") ...[
+                        const SizedBox(height: 4),
+                        _deleteButton(context, user, ref),
+                      ],
                     ],
                   ),
           ],
@@ -273,6 +297,55 @@ class _UserCard extends ConsumerWidget {
       onPressed: () => showDialog(
         context: context,
         builder: (_) => AssignGroupsDialog(user: user),
+      ),
+    );
+  }
+
+  Widget _deleteButton(BuildContext context, AppUser user, WidgetRef ref) {
+    return TextButton.icon(
+      icon: const Icon(Icons.delete_rounded, size: 18, color: Colors.red),
+      label: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+      onPressed: () => showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text(
+            '¿Eliminar usuario?',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          content: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: 500),
+            child: Text(
+              'Esta acción eliminará permanentemente a ${user.displayName} (${user.email}). No se puede deshacer.',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text(
+                'Cancelar',
+                style: TextStyle(color: Colors.green),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              onPressed: () {
+                Navigator.of(context).pop();
+                ref.read(adminProvider.notifier).deleteUser(uid: user.uid);
+              },
+              child: const Text('Eliminar'),
+            ),
+          ],
+        ),
       ),
     );
   }

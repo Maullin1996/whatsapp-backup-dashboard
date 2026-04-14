@@ -23,4 +23,5 @@ abstract class AdminRepository {
     required String uid,
     required List<String> allowedGroups,
   });
+  Future<Either<AdminFailure, Unit>> deleteUser({required String uid});
 }

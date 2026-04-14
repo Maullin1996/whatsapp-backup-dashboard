@@ -17,7 +17,10 @@ class AdminNotifier extends Notifier<AdminState> {
   }
 
   Future<void> loadUsers() async {
-    state = state.copyWith(isLoadingUsers: true, error: null);
+    // Solo mostrar loading si no hay usuarios previos
+    if (state.users.isEmpty) {
+      state = state.copyWith(isLoadingUsers: true, error: null);
+    }
     final result = await _repository.listUsers();
     result.fold(
       (failure) =>
@@ -59,6 +62,28 @@ class AdminNotifier extends Notifier<AdminState> {
         isSubmitting: false,
         users: [...state.users, user],
         successMessage: 'Usuario creado exitosamente',
+      ),
+    );
+  }
+
+  Future<void> deleteUser({required String uid}) async {
+    final updatedUsers = state.users.where((u) => u.uid != uid).toList();
+    state = state.copyWith(
+      users: updatedUsers,
+      isSubmitting: true,
+      error: null,
+    );
+
+    final result = await _repository.deleteUser(uid: uid);
+
+    result.fold(
+      (failure) {
+        state = state.copyWith(isSubmitting: false, error: failure);
+        loadUsers();
+      },
+      (_) => state = state.copyWith(
+        isSubmitting: false,
+        successMessage: 'Usuario eliminado',
       ),
     );
   }

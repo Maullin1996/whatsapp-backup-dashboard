@@ -86,4 +86,9 @@ class AdminDatasourceImpl implements AdminDatasource {
       'updateUserGroups',
     ).call({'uid': uid, 'allowedGroups': allowedGroups});
   }
+
+  @override
+  Future<void> deleteUser({required String uid}) async {
+    await _fn('deleteUser').call({'uid': uid});
+  }
 }
