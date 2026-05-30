@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:extended_image/extended_image.dart';
 import 'package:go_router/go_router.dart';
 import 'package:web/web.dart' as web;
-import 'package:whatsapp_monitor_viewer/core/responsive/responsive_layout.dart';
+import 'package:whatsapp_monitor_viewer/core/responsive/breakpoints.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/domain/entities/message.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/helpers/find_initial_index.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/providers/chat_image_items_provider.dart';
@@ -14,42 +14,22 @@ import 'package:whatsapp_monitor_viewer/features/messages/presentation/widgets/m
 class MessageBubble extends StatelessWidget {
   final Message message;
   final bool showSenderName;
+  final double screenWidth;
+
   const MessageBubble({
     super.key,
     required this.message,
     required this.showSenderName,
+    required this.screenWidth,
   });
 
   @override
   Widget build(BuildContext context) {
-    return ResponsiveLayout(
-      mobile: _MessageBubbleMobile(
-        message: message,
-        showSenderName: showSenderName,
-      ),
-      desktop: _MessageBubbleDesktop(
-        message: message,
-        showSenderName: showSenderName,
-      ),
-    );
-  }
-}
-
-class _MessageBubbleMobile extends StatelessWidget {
-  final Message message;
-  final bool showSenderName;
-
-  const _MessageBubbleMobile({
-    required this.message,
-    required this.showSenderName,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isMobile = screenWidth < AppBreakpoints.mobile;
+    final double maximumBubbleWidth = isMobile ? screenWidth * 0.92 : 420.0;
 
     return Container(
-      constraints: BoxConstraints(maxWidth: screenWidth * 0.92),
+      constraints: BoxConstraints(maxWidth: maximumBubbleWidth),
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: const Color(0xFFFFFFFF),
@@ -81,77 +61,8 @@ class _MessageBubbleMobile extends StatelessWidget {
           if (message.isImage)
             _MediaPreview(
               storagePath: message.storagePath!,
-              displayWidth: screenWidth * 0.85,
-              cacheDimension: 640,
-            ),
-          if (message.caption != null && message.caption!.isNotEmpty)
-            CustomRichText(
-              keyParam: 'Mensaje:  ',
-              valueParam: message.caption!,
-            ),
-          MessageInformationWidget(message: message),
-          const SizedBox(height: 4),
-          Align(
-            alignment: Alignment.bottomRight,
-            child: Text(
-              message.messageDate,
-              style: Theme.of(
-                context,
-              ).textTheme.labelSmall?.copyWith(color: Colors.grey),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MessageBubbleDesktop extends StatelessWidget {
-  final Message message;
-  final bool showSenderName;
-
-  const _MessageBubbleDesktop({
-    required this.message,
-    required this.showSenderName,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 420),
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFFFFF),
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            blurRadius: 0.5,
-            offset: Offset(0, 0.2),
-            color: Colors.black38,
-            spreadRadius: 0.5,
-            blurStyle: BlurStyle.normal,
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (showSenderName && message.senderName.trim().isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: SelectableText(
-                message.senderName,
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: Colors.teal,
-                ),
-              ),
-            ),
-          if (message.isImage)
-            _MediaPreview(
-              storagePath: message.storagePath!,
-              displayWidth: 420.0,
-              cacheDimension: 900,
+              displayWidth: isMobile ? screenWidth * 0.85 : 420.0,
+              cacheDimension: isMobile ? 640 : 900,
             ),
           if (message.caption != null && message.caption!.isNotEmpty)
             CustomRichText(

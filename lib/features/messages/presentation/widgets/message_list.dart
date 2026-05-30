@@ -7,6 +7,19 @@ import 'package:whatsapp_monitor_viewer/features/messages/presentation/widgets/g
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/widgets/message_appear_animation.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/widgets/message_bubble.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/providers/messages_provider.dart';
+import 'package:whatsapp_monitor_viewer/features/messages/domain/entities/message.dart';
+
+class _MessageListItem {
+  final Message message;
+  final bool showSenderName;
+  final bool showDateSeparator;
+
+  const _MessageListItem({
+    required this.message,
+    required this.showSenderName,
+    required this.showDateSeparator,
+  });
+}
 
 class MessageList extends ConsumerStatefulWidget {
   const MessageList({super.key});
@@ -16,8 +29,14 @@ class MessageList extends ConsumerStatefulWidget {
 }
 
 class _MessageListState extends ConsumerState<MessageList> {
+  static const _backgroundDecoration = BoxDecoration(
+    image: DecorationImage(
+      fit: BoxFit.cover,
+      image: AssetImage('assets/images/fondo.png'),
+    ),
+  );
+
   late final ScrollController _controller;
-  bool _showGoToLatest = false;
 
   @override
   void initState() {
@@ -37,13 +56,6 @@ class _MessageListState extends ConsumerState<MessageList> {
 
   void _onScroll() {
     if (!_controller.hasClients) return;
-
-    final shouldShow = _controller.offset > 200;
-
-    if (shouldShow != _showGoToLatest) {
-      _showGoToLatest = shouldShow;
-      setState(() {});
-    }
 
     if (_controller.position.pixels >=
         _controller.position.maxScrollExtent - 200) {
@@ -65,12 +77,7 @@ class _MessageListState extends ConsumerState<MessageList> {
         if (messages.isEmpty) {
           return Container(
             width: double.infinity,
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                fit: BoxFit.cover,
-                image: AssetImage('assets/images/fondo.png'),
-              ),
-            ),
+            decoration: _backgroundDecoration,
             child: Center(
               child: Container(
                 padding: const EdgeInsets.symmetric(
@@ -82,16 +89,16 @@ class _MessageListState extends ConsumerState<MessageList> {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: Column(
+                child: const Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.chat_bubble_outline,
                       size: 80,
                       color: Colors.grey,
                     ),
-                    const SizedBox(height: 12),
-                    const Text(
+                    SizedBox(height: 12),
+                    Text(
                       'No hay mensajes aún',
                       textAlign: TextAlign.center,
                       style: TextStyle(
@@ -99,8 +106,8 @@ class _MessageListState extends ConsumerState<MessageList> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    const Text(
+                    SizedBox(height: 6),
+                    Text(
                       'Inicia una conversación para empezar',
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 13, color: Colors.black87),
@@ -111,14 +118,30 @@ class _MessageListState extends ConsumerState<MessageList> {
             ),
           );
         }
-        return Container(
-          decoration: BoxDecoration(
-            image: DecorationImage(
-              fit: BoxFit.cover,
 
-              image: AssetImage('assets/images/fondo.png'),
-            ),
-          ),
+        final screenWidth = MediaQuery.sizeOf(context).width;
+
+        final items = List.generate(messages.length, (index) {
+          final msg = messages[index];
+          final prevMsg = index + 1 < messages.length
+              ? messages[index + 1]
+              : null;
+          return _MessageListItem(
+            message: msg,
+            showSenderName:
+                prevMsg == null || prevMsg.senderName != msg.senderName,
+            showDateSeparator: prevMsg == null ||
+                DateTime.fromMillisecondsSinceEpoch(msg.messageTimestamp)
+                        .toLocal()
+                        .day !=
+                    DateTime.fromMillisecondsSinceEpoch(
+                      prevMsg.messageTimestamp,
+                    ).toLocal().day,
+          );
+        });
+
+        return Container(
+          decoration: _backgroundDecoration,
           child: MessageListScrollController(
             scrollToLatest: _scrollToLatestMessage,
             child: Stack(
@@ -127,32 +150,17 @@ class _MessageListState extends ConsumerState<MessageList> {
                   controller: _controller,
                   padding: const EdgeInsets.only(bottom: 12),
                   reverse: true,
-                  addAutomaticKeepAlives: false, // Añade esto
+                  addAutomaticKeepAlives: false,
                   addRepaintBoundaries: true,
-                  itemCount: messages.length,
+                  cacheExtent: 800,
+                  itemCount: items.length,
                   itemBuilder: (context, index) {
-                    final msg = messages[index];
-
-                    final prevMsg = index + 1 < messages.length
-                        ? messages[index + 1]
-                        : null;
-                    final showSenderName =
-                        prevMsg == null || prevMsg.senderName != msg.senderName;
-
-                    final showDateSeparator =
-                        prevMsg == null ||
-                        DateTime.fromMillisecondsSinceEpoch(
-                              msg.messageTimestamp,
-                            ).toLocal().day !=
-                            DateTime.fromMillisecondsSinceEpoch(
-                              prevMsg.messageTimestamp,
-                            ).toLocal().day;
-
+                    final item = items[index];
                     return RepaintBoundary(
-                      key: ValueKey(msg.id),
+                      key: ValueKey(item.message.id),
                       child: Column(
                         children: [
-                          if (showDateSeparator)
+                          if (item.showDateSeparator)
                             Padding(
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               child: Container(
@@ -165,7 +173,7 @@ class _MessageListState extends ConsumerState<MessageList> {
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Text(
-                                  formatDayLabel(msg.messageTimestamp),
+                                  formatDayLabel(item.message.messageTimestamp),
                                   style: Theme.of(context).textTheme.labelMedium
                                       ?.copyWith(fontWeight: FontWeight.w600),
                                 ),
@@ -175,14 +183,15 @@ class _MessageListState extends ConsumerState<MessageList> {
                             index: index,
                             child: Padding(
                               padding: EdgeInsets.only(
-                                top: showSenderName ? 10 : 2,
+                                top: item.showSenderName ? 10 : 2,
                                 bottom: 12,
                                 left: 12,
                                 right: 12,
                               ),
                               child: MessageBubble(
-                                message: msg,
-                                showSenderName: showSenderName,
+                                message: item.message,
+                                showSenderName: item.showSenderName,
+                                screenWidth: screenWidth,
                               ),
                             ),
                           ),
@@ -194,22 +203,7 @@ class _MessageListState extends ConsumerState<MessageList> {
                 Positioned(
                   bottom: 20,
                   right: 20,
-
-                  child: IgnorePointer(
-                    ignoring: !_showGoToLatest,
-                    child: AnimatedSlide(
-                      offset: _showGoToLatest
-                          ? Offset.zero
-                          : const Offset(0, 0.25),
-                      duration: const Duration(milliseconds: 220),
-                      curve: Curves.easeOutCubic,
-                      child: AnimatedOpacity(
-                        opacity: _showGoToLatest ? 1.0 : 0.0,
-                        duration: const Duration(milliseconds: 180),
-                        child: const GoToLatestMessageButton(),
-                      ),
-                    ),
-                  ),
+                  child: _GoToLatestButton(controller: _controller),
                 ),
               ],
             ),
@@ -229,13 +223,57 @@ class _MessageListState extends ConsumerState<MessageList> {
         );
       },
       loading: () => Container(
-        decoration: const BoxDecoration(
-          image: DecorationImage(
-            fit: BoxFit.cover,
-            image: AssetImage('assets/images/fondo.png'),
-          ),
+        decoration: _backgroundDecoration,
+        child: const Center(child: MessageListLoading()),
+      ),
+    );
+  }
+}
+
+class _GoToLatestButton extends StatefulWidget {
+  final ScrollController controller;
+  const _GoToLatestButton({required this.controller});
+
+  @override
+  State<_GoToLatestButton> createState() => _GoToLatestButtonState();
+}
+
+class _GoToLatestButtonState extends State<_GoToLatestButton> {
+  bool _show = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_onScroll);
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!widget.controller.hasClients) return;
+    final shouldShow = widget.controller.offset > 200;
+    if (shouldShow != _show) {
+      setState(() => _show = shouldShow);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      ignoring: !_show,
+      child: AnimatedSlide(
+        offset: _show ? Offset.zero : const Offset(0, 0.25),
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+        child: AnimatedOpacity(
+          opacity: _show ? 1.0 : 0.0,
+          duration: const Duration(milliseconds: 180),
+          child: const GoToLatestMessageButton(),
         ),
-        child: Center(child: const MessageListLoading()),
       ),
     );
   }

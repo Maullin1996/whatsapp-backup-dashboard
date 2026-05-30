@@ -78,6 +78,7 @@ void main() {
                 child: MessageBubble(
                   message: message,
                   showSenderName: showSenderName,
+                  screenWidth: 800,
                 ),
               ),
             );
