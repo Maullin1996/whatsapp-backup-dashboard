@@ -1,4 +1,4 @@
-const CACHE_NAME = 'whatsapp-monitor-v1';
+const CACHE_NAME = 'whatsapp-monitor-v2';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -8,18 +8,6 @@ const urlsToCache = [
   '/assets/assets/images/edicion-de-fotos.png',
   '/assets/assets/images/fondo.png',
   '/assets/assets/images/blank-profile.png',
-  '/assets/assets/images/chats.png',
-  '/assets/assets/images/home.png',
-  '/assets/assets/images/image_data.png',
-  '/assets/assets/images/loading.gif',
-  '/assets/assets/images/login.png',
-  '/assets/assets/images/mensaje.png',
-  '/assets/assets/images/mensajes.png',
-  // Cache Firebase assets if needed
-  'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js',
-  'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js',
-  'https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js',
-  'https://www.gstatic.com/firebasejs/9.22.0/firebase-storage.js'
 ];
 
 // Install event - cache resources
@@ -53,7 +41,7 @@ self.addEventListener('fetch', (event) => {
           }).catch(() => {
             // If network fails and no cache, return a placeholder
             if (event.request.url.includes('firebasestorage.googleapis.com')) {
-              return caches.match('/assets/images/image_data.png');
+              return caches.match('/assets/assets/images/fondo.png');
             }
           });
         })
