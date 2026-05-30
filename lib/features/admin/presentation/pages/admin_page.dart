@@ -10,6 +10,9 @@ import 'package:whatsapp_monitor_viewer/features/admin/presentation/widgets/assi
 import 'package:whatsapp_monitor_viewer/features/admin/presentation/widgets/change_password_dialog.dart';
 import 'package:whatsapp_monitor_viewer/features/admin/presentation/widgets/create_user_dialog.dart';
 import 'package:whatsapp_monitor_viewer/features/admin/presentation/widgets/loading_widget.dart';
+import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_session_state.dart';
+
+import '../../../auth/presentation/providers/auth_providers.dart';
 
 class AdminPage extends ConsumerWidget {
   const AdminPage({super.key});
@@ -141,6 +144,12 @@ class _UserCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authSessionProvider);
+    final isSuperAdmin = authState.maybeWhen(
+      authenticated: (user) => user.isSuperAdmin,
+      orElse: () => false,
+    );
+
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -161,7 +170,10 @@ class _UserCard extends ConsumerWidget {
                       ? Colors.grey.shade300
                       : AppColors.primaryGreen.withAlpha(40),
                   child: Icon(
-                    Icons.person,
+                    // ← mostrar ícono de admin si corresponde
+                    user.isAdmin
+                        ? Icons.admin_panel_settings_rounded
+                        : Icons.person,
                     color: user.disabled ? Colors.grey : AppColors.primaryGreen,
                   ),
                 ),
@@ -179,6 +191,25 @@ class _UserCard extends ConsumerWidget {
                           ),
                         ),
                       ),
+                      // ← badge de rol
+                      if (user.isSuperAdmin)
+                        Text(
+                          'SuperAdmin',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.purple,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        )
+                      else if (user.isAdmin)
+                        Text(
+                          'Admin',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: AppColors.primaryGreen,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -194,7 +225,6 @@ class _UserCard extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 8),
-            // Grupos — en mobile se hace scroll horizontal si hay muchos
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
@@ -227,7 +257,6 @@ class _UserCard extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 4),
-            // Acciones — en mobile se apilan, en web van en fila
             isMobile
                 ? Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -235,7 +264,12 @@ class _UserCard extends ConsumerWidget {
                       _actionButton(context, user),
                       const SizedBox(height: 4),
                       _groupsButton(context, user),
-                      if (user.email != "correodeprueba@gmail.com") ...[
+                      // ← botón de rol solo para superAdmin y no sobre sí mismo
+                      if (isSuperAdmin && !user.isSuperAdmin) ...[
+                        const SizedBox(height: 4),
+                        _roleButton(context, user, ref),
+                      ],
+                      if (!user.isSuperAdmin) ...[
                         const SizedBox(height: 4),
                         _deleteButton(context, user, ref),
                       ],
@@ -247,12 +281,86 @@ class _UserCard extends ConsumerWidget {
                       _actionButton(context, user),
                       const SizedBox(width: 8),
                       _groupsButton(context, user),
-                      if (user.email != "correodeprueba@gmail.com") ...[
-                        const SizedBox(height: 4),
+                      if (isSuperAdmin && !user.isSuperAdmin) ...[
+                        const SizedBox(width: 8),
+                        _roleButton(context, user, ref),
+                      ],
+                      if (!user.isSuperAdmin) ...[
+                        const SizedBox(width: 8),
                         _deleteButton(context, user, ref),
                       ],
                     ],
                   ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ← nuevo botón
+  Widget _roleButton(BuildContext context, AppUser user, WidgetRef ref) {
+    final isAdmin = user.isAdmin;
+    return TextButton.icon(
+      icon: Icon(
+        isAdmin
+            ? Icons.person_remove_rounded
+            : Icons.admin_panel_settings_rounded,
+        size: 18,
+        color: isAdmin ? Colors.orange : Colors.purple,
+      ),
+      label: Text(
+        isAdmin ? 'Quitar admin' : 'Hacer admin',
+        style: TextStyle(
+          color: isAdmin ? Colors.orange : Colors.purple,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      onPressed: () => showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            isAdmin ? '¿Quitar permisos de admin?' : '¿Hacer administrador?',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 500),
+            child: Text(
+              isAdmin
+                  ? '${user.displayName} perderá acceso al panel de administración.'
+                  : '${user.displayName} podrá gestionar usuarios y grupos.',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text(
+                'Cancelar',
+                style: TextStyle(color: Colors.green),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isAdmin ? Colors.orange : Colors.purple,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              onPressed: () {
+                Navigator.of(context).pop();
+                ref
+                    .read(adminProvider.notifier)
+                    .setUserRole(
+                      uid: user.uid,
+                      role: isAdmin ? 'user' : 'admin',
+                    );
+              },
+              child: Text(isAdmin ? 'Quitar admin' : 'Hacer admin'),
+            ),
           ],
         ),
       ),
@@ -317,7 +425,7 @@ class _UserCard extends ConsumerWidget {
             style: TextStyle(fontWeight: FontWeight.bold),
           ),
           content: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: 500),
+            constraints: const BoxConstraints(maxWidth: 500),
             child: Text(
               'Esta acción eliminará permanentemente a ${user.displayName} (${user.email}). No se puede deshacer.',
             ),

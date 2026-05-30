@@ -42,6 +42,7 @@ class AdminDatasourceImpl implements AdminDatasource {
         .toList();
   }
 
+  // En listUsers, actualizar el mapeo para leer isAdmin e isSuperAdmin:
   @override
   Future<List<AppUser>> listUsers() async {
     final res = await _fn('listUsers').call();
@@ -54,6 +55,8 @@ class AdminDatasourceImpl implements AdminDatasource {
             displayName: u['displayName'] as String,
             disabled: u['disabled'] as bool,
             allowedGroups: List<String>.from(u['allowedGroups'] ?? []),
+            isAdmin: u['isAdmin'] as bool? ?? false, // ← nuevo
+            isSuperAdmin: u['isSuperAdmin'] as bool? ?? false, // ← nuevo
           ),
         )
         .toList();
@@ -90,5 +93,10 @@ class AdminDatasourceImpl implements AdminDatasource {
   @override
   Future<void> deleteUser({required String uid}) async {
     await _fn('deleteUser').call({'uid': uid});
+  }
+
+  @override
+  Future<void> setUserRole({required String uid, required String role}) async {
+    await _fn('setUserRole').call({'uid': uid, 'role': role});
   }
 }

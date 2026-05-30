@@ -205,6 +205,46 @@ class AdminNotifier extends Notifier<AdminState> {
     );
   }
 
+  Future<void> setUserRole({
+    required String uid,
+    required String role, // 'admin' | 'user'
+  }) async {
+    // Actualizar localmente para respuesta inmediata
+    final updatedUsers = state.users.map((u) {
+      if (u.uid != uid) return u;
+      return AppUser(
+        uid: u.uid,
+        email: u.email,
+        displayName: u.displayName,
+        disabled: u.disabled,
+        allowedGroups: u.allowedGroups,
+        isAdmin: role == 'admin',
+        isSuperAdmin: u.isSuperAdmin,
+      );
+    }).toList();
+
+    state = state.copyWith(
+      users: updatedUsers,
+      isSubmitting: true,
+      error: null,
+    );
+
+    final result = await _repository.setUserRole(uid: uid, role: role);
+
+    result.fold(
+      (failure) {
+        state = state.copyWith(isSubmitting: false, error: failure);
+        loadUsers(); // revertir recargando desde servidor
+      },
+      (_) => state = state.copyWith(
+        isSubmitting: false,
+        successMessage: role == 'admin'
+            ? 'Usuario promovido a administrador'
+            : 'Permisos de administrador removidos',
+      ),
+    );
+  }
+
   void clearMessages() {
     state = state.copyWith(error: null, successMessage: null);
   }

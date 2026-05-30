@@ -113,4 +113,19 @@ class AdminRepositoryImpl implements AdminRepository {
       return Left(AdminFailure.unknown(e.toString()));
     }
   }
+
+  @override
+  Future<Either<AdminFailure, Unit>> setUserRole({
+    required String uid,
+    required String role,
+  }) async {
+    try {
+      await _datasource.setUserRole(uid: uid, role: role);
+      return const Right(unit);
+    } on FirebaseFunctionsException catch (e) {
+      return Left(mapFunctionsException(e));
+    } catch (e) {
+      return Left(AdminFailure.unknown(e.toString()));
+    }
+  }
 }

@@ -3,6 +3,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:whatsapp_monitor_viewer/core/theme/app_colors.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/controllers/image_zoom_controller.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/domain/entities/image_view_item.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/providers/chat_image_items_provider.dart';
@@ -125,6 +126,8 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage> {
               shift: item.shift,
               name: item.senderName,
               localTime: item.localTime,
+              isEdited: item.isEdited, // 👈
+              shiftImageIndex: item.shiftImageIndex, // 👈
               zoomOut: _zoom.zoomOut,
               zoomIn: _zoom.zoomIn,
               zoomRest: _zoom.reset,
@@ -304,6 +307,8 @@ class _ViwerTopBar extends StatelessWidget {
   final String name;
   final String localTime;
   final String shift;
+  final bool isEdited; // 👈
+  final int? shiftImageIndex; // 👈
   final VoidCallback zoomOut;
   final VoidCallback zoomIn;
   final VoidCallback zoomRest;
@@ -313,6 +318,8 @@ class _ViwerTopBar extends StatelessWidget {
     required this.name,
     required this.localTime,
     required this.shift,
+    required this.isEdited, // 👈
+    this.shiftImageIndex, // 👈
     required this.zoomOut,
     required this.zoomIn,
     required this.zoomRest,
@@ -378,6 +385,20 @@ class _ViwerTopBar extends StatelessWidget {
               ),
               SelectableText(localTime, style: TextStyle(fontSize: fontSize)),
               SelectableText(shift, style: TextStyle(fontSize: fontSize)),
+              if (shiftImageIndex != null)
+                SelectableText(
+                  '# $shiftImageIndex',
+                  style: TextStyle(fontSize: fontSize),
+                ),
+              if (isEdited)
+                SelectableText(
+                  'Editado',
+                  style: TextStyle(
+                    fontSize: fontSize,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.errorMessage,
+                  ),
+                ),
             ],
           ),
         ),

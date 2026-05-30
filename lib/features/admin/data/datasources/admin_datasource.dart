@@ -19,4 +19,8 @@ abstract class AdminDatasource {
     required List<String> allowedGroups,
   });
   Future<void> deleteUser({required String uid});
+  Future<void> setUserRole({
+    required String uid,
+    required String role,
+  }); // ← nuevo
 }

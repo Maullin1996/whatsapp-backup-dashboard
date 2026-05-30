@@ -9,6 +9,8 @@ class Message {
   final String localTime;
   final String shift;
   final String messageDate;
+  final bool isEdited;
+  final int? shiftImageIndex;
 
   Message({
     required this.id,
@@ -21,6 +23,8 @@ class Message {
     required this.localTime,
     required this.shift,
     required this.messageDate,
+    this.isEdited = false,
+    this.shiftImageIndex,
   });
 
   bool get isImage => hasMedia && storagePath != null;

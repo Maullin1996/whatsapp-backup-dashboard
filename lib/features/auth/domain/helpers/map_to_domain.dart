@@ -4,9 +4,12 @@ import 'package:whatsapp_monitor_viewer/features/auth/domain/entities/authentica
 Future<AuthenticatedUser> mapToDomain(User user) async {
   final idTokenResult = await user.getIdTokenResult(true);
   final isAdmin = idTokenResult.claims?['admin'] == true;
+  final isSuperAdmin = idTokenResult.claims?['superAdmin'] == true; // ← nuevo
+
   return AuthenticatedUser(
     id: user.uid,
     email: user.email ?? '',
     isAdmin: isAdmin,
+    isSuperAdmin: isSuperAdmin, // ← nuevo
   );
 }

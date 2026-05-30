@@ -9,6 +9,7 @@ Message toDomain(RawMessageModel model) {
 
   final shift = getCurrentShift(date);
   final shiftLabel = shiftNames[shift];
+
   return Message(
     id: model.id,
     chatJid: model.chatJid,
@@ -20,5 +21,7 @@ Message toDomain(RawMessageModel model) {
     storagePath: model.storagePath,
     shift: shiftLabel!,
     messageDate: date.toString().substring(11, 16),
+    isEdited: model.isEdited,
+    shiftImageIndex: model.shiftImageIndex,
   );
 }

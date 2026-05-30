@@ -5,16 +5,16 @@ const urlsToCache = [
   '/manifest.json',
   '/flutter_bootstrap.js',
   '/main.dart.js',
-  '/assets/images/edicion-de-fotos.png',
-  '/assets/images/fondo.png',
-  '/assets/images/blank-profile.png',
-  '/assets/images/chats.png',
-  '/assets/images/home.png',
-  '/assets/images/image_data.png',
-  '/assets/images/loading.gif',
-  '/assets/images/login.png',
-  '/assets/images/mensaje.png',
-  '/assets/images/mensajes.png',
+  '/assets/assets/images/edicion-de-fotos.png',
+  '/assets/assets/images/fondo.png',
+  '/assets/assets/images/blank-profile.png',
+  '/assets/assets/images/chats.png',
+  '/assets/assets/images/home.png',
+  '/assets/assets/images/image_data.png',
+  '/assets/assets/images/loading.gif',
+  '/assets/assets/images/login.png',
+  '/assets/assets/images/mensaje.png',
+  '/assets/assets/images/mensajes.png',
   // Cache Firebase assets if needed
   'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js',
   'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js',
@@ -35,7 +35,7 @@ self.addEventListener('install', (event) => {
 // Fetch event - serve from cache when offline
 self.addEventListener('fetch', (event) => {
   // Handle image requests specially for offline viewing
-  if (event.request.url.includes('/assets/images/') ||
+  if (event.request.url.includes('/assets/assets/images/') ||
       event.request.url.includes('firebasestorage.googleapis.com')) {
     event.respondWith(
       caches.match(event.request)

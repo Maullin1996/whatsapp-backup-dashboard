@@ -129,7 +129,6 @@ class _MessageListState extends ConsumerState<MessageList> {
                   reverse: true,
                   addAutomaticKeepAlives: false, // Añade esto
                   addRepaintBoundaries: true,
-                  cacheExtent: 1000, // Aumenta el cache
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
                     final msg = messages[index];

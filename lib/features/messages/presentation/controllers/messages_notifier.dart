@@ -7,6 +7,7 @@ import 'package:whatsapp_monitor_viewer/features/messages/domain/entities/date_f
 import 'package:whatsapp_monitor_viewer/features/messages/domain/entities/message.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/domain/entities/messages_page.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/providers/date_filter_provider.dart';
+import 'package:whatsapp_monitor_viewer/features/messages/presentation/providers/firestore_providers.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/providers/messages_repository_provider.dart';
 
 class MessagesNotifier extends AsyncNotifier<List<Message>> {
@@ -28,6 +29,10 @@ class MessagesNotifier extends AsyncNotifier<List<Message>> {
   DateFilter _activeFilter = const DateFilterTodayAndYesterday();
 
   int _lastKnownTimestamp = 0;
+
+  // ✅ Caché de IDs ya consultados y editados
+  final Set<String> _checkedIds = {};
+  final Set<String> _editedIds = {};
 
   @override
   FutureOr<List<Message>> build() async {
@@ -60,6 +65,67 @@ class MessagesNotifier extends AsyncNotifier<List<Message>> {
     return f.runtimeType.toString();
   }
 
+  // ==================================================
+  // 🔀 SORT ESTABLE
+  // ==================================================
+  List<Message> _sortMessages(List<Message> messages) {
+    final sorted = List<Message>.from(messages);
+    sorted.sort((a, b) {
+      final tsCmp = b.messageTimestamp.compareTo(a.messageTimestamp);
+      if (tsCmp != 0) return tsCmp;
+
+      // Empate de timestamp: desempatar con shiftImageIndex si existe
+      final aIdx = a.shiftImageIndex;
+      final bIdx = b.shiftImageIndex;
+
+      if (aIdx != null && bIdx != null) {
+        return bIdx.compareTo(aIdx);
+      }
+
+      // Fallback: por id alfabético
+      return b.id.compareTo(a.id);
+    });
+    return sorted;
+  }
+
+  // ==================================================
+  // ✅ CRUCE CON EDIT_ATTEMPTS CON CACHÉ
+  // ==================================================
+  Future<List<Message>> _enrichWithEdits(List<Message> messages) async {
+    final uncheckedIds = messages
+        .map((m) => m.id)
+        .where((id) => !_checkedIds.contains(id))
+        .toList();
+
+    if (uncheckedIds.isNotEmpty) {
+      final datasource = ref.read(editAttemptsDatasourceProvider);
+      final newEditedIds = await datasource.fetchEditedMessageIds(uncheckedIds);
+
+      _checkedIds.addAll(uncheckedIds);
+      _editedIds.addAll(newEditedIds);
+    }
+
+    return messages.map((m) {
+      if (_editedIds.contains(m.id)) {
+        return Message(
+          id: m.id,
+          chatJid: m.chatJid,
+          senderName: m.senderName,
+          hasMedia: m.hasMedia,
+          messageTimestamp: m.messageTimestamp,
+          localTime: m.localTime,
+          caption: m.caption,
+          storagePath: m.storagePath,
+          shift: m.shift,
+          messageDate: m.messageDate,
+          isEdited: true,
+          shiftImageIndex: m.shiftImageIndex,
+        );
+      }
+      return m;
+    }).toList();
+  }
+
   Future<void> _loadFiltered(String chatJid, DateFilter filter) async {
     state = const AsyncLoading();
 
@@ -73,14 +139,17 @@ class MessagesNotifier extends AsyncNotifier<List<Message>> {
       limit: _pageSize,
     );
 
-    result.fold(
-      (failure) {
+    await result.fold(
+      (failure) async {
         state = AsyncError(failure, StackTrace.current);
       },
-      (MessagesPage page) {
+      (MessagesPage page) async {
+        final enriched = await _enrichWithEdits(page.items);
+        final sorted = _sortMessages(enriched); // 👈
+
         _items
           ..clear()
-          ..addAll(page.items);
+          ..addAll(sorted);
         _cursor = page.nextCursor;
         _hasMore = page.nextCursor != null;
 
@@ -96,10 +165,10 @@ class MessagesNotifier extends AsyncNotifier<List<Message>> {
       },
     );
   }
-  // =========================
-  // PAGINACIÓN
-  // =========================
 
+  // ==================================================
+  // PAGINACIÓN
+  // ==================================================
   Future<void> loadMore() async {
     if (_isLoadingMore) return;
     if (!_hasMore) return;
@@ -119,16 +188,17 @@ class MessagesNotifier extends AsyncNotifier<List<Message>> {
       cursor: _cursor,
     );
 
-    result.fold(
-      (failure) {
+    await result.fold(
+      (failure) async {
         _isLoadingMore = false;
       },
-      (page) {
+      (page) async {
         _cursor = page.nextCursor;
         _hasMore = page.nextCursor != null;
 
         if (page.items.isNotEmpty) {
-          _items.addAll(page.items);
+          final enriched = await _enrichWithEdits(page.items);
+          _items.addAll(_sortMessages(enriched)); // 👈
           state = AsyncData(List.unmodifiable(_items));
         }
         _isLoadingMore = false;
@@ -136,43 +206,9 @@ class MessagesNotifier extends AsyncNotifier<List<Message>> {
     );
   }
 
-  // // =========================
-  // // CARGA INICIAL
-  // // =========================
-
-  // Future<void> _loadInitial(String chatJid) async {
-  //   state = const AsyncLoading();
-
-  //   final repo = ref.read(messagesRepositoryProvider);
-
-  //   final result = await repo.fetchInitial(chatJid: chatJid, limit: _pageSize);
-
-  //   result.fold(
-  //     (failure) {
-  //       state = AsyncError(failure, StackTrace.current);
-  //     },
-  //     (MessagesPage page) {
-  //       _items
-  //         ..clear()
-  //         ..addAll(page.items);
-  //       _cursor = page.nextCursor;
-  //       _hasMore = page.nextCursor != null;
-
-  //       _lastKnownTimestamp = _items.isNotEmpty
-  //           ? _items.first.messageTimestamp
-  //           : 0;
-
-  //       state = AsyncData(List.unmodifiable(_items));
-
-  //       _startRealtime(chatJid);
-  //     },
-  //   );
-  // }
-
-  // =========================
+  // ==================================================
   // REALTIME
-  // =========================
-
+  // ==================================================
   void _startRealtime(String chatJid) {
     _newMessagesSub?.cancel();
 
@@ -192,19 +228,15 @@ class MessagesNotifier extends AsyncNotifier<List<Message>> {
   }
 
   void _onRealtimerMessage(Message message) {
-    // ✅ FIX 1: < en vez de <= para no descartar mensajes con mismo timestamp
     if (message.messageTimestamp < _lastKnownTimestamp) return;
     _buffer.add(message);
     _scheduleFlush();
   }
 
-  // =========================
+  // ==================================================
   // BATCHING
-  // =========================
-
+  // ==================================================
   void _scheduleFlush() {
-    // ✅ FIX 2: no bloquear schedule si está flushing,
-    // el flush al terminar revisará si hay más en el buffer
     _flushTimer?.cancel();
     _flushTimer = Timer(const Duration(milliseconds: 200), _flushBuffer);
   }
@@ -217,18 +249,14 @@ class MessagesNotifier extends AsyncNotifier<List<Message>> {
     final batch = List<Message>.from(_buffer);
     _buffer.clear();
 
-    // ✅ FIX 3: O(1) lookup con Set en vez de O(n) por cada mensaje
     final existingIds = _items.map((m) => m.id).toSet();
-
     final newMessages = batch
         .where((msg) => !existingIds.contains(msg.id))
         .toList();
 
     if (newMessages.isNotEmpty) {
-      // Un solo insertAll en vez de N inserts individuales
       _items.insertAll(0, newMessages);
 
-      // Actualizar timestamp con el mayor del batch
       _lastKnownTimestamp = newMessages.fold(
         _lastKnownTimestamp,
         (max, msg) => msg.messageTimestamp > max ? msg.messageTimestamp : max,
@@ -239,10 +267,12 @@ class MessagesNotifier extends AsyncNotifier<List<Message>> {
 
     isFlushing = false;
 
-    // ✅ Si llegaron más mensajes mientras flusheábamos, procesar
     if (_buffer.isNotEmpty) _scheduleFlush();
   }
 
+  // ==================================================
+  // RESET
+  // ==================================================
   void reset() {
     _newMessagesSub?.cancel();
     _newMessagesSub = null;
@@ -259,6 +289,9 @@ class MessagesNotifier extends AsyncNotifier<List<Message>> {
     _activeChatJid = null;
     _lastKnownTimestamp = 0;
     _activeFilter = const DateFilterTodayAndYesterday();
+
+    _checkedIds.clear();
+    _editedIds.clear();
 
     state = const AsyncData([]);
   }

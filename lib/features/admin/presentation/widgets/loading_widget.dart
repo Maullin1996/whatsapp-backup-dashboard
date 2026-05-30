@@ -15,8 +15,8 @@ class LoadingWidget extends StatelessWidget {
         child: ListView.separated(
           padding: EdgeInsets.all(isMobile ? 12 : 24),
           itemCount: 8, // menos items, más realista
-          separatorBuilder: (_, __) => SizedBox(height: isMobile ? 8 : 12),
-          itemBuilder: (_, __) => _ShimmerCard(isMobile: isMobile),
+          separatorBuilder: (_, _) => SizedBox(height: isMobile ? 8 : 12),
+          itemBuilder: (_, _) => _ShimmerCard(isMobile: isMobile),
         ),
       ),
     );

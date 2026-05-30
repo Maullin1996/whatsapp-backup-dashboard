@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:extended_image/extended_image.dart';
 import 'package:go_router/go_router.dart';
+import 'package:web/web.dart' as web;
 import 'package:whatsapp_monitor_viewer/features/messages/domain/entities/message.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/helpers/find_initial_index.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/providers/chat_image_items_provider.dart';
@@ -54,7 +55,7 @@ class MessageBubble extends StatelessWidget {
                 ),
               ),
             ),
-          if (message.isImage) _ImagePreview(storagePath: message.storagePath!),
+          if (message.isImage) _MediaPreview(storagePath: message.storagePath!),
           if (message.caption != null && message.caption!.isNotEmpty)
             CustomRichText(
               keyParam: 'Mensaje:  ',
@@ -77,79 +78,132 @@ class MessageBubble extends StatelessWidget {
   }
 }
 
-class _ImagePreview extends ConsumerWidget {
+class _MediaPreview extends ConsumerWidget {
   final String storagePath;
-  const _ImagePreview({required this.storagePath});
+  const _MediaPreview({required this.storagePath});
+
+  String get _ext => storagePath.split('.').last.toLowerCase();
+
+  bool get _isImage => ['jpg', 'jpeg', 'png', 'webp', 'gif'].contains(_ext);
+  bool get _isVideo => ['mp4', 'webm', 'mov', 'avi'].contains(_ext);
+  bool get _isAudio => ['mp3', 'ogg', 'm4a', 'aac', 'wav'].contains(_ext);
+  bool get _isKnown => _isImage || _isVideo || _isAudio;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final urlAsync = ref.watch(imageUrlProvider(storagePath));
+    if (!_isKnown) return const SizedBox.shrink();
+    final url = ref.watch(imageUrlProvider(storagePath));
     final screenWidth = MediaQuery.sizeOf(context).width;
     final isMobile = screenWidth < 600;
-    final double imageDisplayWidth = isMobile ? screenWidth * 0.85 : 420.0;
-    final int cacheDimension = isMobile ? 640 : 900;
+    final double displayWidth = isMobile ? screenWidth * 0.85 : 420.0;
 
-    return GestureDetector(
-      onTap: () {
-        final items = ref.read(chatImageItemsProvider);
-        if (items.isEmpty) return;
-
-        final initialIndex = findInitialIndex(
-          items: items,
-          storagePath: storagePath,
-        );
-
-        context.push('/home/viewer/$initialIndex');
-      },
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 6),
-        child: Center(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: RepaintBoundary(
-              child: ExtendedImage.network(
-                urlAsync,
-                width: imageDisplayWidth,
-                cacheHeight: cacheDimension,
-                cacheWidth: cacheDimension,
-                fit: BoxFit.cover,
-                cache: true,
-                border: Border.all(color: Colors.transparent, width: 0),
-                borderRadius: BorderRadius.circular(6),
-                loadStateChanged: (ExtendedImageState state) {
-                  switch (state.extendedImageLoadState) {
-                    case LoadState.loading:
-                      return Container(
-                        height: 200,
-                        color: Colors.black12,
-                        child: const Center(child: CircularProgressIndicator()),
-                      );
-                    case LoadState.completed:
-                      return null;
-                    case LoadState.failed:
-                      return GestureDetector(
-                        onTap: () {
-                          state.reLoadImage();
-                        },
-                        child: Container(
+    if (_isImage) {
+      final int cacheDimension = isMobile ? 640 : 900;
+      return GestureDetector(
+        onTap: () {
+          final items = ref.read(chatImageItemsProvider);
+          if (items.isEmpty) return;
+          final initialIndex = findInitialIndex(
+            items: items,
+            storagePath: storagePath,
+          );
+          context.push('/home/viewer/$initialIndex');
+        },
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Center(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: RepaintBoundary(
+                child: ExtendedImage.network(
+                  url,
+                  width: displayWidth,
+                  cacheHeight: cacheDimension,
+                  cacheWidth: cacheDimension,
+                  fit: BoxFit.cover,
+                  cache: true,
+                  border: Border.all(color: Colors.transparent, width: 0),
+                  borderRadius: BorderRadius.circular(6),
+                  loadStateChanged: (ExtendedImageState state) {
+                    switch (state.extendedImageLoadState) {
+                      case LoadState.loading:
+                        return Container(
                           height: 200,
                           color: Colors.black12,
                           child: const Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.broken_image, size: 40),
-                                SizedBox(height: 8),
-                                Text('Toca para reintentar'),
-                              ],
+                            child: CircularProgressIndicator(),
+                          ),
+                        );
+                      case LoadState.completed:
+                        return null;
+                      case LoadState.failed:
+                        return GestureDetector(
+                          onTap: () => state.reLoadImage(),
+                          child: Container(
+                            height: 200,
+                            color: Colors.black12,
+                            child: const Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.broken_image, size: 40),
+                                  SizedBox(height: 8),
+                                  Text('Toca para reintentar'),
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                      );
-                  }
-                },
+                        );
+                    }
+                  },
+                ),
               ),
             ),
+          ),
+        ),
+      );
+    }
+
+    // Video y Audio — botón simple que abre en el navegador
+    final isVideo = _isVideo;
+    final icon = isVideo ? Icons.play_circle_outline : Icons.audiotrack;
+    final label = isVideo ? 'Ver video' : 'Reproducir audio';
+    final color = isVideo ? Colors.blue.shade700 : Colors.green.shade700;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Center(
+        child: Container(
+          width: displayWidth,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.black12,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, size: 36, color: color),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: color,
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: Icon(Icons.open_in_new, color: color),
+                onPressed: () {
+                  web.HTMLAnchorElement()
+                    ..href = url
+                    ..target = '_blank'
+                    ..click();
+                },
+              ),
+            ],
           ),
         ),
       ),

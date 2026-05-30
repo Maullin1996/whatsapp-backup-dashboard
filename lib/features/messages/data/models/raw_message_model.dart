@@ -3,13 +3,12 @@ class RawMessageModel {
   final String chatJid;
   final String senderName;
   final String? caption;
-
   final String localTime;
-
   final bool hasMedia;
   final String? storagePath;
-
   final int messageTimestamp;
+  final bool isEdited;
+  final int? shiftImageIndex;
 
   RawMessageModel({
     required this.id,
@@ -20,6 +19,8 @@ class RawMessageModel {
     required this.messageTimestamp,
     required this.chatJid,
     required this.localTime,
+    this.isEdited = false,
+    this.shiftImageIndex,
   });
 
   factory RawMessageModel.fromFirestore(String id, Map<String, dynamic> data) {
@@ -32,6 +33,8 @@ class RawMessageModel {
       caption: data['caption'] as String?,
       storagePath: data['storagePath'] as String?,
       localTime: data['localTime'] as String,
+      isEdited: false,
+      shiftImageIndex: data['shiftImageIndex'] as int?,
     );
   }
 }

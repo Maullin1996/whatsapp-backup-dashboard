@@ -29,6 +29,7 @@ class MessagesFirestoreDatasource {
           .collection('whatsapp_messages')
           .where('chatJid', isEqualTo: chatJid)
           .orderBy('messageTimestamp', descending: true)
+          .orderBy(FieldPath.documentId, descending: true)
           .limit(limit)
           .get();
 
@@ -57,9 +58,11 @@ class MessagesFirestoreDatasource {
           .collection('whatsapp_messages')
           .where('chatJid', isEqualTo: chatJid)
           .orderBy('messageTimestamp', descending: true)
+          .orderBy(FieldPath.documentId, descending: true)
           .startAfterDocument(lastDoc)
           .limit(limit)
           .get();
+
       final items = query.docs
           .map((doc) => RawMessageModel.fromFirestore(doc.id, doc.data()))
           .toList();
@@ -80,7 +83,7 @@ class MessagesFirestoreDatasource {
     required int fromTimestamp,
     required int toTimestamp,
     int limit = _pageSize,
-    DocumentSnapshot? cursor, // <- nuevo parámetro
+    DocumentSnapshot? cursor,
   }) async {
     try {
       var query = _firestore
@@ -89,10 +92,11 @@ class MessagesFirestoreDatasource {
           .where('messageTimestamp', isGreaterThanOrEqualTo: fromTimestamp)
           .where('messageTimestamp', isLessThan: toTimestamp)
           .orderBy('messageTimestamp', descending: true)
+          .orderBy(FieldPath.documentId, descending: true) // 👈
           .limit(limit);
 
       if (cursor != null) {
-        query = query.startAfterDocument(cursor); // <- paginación con filtro
+        query = query.startAfterDocument(cursor);
       }
 
       final snapshot = await query.get();
@@ -119,7 +123,8 @@ class MessagesFirestoreDatasource {
         .collection('whatsapp_messages')
         .where('chatJid', isEqualTo: chatJid)
         .where('messageTimestamp', isGreaterThan: afterTimestamp)
-        .orderBy('messageTimestamp', descending: false);
+        .orderBy('messageTimestamp', descending: true)
+        .orderBy(FieldPath.documentId, descending: true);
 
     return query
         .snapshots()
