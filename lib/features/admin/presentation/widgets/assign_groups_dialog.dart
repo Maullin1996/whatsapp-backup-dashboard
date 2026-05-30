@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:whatsapp_monitor_viewer/core/responsive/responsive_layout.dart';
 import 'package:whatsapp_monitor_viewer/core/theme/app_colors.dart';
 import 'package:whatsapp_monitor_viewer/features/admin/domain/entities/app_user.dart';
+import 'package:whatsapp_monitor_viewer/features/admin/domain/entities/group.dart';
 import 'package:whatsapp_monitor_viewer/features/admin/presentation/providers/admin_providers.dart';
 
 class AssignGroupsDialog extends ConsumerStatefulWidget {
@@ -34,65 +36,118 @@ class _AssignGroupsDialogState extends ConsumerState<AssignGroupsDialog> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(adminProvider);
-    final isSubmitting = state.isSubmitting;
-    final isMobile = MediaQuery.sizeOf(context).width < 600;
-    // En mobile la lista ocupa menos altura para que el dialog no tape toda la pantalla
-    final listMaxHeight = isMobile ? 300.0 : 400.0;
 
-    return Dialog(
-      insetPadding: EdgeInsets.symmetric(
-        horizontal: isMobile ? 16 : 80,
-        vertical: 24,
+    return ResponsiveLayout(
+      mobile: _AssignGroupsDialogMobile(
+        userName: widget.user.displayName,
+        selected: _selected,
+        isSubmitting: state.isSubmitting,
+        isLoadingGroups: state.isLoadingGroups,
+        groups: state.groups,
+        onSubmit: _submit,
+        onCancel: () => Navigator.of(context).pop(),
+        onGroupToggle: (chatJid, checked) => setState(() {
+          if (checked) {
+            _selected.add(chatJid);
+          } else {
+            _selected.remove(chatJid);
+          }
+        }),
       ),
+      desktop: _AssignGroupsDialogDesktop(
+        userName: widget.user.displayName,
+        selected: _selected,
+        isSubmitting: state.isSubmitting,
+        isLoadingGroups: state.isLoadingGroups,
+        groups: state.groups,
+        onSubmit: _submit,
+        onCancel: () => Navigator.of(context).pop(),
+        onGroupToggle: (chatJid, checked) => setState(() {
+          if (checked) {
+            _selected.add(chatJid);
+          } else {
+            _selected.remove(chatJid);
+          }
+        }),
+      ),
+    );
+  }
+}
+
+class _AssignGroupsDialogMobile extends StatelessWidget {
+  final String userName;
+  final Set<String> selected;
+  final bool isSubmitting;
+  final bool isLoadingGroups;
+  final List<Group> groups;
+  final VoidCallback onSubmit;
+  final VoidCallback onCancel;
+  final void Function(String chatJid, bool checked) onGroupToggle;
+
+  const _AssignGroupsDialogMobile({
+    required this.userName,
+    required this.selected,
+    required this.isSubmitting,
+    required this.isLoadingGroups,
+    required this.groups,
+    required this.onSubmit,
+    required this.onCancel,
+    required this.onGroupToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       backgroundColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
-        padding: EdgeInsets.all(isMobile ? 16 : 24),
+        padding: const EdgeInsets.all(16),
         child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: 600),
+          constraints: const BoxConstraints(maxWidth: 600),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
+              const Text(
                 'Asignar grupos',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: isMobile ? 18 : 20,
+                  fontSize: 18,
                   color: Colors.green,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
-                widget.user.displayName,
+                userName,
                 style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
               ),
-              SizedBox(height: isMobile ? 12 : 16),
-              state.isLoadingGroups
+              const SizedBox(height: 12),
+              isLoadingGroups
                   ? const SizedBox(
                       height: 100,
                       child: Center(child: CircularProgressIndicator()),
                     )
-                  : state.groups.isEmpty
+                  : groups.isEmpty
                   ? const Padding(
                       padding: EdgeInsets.symmetric(vertical: 16),
                       child: Text('No hay grupos disponibles'),
                     )
                   : ConstrainedBox(
-                      constraints: BoxConstraints(maxHeight: listMaxHeight),
+                      constraints: const BoxConstraints(maxHeight: 300),
                       child: ListView.builder(
                         shrinkWrap: true,
-                        itemCount: state.groups.length,
+                        itemCount: groups.length,
                         itemBuilder: (context, index) {
-                          final group = state.groups[index];
-                          final isSelected = _selected.contains(group.chatJid);
+                          final group = groups[index];
+                          final isSelected = selected.contains(group.chatJid);
                           return CheckboxListTile(
-                            dense: isMobile,
+                            dense: true,
                             value: isSelected,
                             activeColor: AppColors.primaryGreen,
                             title: Text(
                               group.groupName,
-                              style: TextStyle(fontSize: isMobile ? 13 : 15),
+                              style: const TextStyle(fontSize: 13),
                             ),
                             subtitle: Text(
                               group.chatJid,
@@ -100,25 +155,18 @@ class _AssignGroupsDialogState extends ConsumerState<AssignGroupsDialog> {
                             ),
                             onChanged: isSubmitting
                                 ? null
-                                : (checked) => setState(() {
-                                    if (checked == true) {
-                                      _selected.add(group.chatJid);
-                                    } else {
-                                      _selected.remove(group.chatJid);
-                                    }
-                                  }),
+                                : (checked) =>
+                                    onGroupToggle(group.chatJid, checked ?? false),
                           );
                         },
                       ),
                     ),
-              SizedBox(height: isMobile ? 12 : 16),
+              const SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   TextButton(
-                    onPressed: isSubmitting
-                        ? null
-                        : () => Navigator.of(context).pop(),
+                    onPressed: isSubmitting ? null : onCancel,
                     child: const Text(
                       'Cancelar',
                       style: TextStyle(color: Colors.green),
@@ -134,7 +182,137 @@ class _AssignGroupsDialogState extends ConsumerState<AssignGroupsDialog> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    onPressed: isSubmitting ? null : _submit,
+                    onPressed: isSubmitting ? null : onSubmit,
+                    child: isSubmitting
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text('Guardar'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AssignGroupsDialogDesktop extends StatelessWidget {
+  final String userName;
+  final Set<String> selected;
+  final bool isSubmitting;
+  final bool isLoadingGroups;
+  final List<Group> groups;
+  final VoidCallback onSubmit;
+  final VoidCallback onCancel;
+  final void Function(String chatJid, bool checked) onGroupToggle;
+
+  const _AssignGroupsDialogDesktop({
+    required this.userName,
+    required this.selected,
+    required this.isSubmitting,
+    required this.isLoadingGroups,
+    required this.groups,
+    required this.onSubmit,
+    required this.onCancel,
+    required this.onGroupToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 80, vertical: 24),
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Asignar grupos',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                  color: Colors.green,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                userName,
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 16),
+              isLoadingGroups
+                  ? const SizedBox(
+                      height: 100,
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  : groups.isEmpty
+                  ? const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      child: Text('No hay grupos disponibles'),
+                    )
+                  : ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 400),
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: groups.length,
+                        itemBuilder: (context, index) {
+                          final group = groups[index];
+                          final isSelected = selected.contains(group.chatJid);
+                          return CheckboxListTile(
+                            dense: false,
+                            value: isSelected,
+                            activeColor: AppColors.primaryGreen,
+                            title: Text(
+                              group.groupName,
+                              style: const TextStyle(fontSize: 15),
+                            ),
+                            subtitle: Text(
+                              group.chatJid,
+                              style: const TextStyle(fontSize: 11),
+                            ),
+                            onChanged: isSubmitting
+                                ? null
+                                : (checked) =>
+                                    onGroupToggle(group.chatJid, checked ?? false),
+                          );
+                        },
+                      ),
+                    ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: isSubmitting ? null : onCancel,
+                    child: const Text(
+                      'Cancelar',
+                      style: TextStyle(color: Colors.green),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryGreen,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(90, 44),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    onPressed: isSubmitting ? null : onSubmit,
                     child: isSubmitting
                         ? const SizedBox(
                             width: 18,

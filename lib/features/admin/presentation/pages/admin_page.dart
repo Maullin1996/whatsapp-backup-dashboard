@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:whatsapp_monitor_viewer/core/errors/admin_failure.dart';
+import 'package:whatsapp_monitor_viewer/core/responsive/responsive_layout.dart';
 import 'package:whatsapp_monitor_viewer/core/theme/app_colors.dart';
 import 'package:whatsapp_monitor_viewer/features/admin/domain/entities/app_user.dart';
 import 'package:whatsapp_monitor_viewer/features/admin/presentation/providers/admin_providers.dart';
@@ -20,8 +21,6 @@ class AdminPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(adminProvider);
-    final screenWidth = MediaQuery.sizeOf(context).width;
-    final isMobile = screenWidth < 600;
 
     ref.listen(adminProvider, (_, next) {
       if (next.successMessage != null) {
@@ -44,45 +43,67 @@ class AdminPage extends ConsumerWidget {
       }
     });
 
+    return ResponsiveLayout(
+      mobile: _AdminPageMobile(
+        state: state,
+        onRefresh: () => ref.read(adminProvider.notifier).loadUsers(),
+        onCreateUser: () => _showCreateDialog(context),
+      ),
+      desktop: _AdminPageDesktop(
+        state: state,
+        onRefresh: () => ref.read(adminProvider.notifier).loadUsers(),
+        onCreateUser: () => _showCreateDialog(context),
+      ),
+    );
+  }
+
+  void _showCreateDialog(BuildContext context) {
+    showDialog(context: context, builder: (_) => const CreateUserDialog());
+  }
+}
+
+class _AdminPageMobile extends StatelessWidget {
+  final AdminState state;
+  final VoidCallback onRefresh;
+  final VoidCallback onCreateUser;
+
+  const _AdminPageMobile({
+    required this.state,
+    required this.onRefresh,
+    required this.onCreateUser,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
+        title: const Text(
           'Panel de administración',
           style: TextStyle(
             color: Colors.green,
             fontWeight: FontWeight.bold,
-            fontSize: isMobile ? 16 : 20,
+            fontSize: 16,
           ),
         ),
         backgroundColor: Colors.white,
         leading: IconButton(
           onPressed: () => context.pop(),
-          icon: Icon(Icons.arrow_back_ios_new_rounded),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
         ),
         actions: [
           IconButton(
             tooltip: 'Recargar',
             icon: const Icon(Icons.refresh_rounded),
-            onPressed: () => ref.read(adminProvider.notifier).loadUsers(),
+            onPressed: onRefresh,
           ),
         ],
       ),
-      floatingActionButton: isMobile
-          // En mobile: solo ícono
-          ? FloatingActionButton(
-              backgroundColor: AppColors.primaryGreen,
-              foregroundColor: Colors.white,
-              child: const Icon(Icons.person_add_rounded),
-              onPressed: () => _showCreateDialog(context),
-            )
-          // En web/tablet: ícono + texto
-          : FloatingActionButton.extended(
-              backgroundColor: AppColors.primaryGreen,
-              foregroundColor: Colors.white,
-              icon: const Icon(Icons.person_add_rounded),
-              label: const Text('Nuevo usuario'),
-              onPressed: () => _showCreateDialog(context),
-            ),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: AppColors.primaryGreen,
+        foregroundColor: Colors.white,
+        onPressed: onCreateUser,
+        child: const Icon(Icons.person_add_rounded),
+      ),
       backgroundColor: Colors.white,
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 400),
@@ -98,7 +119,9 @@ class AdminPage extends ConsumerWidget {
             : state.users.isEmpty
             ? KeyedSubtree(
                 key: const ValueKey('empty'),
-                child: const Center(child: Text('No hay usuarios registrados')),
+                child: const Center(
+                  child: Text('No hay usuarios registrados'),
+                ),
               )
             : KeyedSubtree(
                 key: const ValueKey('users'),
@@ -106,16 +129,15 @@ class AdminPage extends ConsumerWidget {
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 800),
                     child: ListView.separated(
-                      padding: EdgeInsets.all(isMobile ? 12 : 24),
+                      padding: const EdgeInsets.all(12),
                       itemCount: state.users.length,
-                      separatorBuilder: (_, _) =>
-                          SizedBox(height: isMobile ? 8 : 12),
+                      separatorBuilder: (_, _) => const SizedBox(height: 8),
                       itemBuilder: (context, index) {
                         final user = state.users[index];
                         return _UserCard(
                           user: user,
                           state: state,
-                          isMobile: isMobile,
+                          isMobile: true,
                         );
                       },
                     ),
@@ -125,9 +147,93 @@ class AdminPage extends ConsumerWidget {
       ),
     );
   }
+}
 
-  void _showCreateDialog(BuildContext context) {
-    showDialog(context: context, builder: (_) => const CreateUserDialog());
+class _AdminPageDesktop extends StatelessWidget {
+  final AdminState state;
+  final VoidCallback onRefresh;
+  final VoidCallback onCreateUser;
+
+  const _AdminPageDesktop({
+    required this.state,
+    required this.onRefresh,
+    required this.onCreateUser,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Panel de administración',
+          style: TextStyle(
+            color: Colors.green,
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
+        ),
+        backgroundColor: Colors.white,
+        leading: IconButton(
+          onPressed: () => context.pop(),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Recargar',
+            icon: const Icon(Icons.refresh_rounded),
+            onPressed: onRefresh,
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: AppColors.primaryGreen,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.person_add_rounded),
+        label: const Text('Nuevo usuario'),
+        onPressed: onCreateUser,
+      ),
+      backgroundColor: Colors.white,
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 400),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        transitionBuilder: (child, animation) =>
+            FadeTransition(opacity: animation, child: child),
+        child: state.isLoadingUsers
+            ? KeyedSubtree(
+                key: const ValueKey('loading'),
+                child: Center(child: const LoadingWidget()),
+              )
+            : state.users.isEmpty
+            ? KeyedSubtree(
+                key: const ValueKey('empty'),
+                child: const Center(
+                  child: Text('No hay usuarios registrados'),
+                ),
+              )
+            : KeyedSubtree(
+                key: const ValueKey('users'),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 800),
+                    child: ListView.separated(
+                      padding: const EdgeInsets.all(24),
+                      itemCount: state.users.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 12),
+                      itemBuilder: (context, index) {
+                        final user = state.users[index];
+                        return _UserCard(
+                          user: user,
+                          state: state,
+                          isMobile: false,
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+      ),
+    );
   }
 }
 
@@ -170,7 +276,6 @@ class _UserCard extends ConsumerWidget {
                       ? Colors.grey.shade300
                       : AppColors.primaryGreen.withAlpha(40),
                   child: Icon(
-                    // ← mostrar ícono de admin si corresponde
                     user.isAdmin
                         ? Icons.admin_panel_settings_rounded
                         : Icons.person,
@@ -191,7 +296,6 @@ class _UserCard extends ConsumerWidget {
                           ),
                         ),
                       ),
-                      // ← badge de rol
                       if (user.isSuperAdmin)
                         Text(
                           'SuperAdmin',
@@ -264,7 +368,6 @@ class _UserCard extends ConsumerWidget {
                       _actionButton(context, user),
                       const SizedBox(height: 4),
                       _groupsButton(context, user),
-                      // ← botón de rol solo para superAdmin y no sobre sí mismo
                       if (isSuperAdmin && !user.isSuperAdmin) ...[
                         const SizedBox(height: 4),
                         _roleButton(context, user, ref),
@@ -297,7 +400,6 @@ class _UserCard extends ConsumerWidget {
     );
   }
 
-  // ← nuevo botón
   Widget _roleButton(BuildContext context, AppUser user, WidgetRef ref) {
     final isAdmin = user.isAdmin;
     return TextButton.icon(

@@ -3,6 +3,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:whatsapp_monitor_viewer/core/responsive/responsive_layout.dart';
 import 'package:whatsapp_monitor_viewer/core/theme/app_colors.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/controllers/image_zoom_controller.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/domain/entities/image_view_item.dart';
@@ -126,8 +127,8 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage> {
               shift: item.shift,
               name: item.senderName,
               localTime: item.localTime,
-              isEdited: item.isEdited, // 👈
-              shiftImageIndex: item.shiftImageIndex, // 👈
+              isEdited: item.isEdited,
+              shiftImageIndex: item.shiftImageIndex,
               zoomOut: _zoom.zoomOut,
               zoomIn: _zoom.zoomIn,
               zoomRest: _zoom.reset,
@@ -272,7 +273,7 @@ class _ImageCanvas extends StatelessWidget {
                       child: const Center(child: CircularProgressIndicator()),
                     );
                   case LoadState.completed:
-                    return null; // Muestra la imagen normalmente
+                    return null;
                   case LoadState.failed:
                     return GestureDetector(
                       onTap: () {
@@ -307,8 +308,8 @@ class _ViwerTopBar extends StatelessWidget {
   final String name;
   final String localTime;
   final String shift;
-  final bool isEdited; // 👈
-  final int? shiftImageIndex; // 👈
+  final bool isEdited;
+  final int? shiftImageIndex;
   final VoidCallback zoomOut;
   final VoidCallback zoomIn;
   final VoidCallback zoomRest;
@@ -318,8 +319,8 @@ class _ViwerTopBar extends StatelessWidget {
     required this.name,
     required this.localTime,
     required this.shift,
-    required this.isEdited, // 👈
-    this.shiftImageIndex, // 👈
+    required this.isEdited,
+    this.shiftImageIndex,
     required this.zoomOut,
     required this.zoomIn,
     required this.zoomRest,
@@ -328,11 +329,61 @@ class _ViwerTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.sizeOf(context).width;
-    final isMobile = screenWidth < 700;
-    final avatarSize = isMobile ? 40.0 : 55.0;
-    final fontSize = isMobile ? 14.0 : 16.0;
-    final iconSize = isMobile ? 24.0 : 28.0;
+    return ResponsiveLayout(
+      mobile: _ViewerTopBarMobile(
+        name: name,
+        localTime: localTime,
+        shift: shift,
+        isEdited: isEdited,
+        shiftImageIndex: shiftImageIndex,
+        zoomOut: zoomOut,
+        zoomIn: zoomIn,
+        zoomRest: zoomRest,
+        close: close,
+      ),
+      desktop: _ViewerTopBarDesktop(
+        name: name,
+        localTime: localTime,
+        shift: shift,
+        isEdited: isEdited,
+        shiftImageIndex: shiftImageIndex,
+        zoomOut: zoomOut,
+        zoomIn: zoomIn,
+        zoomRest: zoomRest,
+        close: close,
+      ),
+    );
+  }
+}
+
+class _ViewerTopBarMobile extends StatelessWidget {
+  final String name;
+  final String localTime;
+  final String shift;
+  final bool isEdited;
+  final int? shiftImageIndex;
+  final VoidCallback zoomOut;
+  final VoidCallback zoomIn;
+  final VoidCallback zoomRest;
+  final VoidCallback close;
+
+  const _ViewerTopBarMobile({
+    required this.name,
+    required this.localTime,
+    required this.shift,
+    required this.isEdited,
+    this.shiftImageIndex,
+    required this.zoomOut,
+    required this.zoomIn,
+    required this.zoomRest,
+    required this.close,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const double avatarSize = 40.0;
+    const double fontSize = 14.0;
+    const double iconSize = 24.0;
 
     final controls = Row(
       mainAxisAlignment: MainAxisAlignment.end,
@@ -340,22 +391,22 @@ class _ViwerTopBar extends StatelessWidget {
         IconButton(
           tooltip: 'Zoom -',
           onPressed: zoomOut,
-          icon: Icon(Icons.zoom_out_rounded, size: iconSize),
+          icon: const Icon(Icons.zoom_out_rounded, size: iconSize),
         ),
         IconButton(
           tooltip: 'Reset',
           onPressed: zoomRest,
-          icon: Icon(Icons.refresh, size: iconSize),
+          icon: const Icon(Icons.refresh, size: iconSize),
         ),
         IconButton(
           tooltip: 'Zoom +',
           onPressed: zoomIn,
-          icon: Icon(Icons.zoom_in_rounded, size: iconSize),
+          icon: const Icon(Icons.zoom_in_rounded, size: iconSize),
         ),
         IconButton(
           tooltip: 'Cerrar',
           onPressed: close,
-          icon: Icon(Icons.close, size: iconSize),
+          icon: const Icon(Icons.close, size: iconSize),
         ),
       ],
     );
@@ -378,22 +429,28 @@ class _ViwerTopBar extends StatelessWidget {
             children: [
               SelectableText(
                 name,
-                style: TextStyle(
+                style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: fontSize,
                 ),
               ),
-              SelectableText(localTime, style: TextStyle(fontSize: fontSize)),
-              SelectableText(shift, style: TextStyle(fontSize: fontSize)),
+              SelectableText(
+                localTime,
+                style: const TextStyle(fontSize: fontSize),
+              ),
+              SelectableText(
+                shift,
+                style: const TextStyle(fontSize: fontSize),
+              ),
               if (shiftImageIndex != null)
                 SelectableText(
                   '# $shiftImageIndex',
-                  style: TextStyle(fontSize: fontSize),
+                  style: const TextStyle(fontSize: fontSize),
                 ),
               if (isEdited)
                 SelectableText(
                   'Editado',
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: fontSize,
                     fontWeight: FontWeight.w700,
                     color: AppColors.errorMessage,
@@ -407,18 +464,129 @@ class _ViwerTopBar extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-      child: isMobile
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [controls, const SizedBox(height: 10), info],
-            )
-          : Row(
-              children: [
-                Expanded(child: info),
-                const SizedBox(width: 8),
-                controls,
-              ],
-            ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [controls, const SizedBox(height: 10), info],
+      ),
+    );
+  }
+}
+
+class _ViewerTopBarDesktop extends StatelessWidget {
+  final String name;
+  final String localTime;
+  final String shift;
+  final bool isEdited;
+  final int? shiftImageIndex;
+  final VoidCallback zoomOut;
+  final VoidCallback zoomIn;
+  final VoidCallback zoomRest;
+  final VoidCallback close;
+
+  const _ViewerTopBarDesktop({
+    required this.name,
+    required this.localTime,
+    required this.shift,
+    required this.isEdited,
+    this.shiftImageIndex,
+    required this.zoomOut,
+    required this.zoomIn,
+    required this.zoomRest,
+    required this.close,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const double avatarSize = 55.0;
+    const double fontSize = 16.0;
+    const double iconSize = 28.0;
+
+    final controls = Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        IconButton(
+          tooltip: 'Zoom -',
+          onPressed: zoomOut,
+          icon: const Icon(Icons.zoom_out_rounded, size: iconSize),
+        ),
+        IconButton(
+          tooltip: 'Reset',
+          onPressed: zoomRest,
+          icon: const Icon(Icons.refresh, size: iconSize),
+        ),
+        IconButton(
+          tooltip: 'Zoom +',
+          onPressed: zoomIn,
+          icon: const Icon(Icons.zoom_in_rounded, size: iconSize),
+        ),
+        IconButton(
+          tooltip: 'Cerrar',
+          onPressed: close,
+          icon: const Icon(Icons.close, size: iconSize),
+        ),
+      ],
+    );
+
+    final info = Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        ClipOval(
+          child: Image.asset(
+            'assets/images/blank-profile.png',
+            width: avatarSize,
+            fit: BoxFit.cover,
+            cacheWidth: (avatarSize * 2).round(),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SelectableText(
+                name,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: fontSize,
+                ),
+              ),
+              SelectableText(
+                localTime,
+                style: const TextStyle(fontSize: fontSize),
+              ),
+              SelectableText(
+                shift,
+                style: const TextStyle(fontSize: fontSize),
+              ),
+              if (shiftImageIndex != null)
+                SelectableText(
+                  '# $shiftImageIndex',
+                  style: const TextStyle(fontSize: fontSize),
+                ),
+              if (isEdited)
+                SelectableText(
+                  'Editado',
+                  style: const TextStyle(
+                    fontSize: fontSize,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.errorMessage,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      child: Row(
+        children: [
+          Expanded(child: info),
+          const SizedBox(width: 8),
+          controls,
+        ],
+      ),
     );
   }
 }

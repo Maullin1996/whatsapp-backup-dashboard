@@ -1,22 +1,51 @@
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:whatsapp_monitor_viewer/core/responsive/responsive_layout.dart';
 
 class LoadingWidget extends StatelessWidget {
   const LoadingWidget({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.sizeOf(context).width;
-    final isMobile = screenWidth < 600;
+    return const ResponsiveLayout(
+      mobile: _LoadingWidgetMobile(),
+      desktop: _LoadingWidgetDesktop(),
+    );
+  }
+}
 
+class _LoadingWidgetMobile extends StatelessWidget {
+  const _LoadingWidgetMobile();
+
+  @override
+  Widget build(BuildContext context) {
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 800),
         child: ListView.separated(
-          padding: EdgeInsets.all(isMobile ? 12 : 24),
-          itemCount: 8, // menos items, más realista
-          separatorBuilder: (_, _) => SizedBox(height: isMobile ? 8 : 12),
-          itemBuilder: (_, _) => _ShimmerCard(isMobile: isMobile),
+          padding: const EdgeInsets.all(12),
+          itemCount: 8,
+          separatorBuilder: (_, _) => const SizedBox(height: 8),
+          itemBuilder: (_, _) => const _ShimmerCard(isMobile: true),
+        ),
+      ),
+    );
+  }
+}
+
+class _LoadingWidgetDesktop extends StatelessWidget {
+  const _LoadingWidgetDesktop();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 800),
+        child: ListView.separated(
+          padding: const EdgeInsets.all(24),
+          itemCount: 8,
+          separatorBuilder: (_, _) => const SizedBox(height: 12),
+          itemBuilder: (_, _) => const _ShimmerCard(isMobile: false),
         ),
       ),
     );
@@ -44,7 +73,6 @@ class _ShimmerCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Fila superior: avatar + texto + switch
             Row(
               children: [
                 Container(
@@ -92,7 +120,6 @@ class _ShimmerCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 10),
-            // Chips de grupos
             Row(
               children: [
                 _chip(80),
@@ -103,7 +130,6 @@ class _ShimmerCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 10),
-            // Botones de acción
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [_chip(120), const SizedBox(width: 8), _chip(100)],
