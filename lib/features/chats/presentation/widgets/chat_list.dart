@@ -12,15 +12,15 @@ import 'package:whatsapp_monitor_viewer/features/chats/presentation/provider/act
 import 'package:whatsapp_monitor_viewer/features/chats/presentation/provider/chats_provider.dart';
 
 const _avatarColors = [
-  Color(0xFF25D366), // green
-  Color(0xFF128C7E), // teal
-  Color(0xFF34B7F1), // blue
-  Color(0xFFFFC107), // yellow
-  Color(0xFFFF5722), // orange
-  Color(0xFF9C27B0), // purple
-  Color(0xFFE91E63), // pink
-  Color(0xFF795548), // brown
-  Color(0xFF607D8B), // grey
+  Color(0xFF25D366),
+  Color(0xFF128C7E),
+  Color(0xFF34B7F1),
+  Color(0xFFFFC107),
+  Color(0xFFFF5722),
+  Color(0xFF9C27B0),
+  Color(0xFFE91E63),
+  Color(0xFF795548),
+  Color(0xFF607D8B),
 ];
 
 bool _isLight(Color color) {
@@ -149,9 +149,7 @@ class _ChatSearchResults extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final query = ref.watch(chatSearchQueryProvider).trim().toLowerCase();
 
-    if (query.isEmpty) {
-      return const SizedBox.shrink();
-    }
+    if (query.isEmpty) return const SizedBox.shrink();
 
     final results = chats
         .where((chat) => chat.groupName.toLowerCase().contains(query))
@@ -178,6 +176,7 @@ class _ChatSearchResults extends ConsumerWidget {
           final chat = results[index];
           final isActive = activeChat?.chatJid == chat.chatJid;
           return ChatAppearAnimation(
+            index: index,
             child: CustonGroupContainer(
               isActive: isActive,
               chat: chat,
@@ -204,15 +203,20 @@ class _ChatMainList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final items = [
+      for (final chat in chats)
+        (chat: chat, time: formatTime(chat.lastMessageAt, context)),
+    ];
+
     return ListView.builder(
-      itemCount: chats.length,
+      cacheExtent: 300,
+      itemCount: items.length,
       itemBuilder: (context, index) {
-        final chat = chats[index];
+        final (:chat, :time) = items[index];
         final isActive = activeChat?.chatJid == chat.chatJid;
 
-        final time = formatTime(chat.lastMessageAt, context);
-
         return ChatAppearAnimation(
+          index: index,
           child: CustonGroupContainer(
             isActive: isActive,
             chat: chat,
@@ -247,25 +251,103 @@ class CustonGroupContainer extends StatefulWidget {
 }
 
 class _CustonGroupContainerState extends State<CustonGroupContainer> {
-  bool _hovered = false;
-  @override
-  Widget build(BuildContext context) {
-    final baseColor = widget.isActive
-        ? const Color.fromARGB(159, 236, 234, 234)
-        : Colors.transparent;
-    final hoverColor = const Color.fromARGB(
-      255,
-      133,
-      131,
-      131,
-    ).withValues(alpha: 0.15);
+  late final Color _bgColor;
+  late final Color _textColor;
+  late final String _initial;
 
-    final bgColor =
-        _avatarColors[widget.chat.groupName.hashCode % _avatarColors.length];
-    final textColor = _isLight(bgColor) ? Colors.black : Colors.white;
-    final initial = widget.chat.groupName.isNotEmpty
+  @override
+  void initState() {
+    super.initState();
+    _bgColor = _avatarColors[widget.chat.groupName.hashCode % _avatarColors.length];
+    _textColor = _isLight(_bgColor) ? Colors.black : Colors.white;
+    _initial = widget.chat.groupName.isNotEmpty
         ? widget.chat.groupName[0].toUpperCase()
         : '?';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _HoverBackground(
+      isActive: widget.isActive,
+      onTap: widget.onTap,
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 27.5,
+            backgroundColor: _bgColor,
+            child: Text(
+              _initial,
+              style: TextStyle(
+                color: _textColor,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        widget.chat.groupName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      widget.time,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${widget.chat.totalImages} mensajes',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HoverBackground extends StatefulWidget {
+  final bool isActive;
+  final Widget child;
+  final GestureTapCallback? onTap;
+
+  const _HoverBackground({
+    required this.isActive,
+    required this.child,
+    this.onTap,
+  });
+
+  @override
+  State<_HoverBackground> createState() => _HoverBackgroundState();
+}
+
+class _HoverBackgroundState extends State<_HoverBackground> {
+  bool _hovered = false;
+
+  static final _hoverColor =
+      const Color.fromARGB(255, 133, 131, 131).withValues(alpha: 0.15);
+
+  @override
+  Widget build(BuildContext context) {
+    final bgColor = widget.isActive
+        ? const Color.fromARGB(159, 236, 234, 234)
+        : Colors.transparent;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
@@ -278,58 +360,10 @@ class _CustonGroupContainerState extends State<CustonGroupContainer> {
             duration: const Duration(milliseconds: 120),
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
             decoration: BoxDecoration(
-              color: _hovered ? hoverColor : baseColor,
+              color: _hovered ? _hoverColor : bgColor,
               borderRadius: BorderRadius.circular(12),
             ),
-
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 27.5,
-                  backgroundColor: bgColor,
-                  child: Text(
-                    initial,
-                    style: TextStyle(
-                      color: textColor,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              widget.chat.groupName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          Text(
-                            widget.time,
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${widget.chat.totalImages} mensajes',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+            child: widget.child,
           ),
         ),
       ),
