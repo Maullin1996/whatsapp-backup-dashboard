@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:whatsapp_monitor_viewer/core/responsive/responsive_layout.dart';
-import 'package:whatsapp_monitor_viewer/core/theme/app_colors.dart';
+import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
 import 'package:whatsapp_monitor_viewer/features/admin/domain/entities/app_user.dart';
 import 'package:whatsapp_monitor_viewer/features/admin/domain/entities/group.dart';
 import 'package:whatsapp_monitor_viewer/features/admin/presentation/providers/admin_providers.dart';
@@ -98,11 +98,9 @@ class _AssignGroupsDialogMobile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-      backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.xl),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 600),
           child: Column(
@@ -122,7 +120,7 @@ class _AssignGroupsDialogMobile extends StatelessWidget {
                 userName,
                 style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.md),
               isLoadingGroups
                   ? const SizedBox(
                       height: 100,
@@ -130,7 +128,7 @@ class _AssignGroupsDialogMobile extends StatelessWidget {
                     )
                   : groups.isEmpty
                   ? const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 16),
+                      padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
                       child: Text('No hay grupos disponibles'),
                     )
                   : ConstrainedBox(
@@ -161,7 +159,7 @@ class _AssignGroupsDialogMobile extends StatelessWidget {
                         },
                       ),
                     ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.md),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
@@ -172,15 +170,10 @@ class _AssignGroupsDialogMobile extends StatelessWidget {
                       style: TextStyle(color: Colors.green),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: AppSpacing.sm),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryGreen,
-                      foregroundColor: Colors.white,
                       minimumSize: const Size(90, 44),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
                     ),
                     onPressed: isSubmitting ? null : onSubmit,
                     child: isSubmitting
@@ -228,11 +221,9 @@ class _AssignGroupsDialogDesktop extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 80, vertical: 24),
-      backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 80, vertical: AppSpacing.xl),
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(AppSpacing.xl),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 600),
           child: Column(
@@ -252,7 +243,7 @@ class _AssignGroupsDialogDesktop extends StatelessWidget {
                 userName,
                 style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.lg),
               isLoadingGroups
                   ? const SizedBox(
                       height: 100,
@@ -260,7 +251,7 @@ class _AssignGroupsDialogDesktop extends StatelessWidget {
                     )
                   : groups.isEmpty
                   ? const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 16),
+                      padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
                       child: Text('No hay grupos disponibles'),
                     )
                   : ConstrainedBox(
@@ -291,7 +282,7 @@ class _AssignGroupsDialogDesktop extends StatelessWidget {
                         },
                       ),
                     ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.lg),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
@@ -302,15 +293,10 @@ class _AssignGroupsDialogDesktop extends StatelessWidget {
                       style: TextStyle(color: Colors.green),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: AppSpacing.sm),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryGreen,
-                      foregroundColor: Colors.white,
                       minimumSize: const Size(90, 44),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
                     ),
                     onPressed: isSubmitting ? null : onSubmit,
                     child: isSubmitting

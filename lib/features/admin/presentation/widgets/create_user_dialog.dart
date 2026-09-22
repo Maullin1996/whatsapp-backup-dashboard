@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:whatsapp_monitor_viewer/core/responsive/responsive_layout.dart';
 import 'package:whatsapp_monitor_viewer/core/shared/widget/custom_login_text_form_field.dart';
-import 'package:whatsapp_monitor_viewer/core/theme/app_colors.dart';
+import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
 import 'package:whatsapp_monitor_viewer/features/admin/presentation/providers/admin_providers.dart';
 
 class CreateUserDialog extends ConsumerStatefulWidget {
@@ -90,11 +90,9 @@ class _CreateUserDialogMobile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-      backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.xl),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 500),
           child: Column(
@@ -109,20 +107,20 @@ class _CreateUserDialogMobile extends StatelessWidget {
                   color: Colors.green,
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.lg),
               CustomTextFormField(
                 textController: displayNameController,
                 labelText: 'Nombre',
                 prefixIcon: Icon(Icons.person_rounded),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.md),
               // CustomTextFormField(
               //   textController: _emailController,
               //   keyboardType: TextInputType.emailAddress,
               //   labelText: 'Correo',
               //   prefixIcon: Icon(Icons.email_rounded),
               // ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.md),
               CustomTextFormField(
                 textController: passwordController,
                 obscureText: obscurePassword,
@@ -135,7 +133,7 @@ class _CreateUserDialogMobile extends StatelessWidget {
                   onPressed: onToggleObscure,
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.lg),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
@@ -146,15 +144,10 @@ class _CreateUserDialogMobile extends StatelessWidget {
                       style: TextStyle(color: AppColors.loadingColor),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: AppSpacing.sm),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryGreen,
-                      foregroundColor: Colors.white,
                       minimumSize: const Size(90, 44),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
                     ),
                     onPressed: isSubmitting ? null : onSubmit,
                     child: isSubmitting
@@ -200,11 +193,9 @@ class _CreateUserDialogDesktop extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 80, vertical: 24),
-      backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 80, vertical: AppSpacing.xl),
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(AppSpacing.xl),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 500),
           child: Column(
@@ -225,14 +216,14 @@ class _CreateUserDialogDesktop extends StatelessWidget {
                 labelText: 'Nombre',
                 prefixIcon: Icon(Icons.person_rounded),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.md),
               // CustomTextFormField(
               //   textController: _emailController,
               //   keyboardType: TextInputType.emailAddress,
               //   labelText: 'Correo',
               //   prefixIcon: Icon(Icons.email_rounded),
               // ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.md),
               CustomTextFormField(
                 textController: passwordController,
                 obscureText: obscurePassword,
@@ -256,15 +247,10 @@ class _CreateUserDialogDesktop extends StatelessWidget {
                       style: TextStyle(color: AppColors.loadingColor),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: AppSpacing.sm),
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryGreen,
-                      foregroundColor: Colors.white,
                       minimumSize: const Size(90, 44),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
                     ),
                     onPressed: isSubmitting ? null : onSubmit,
                     child: isSubmitting

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:whatsapp_monitor_viewer/core/loading/app_shimmer.dart';
+import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
 
 class ChatsListLoading extends StatelessWidget {
   final int itemCount;
@@ -22,7 +23,10 @@ class _ChatSkeletonTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: 6,
+      ),
       child: Row(
         children: [
           Container(
@@ -33,7 +37,7 @@ class _ChatSkeletonTile extends StatelessWidget {
               shape: BoxShape.circle,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -45,28 +49,32 @@ class _ChatSkeletonTile extends StatelessWidget {
                         height: 16,
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(6),
+                          borderRadius: BorderRadius.circular(
+                            AppRadius.thumbnail,
+                          ),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: AppSpacing.md),
                     Container(
                       width: 48,
-                      height: 12,
+                      height: AppSpacing.md,
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(6),
+                        borderRadius: BorderRadius.circular(
+                          AppRadius.thumbnail,
+                        ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: AppSpacing.sm),
                 Container(
                   width: 120,
-                  height: 12,
+                  height: AppSpacing.md,
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(AppRadius.thumbnail),
                   ),
                 ),
               ],

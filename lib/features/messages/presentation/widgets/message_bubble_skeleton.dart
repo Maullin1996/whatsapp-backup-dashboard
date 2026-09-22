@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
 
 class MessageBubbleSkeleton extends StatelessWidget {
   final int index;
@@ -16,7 +17,7 @@ class MessageBubbleSkeleton extends StatelessWidget {
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: AppRadius.tileAll,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -27,20 +28,20 @@ class MessageBubbleSkeleton extends StatelessWidget {
                 height: 14,
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(AppRadius.thumbnail),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
 
               // Imagen
               Container(
                 height: 150,
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(AppRadius.thumbnail),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
 
               // Texto
               Container(
@@ -48,7 +49,7 @@ class MessageBubbleSkeleton extends StatelessWidget {
                 height: 14,
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(AppRadius.thumbnail),
                 ),
               ),
               const SizedBox(height: 6),
@@ -61,7 +62,7 @@ class MessageBubbleSkeleton extends StatelessWidget {
                   height: 10,
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(AppRadius.thumbnail),
                   ),
                 ),
               ),

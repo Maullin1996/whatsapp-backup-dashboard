@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/widgets/message_list_loading.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/helpers/format_day_label.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/providers/message_list_scroll_controller.dart';
@@ -49,7 +50,7 @@ class _MessageListState extends ConsumerState<MessageList> {
 
     _controller.animateTo(
       0.0,
-      duration: const Duration(milliseconds: 800),
+      duration: AppDurations.scrollToLatest,
       curve: Curves.easeOut,
     );
   }
@@ -81,13 +82,13 @@ class _MessageListState extends ConsumerState<MessageList> {
             child: Center(
               child: Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
+                  horizontal: AppSpacing.xl,
                   vertical: 20,
                 ),
                 margin: const EdgeInsets.symmetric(horizontal: 32),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: AppRadius.dialogAll,
                 ),
                 child: const Column(
                   mainAxisSize: MainAxisSize.min,
@@ -97,7 +98,7 @@ class _MessageListState extends ConsumerState<MessageList> {
                       size: 80,
                       color: Colors.grey,
                     ),
-                    SizedBox(height: 12),
+                    SizedBox(height: AppSpacing.md),
                     Text(
                       'No hay mensajes aún',
                       textAlign: TextAlign.center,
@@ -148,11 +149,10 @@ class _MessageListState extends ConsumerState<MessageList> {
               children: [
                 ListView.builder(
                   controller: _controller,
-                  padding: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
                   reverse: true,
                   addAutomaticKeepAlives: false,
                   addRepaintBoundaries: true,
-                  cacheExtent: 800,
                   itemCount: items.length,
                   itemBuilder: (context, index) {
                     final item = items[index];
@@ -162,15 +162,17 @@ class _MessageListState extends ConsumerState<MessageList> {
                         children: [
                           if (item.showDateSeparator)
                             Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              padding: const EdgeInsets.symmetric(
+                                vertical: AppSpacing.md,
+                              ),
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 4,
+                                  horizontal: AppSpacing.md,
+                                  vertical: AppSpacing.xs,
                                 ),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFFE1F3FB),
-                                  borderRadius: BorderRadius.circular(8),
+                                  borderRadius: AppRadius.buttonAll,
                                 ),
                                 child: Text(
                                   formatDayLabel(item.message.messageTimestamp),
@@ -184,9 +186,9 @@ class _MessageListState extends ConsumerState<MessageList> {
                             child: Padding(
                               padding: EdgeInsets.only(
                                 top: item.showSenderName ? 10 : 2,
-                                bottom: 12,
-                                left: 12,
-                                right: 12,
+                                bottom: AppSpacing.md,
+                                left: AppSpacing.md,
+                                right: AppSpacing.md,
                               ),
                               child: MessageBubble(
                                 message: item.message,
@@ -213,7 +215,7 @@ class _MessageListState extends ConsumerState<MessageList> {
       error: (error, _) {
         return Center(
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             child: Text(
               error.toString(),
               textAlign: TextAlign.center,
@@ -267,11 +269,11 @@ class _GoToLatestButtonState extends State<_GoToLatestButton> {
       ignoring: !_show,
       child: AnimatedSlide(
         offset: _show ? Offset.zero : const Offset(0, 0.25),
-        duration: const Duration(milliseconds: 220),
+        duration: AppDurations.pageTransition,
         curve: Curves.easeOutCubic,
         child: AnimatedOpacity(
           opacity: _show ? 1.0 : 0.0,
-          duration: const Duration(milliseconds: 180),
+          duration: AppDurations.fadeOut,
           child: const GoToLatestMessageButton(),
         ),
       ),

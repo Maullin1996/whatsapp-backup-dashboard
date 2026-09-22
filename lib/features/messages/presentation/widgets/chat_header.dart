@@ -3,6 +3,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
 import 'package:whatsapp_monitor_viewer/features/chats/presentation/provider/active_chat_provider.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/providers/date_filter_provider.dart';
 
@@ -19,12 +20,13 @@ class ChatHeader extends ConsumerWidget {
     final isFiltered = !filter.isDefault;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.md,
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(
-          bottom: BorderSide(color: Colors.black.withValues(alpha: 0.2)),
-        ),
+        border: Border(bottom: BorderSide(color: AppColors.divider)),
       ),
       child: Row(
         children: [
@@ -33,46 +35,43 @@ class ChatHeader extends ConsumerWidget {
                 ? SelectableText(
                     chat.groupName,
                     maxLines: 1,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w500,
-                    ),
+                    style: AppTypography.headerTitle(context),
                   )
                 : Text(
                     chat.groupName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w500,
-                    ),
+                    style: AppTypography.headerTitle(context),
                   ),
           ),
           // Badge filtro activo
           if (isFiltered)
             Container(
-              margin: const EdgeInsets.only(right: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              margin: const EdgeInsets.only(right: AppSpacing.sm),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: AppSpacing.xs,
+              ),
               decoration: BoxDecoration(
-                color: const Color(0xFF00897B).withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(20),
+                color: AppColors.accentTeal.withValues(alpha: 0.12),
+                borderRadius: AppRadius.pillAll,
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     filter.label,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF00897B),
+                    style: AppTypography.badge.copyWith(
+                      color: AppColors.accentTeal,
                     ),
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: AppSpacing.xs),
                   GestureDetector(
                     onTap: () => ref.read(dateFilterProvider.notifier).reset(),
                     child: const Icon(
                       Icons.close,
                       size: 14,
-                      color: Color(0xFF00897B),
+                      color: AppColors.accentTeal,
                     ),
                   ),
                 ],
@@ -83,7 +82,7 @@ class ChatHeader extends ConsumerWidget {
             tooltip: 'Panel de control',
             icon: Icon(
               Icons.menu,
-              color: isFiltered ? const Color(0xFF00897B) : Colors.black54,
+              color: isFiltered ? AppColors.accentTeal : Colors.black54,
             ),
             onPressed: () => Scaffold.of(context).openEndDrawer(),
           ),

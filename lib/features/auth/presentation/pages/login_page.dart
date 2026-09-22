@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:whatsapp_monitor_viewer/core/errors/auth_failure.dart';
 import 'package:whatsapp_monitor_viewer/core/responsive/responsive_layout.dart';
-import 'package:whatsapp_monitor_viewer/core/theme/app_colors.dart';
+import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
 import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_providers.dart';
 import 'package:whatsapp_monitor_viewer/core/shared/widget/custom_login_text_form_field.dart';
 
@@ -122,24 +122,19 @@ class _LoginPageMobile extends StatelessWidget {
           child: Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 24,
+                horizontal: AppSpacing.lg,
+                vertical: AppSpacing.xl,
               ),
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 400),
+                constraints: const BoxConstraints(
+                  maxWidth: AppSizes.loginFormMaxWidth,
+                ),
                 child: Container(
                   decoration: BoxDecoration(
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
-                        blurRadius: 20,
-                        offset: const Offset(0, 5),
-                        spreadRadius: 5,
-                      ),
-                    ],
+                    boxShadow: AppShadows.loginCard,
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: AppRadius.dialogAll,
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(20),
@@ -151,7 +146,7 @@ class _LoginPageMobile extends StatelessWidget {
                           width: 84,
                           height: 84,
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: AppSpacing.md),
                         const Text(
                           'Monitor de Imagenes',
                           textAlign: TextAlign.center,
@@ -191,7 +186,7 @@ class _LoginPageMobile extends StatelessWidget {
                           ),
                         ),
 
-                        const SizedBox(height: 24),
+                        const SizedBox(height: AppSpacing.xl),
 
                         /// ERROR
                         if (errorMessage != null)
@@ -202,7 +197,7 @@ class _LoginPageMobile extends StatelessWidget {
                                 textAlign: TextAlign.center,
                                 style: TextStyle(color: AppColors.errorMessage),
                               ),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: AppSpacing.lg),
                             ],
                           ),
 
@@ -216,7 +211,9 @@ class _LoginPageMobile extends StatelessWidget {
                               ),
                               padding:
                                   WidgetStateProperty.all<EdgeInsetsGeometry>(
-                                    const EdgeInsets.symmetric(vertical: 16),
+                                    const EdgeInsets.symmetric(
+                                      vertical: AppSpacing.lg,
+                                    ),
                                   ),
                               backgroundColor: WidgetStateProperty.all<Color>(
                                 AppColors.primaryGreen,
@@ -296,27 +293,22 @@ class _LoginPageDesktop extends StatelessWidget {
           child: Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: 24,
+                horizontal: AppSpacing.xl,
+                vertical: AppSpacing.xl,
               ),
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 400),
+                constraints: const BoxConstraints(
+                  maxWidth: AppSizes.loginFormMaxWidth,
+                ),
                 child: Container(
                   decoration: BoxDecoration(
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
-                        blurRadius: 20,
-                        offset: const Offset(0, 5),
-                        spreadRadius: 5,
-                      ),
-                    ],
+                    boxShadow: AppShadows.loginCard,
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: AppRadius.dialogAll,
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(AppSpacing.xl),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -325,7 +317,7 @@ class _LoginPageDesktop extends StatelessWidget {
                           width: 100,
                           height: 100,
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: AppSpacing.lg),
                         const Text(
                           'Monitor de Imagenes',
                           textAlign: TextAlign.center,
@@ -334,7 +326,7 @@ class _LoginPageDesktop extends StatelessWidget {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: AppSpacing.xl),
 
                         /// EMAIL
                         CustomTextFormField(
@@ -365,7 +357,7 @@ class _LoginPageDesktop extends StatelessWidget {
                           ),
                         ),
 
-                        const SizedBox(height: 24),
+                        const SizedBox(height: AppSpacing.xl),
 
                         /// ERROR
                         if (errorMessage != null)
@@ -376,7 +368,7 @@ class _LoginPageDesktop extends StatelessWidget {
                                 textAlign: TextAlign.center,
                                 style: TextStyle(color: AppColors.errorMessage),
                               ),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: AppSpacing.lg),
                             ],
                           ),
 
@@ -390,7 +382,9 @@ class _LoginPageDesktop extends StatelessWidget {
                               ),
                               padding:
                                   WidgetStateProperty.all<EdgeInsetsGeometry>(
-                                    const EdgeInsets.symmetric(vertical: 16),
+                                    const EdgeInsets.symmetric(
+                                      vertical: AppSpacing.lg,
+                                    ),
                                   ),
                               backgroundColor: WidgetStateProperty.all<Color>(
                                 AppColors.primaryGreen,

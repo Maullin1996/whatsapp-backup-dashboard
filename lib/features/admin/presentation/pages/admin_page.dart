@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:whatsapp_monitor_viewer/core/errors/admin_failure.dart';
 import 'package:whatsapp_monitor_viewer/core/responsive/responsive_layout.dart';
-import 'package:whatsapp_monitor_viewer/core/theme/app_colors.dart';
+import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
 import 'package:whatsapp_monitor_viewer/features/admin/domain/entities/app_user.dart';
 import 'package:whatsapp_monitor_viewer/features/admin/presentation/providers/admin_providers.dart';
 import 'package:whatsapp_monitor_viewer/features/admin/presentation/providers/admin_state.dart';
@@ -106,7 +106,7 @@ class _AdminPageMobile extends StatelessWidget {
       ),
       backgroundColor: Colors.white,
       body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 400),
+        duration: AppDurations.stateSwitch,
         switchInCurve: Curves.easeOutCubic,
         switchOutCurve: Curves.easeInCubic,
         transitionBuilder: (child, animation) =>
@@ -119,19 +119,20 @@ class _AdminPageMobile extends StatelessWidget {
             : state.users.isEmpty
             ? KeyedSubtree(
                 key: const ValueKey('empty'),
-                child: const Center(
-                  child: Text('No hay usuarios registrados'),
-                ),
+                child: const Center(child: Text('No hay usuarios registrados')),
               )
             : KeyedSubtree(
                 key: const ValueKey('users'),
                 child: Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 800),
+                    constraints: const BoxConstraints(
+                      maxWidth: AppSizes.adminPanelMaxWidth,
+                    ),
                     child: ListView.separated(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(AppSpacing.md),
                       itemCount: state.users.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 8),
+                      separatorBuilder: (_, _) =>
+                          const SizedBox(height: AppSpacing.sm),
                       itemBuilder: (context, index) {
                         final user = state.users[index];
                         return _UserCard(
@@ -194,7 +195,7 @@ class _AdminPageDesktop extends StatelessWidget {
       ),
       backgroundColor: Colors.white,
       body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 400),
+        duration: AppDurations.stateSwitch,
         switchInCurve: Curves.easeOutCubic,
         switchOutCurve: Curves.easeInCubic,
         transitionBuilder: (child, animation) =>
@@ -207,17 +208,17 @@ class _AdminPageDesktop extends StatelessWidget {
             : state.users.isEmpty
             ? KeyedSubtree(
                 key: const ValueKey('empty'),
-                child: const Center(
-                  child: Text('No hay usuarios registrados'),
-                ),
+                child: const Center(child: Text('No hay usuarios registrados')),
               )
             : KeyedSubtree(
                 key: const ValueKey('users'),
                 child: Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 800),
+                    constraints: const BoxConstraints(
+                      maxWidth: AppSizes.adminPanelMaxWidth,
+                    ),
                     child: ListView.separated(
-                      padding: const EdgeInsets.all(24),
+                      padding: const EdgeInsets.all(AppSpacing.xl),
                       itemCount: state.users.length,
                       separatorBuilder: (_, _) => const SizedBox(height: 12),
                       itemBuilder: (context, index) {
@@ -257,8 +258,6 @@ class _UserCard extends ConsumerWidget {
     );
 
     return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       color: const Color.fromARGB(255, 246, 246, 246),
       child: Padding(
         padding: EdgeInsets.symmetric(
@@ -282,7 +281,7 @@ class _UserCard extends ConsumerWidget {
                     color: user.disabled ? Colors.grey : AppColors.primaryGreen,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -301,7 +300,7 @@ class _UserCard extends ConsumerWidget {
                           'SuperAdmin',
                           style: TextStyle(
                             fontSize: 10,
-                            color: Colors.purple,
+                            color: AppColors.roleSuperAdmin,
                             fontWeight: FontWeight.bold,
                           ),
                         )
@@ -328,7 +327,7 @@ class _UserCard extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
@@ -348,7 +347,7 @@ class _UserCard extends ConsumerWidget {
                             .where((gr) => gr.chatJid == g)
                             .firstOrNull;
                         return Padding(
-                          padding: const EdgeInsets.only(right: 6),
+                          padding: const EdgeInsets.only(right: AppSpacing.xs),
                           child: Chip(
                             label: Text(group?.groupName ?? g),
                             backgroundColor: AppColors.primaryGreen.withAlpha(
@@ -360,20 +359,20 @@ class _UserCard extends ConsumerWidget {
                       }).toList(),
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpacing.xs),
             isMobile
                 ? Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       _actionButton(context, user),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: AppSpacing.xs),
                       _groupsButton(context, user),
                       if (isSuperAdmin && !user.isSuperAdmin) ...[
-                        const SizedBox(height: 4),
+                        const SizedBox(height: AppSpacing.xs),
                         _roleButton(context, user, ref),
                       ],
                       if (!user.isSuperAdmin) ...[
-                        const SizedBox(height: 4),
+                        const SizedBox(height: AppSpacing.xs),
                         _deleteButton(context, user, ref),
                       ],
                     ],
@@ -382,14 +381,14 @@ class _UserCard extends ConsumerWidget {
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       _actionButton(context, user),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: AppSpacing.sm),
                       _groupsButton(context, user),
                       if (isSuperAdmin && !user.isSuperAdmin) ...[
-                        const SizedBox(width: 8),
+                        const SizedBox(width: AppSpacing.sm),
                         _roleButton(context, user, ref),
                       ],
                       if (!user.isSuperAdmin) ...[
-                        const SizedBox(width: 8),
+                        const SizedBox(width: AppSpacing.sm),
                         _deleteButton(context, user, ref),
                       ],
                     ],
@@ -408,22 +407,18 @@ class _UserCard extends ConsumerWidget {
             ? Icons.person_remove_rounded
             : Icons.admin_panel_settings_rounded,
         size: 18,
-        color: isAdmin ? Colors.orange : Colors.purple,
+        color: isAdmin ? AppColors.roleAdmin : AppColors.roleSuperAdmin,
       ),
       label: Text(
         isAdmin ? 'Quitar admin' : 'Hacer admin',
         style: TextStyle(
-          color: isAdmin ? Colors.orange : Colors.purple,
+          color: isAdmin ? AppColors.roleAdmin : AppColors.roleSuperAdmin,
           fontWeight: FontWeight.bold,
         ),
       ),
       onPressed: () => showDialog(
         context: context,
         builder: (_) => AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
           title: Text(
             isAdmin ? '¿Quitar permisos de admin?' : '¿Hacer administrador?',
             style: const TextStyle(fontWeight: FontWeight.bold),
@@ -446,11 +441,10 @@ class _UserCard extends ConsumerWidget {
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: isAdmin ? Colors.orange : Colors.purple,
+                backgroundColor: isAdmin
+                    ? AppColors.roleAdmin
+                    : AppColors.roleSuperAdmin,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
               ),
               onPressed: () {
                 Navigator.of(context).pop();
@@ -518,10 +512,6 @@ class _UserCard extends ConsumerWidget {
       onPressed: () => showDialog(
         context: context,
         builder: (_) => AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
           title: const Text(
             '¿Eliminar usuario?',
             style: TextStyle(fontWeight: FontWeight.bold),
@@ -544,9 +534,6 @@ class _UserCard extends ConsumerWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
               ),
               onPressed: () {
                 Navigator.of(context).pop();

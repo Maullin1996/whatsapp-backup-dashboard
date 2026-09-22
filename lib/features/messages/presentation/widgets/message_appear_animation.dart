@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
 
 class MessageAppearAnimation extends StatelessWidget {
   final int index;
@@ -16,7 +17,7 @@ class MessageAppearAnimation extends StatelessWidget {
 
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 260),
+      duration: AppDurations.messageItemAppear,
       curve: Curves.easeOut,
       builder: (_, value, _) {
         return Opacity(
