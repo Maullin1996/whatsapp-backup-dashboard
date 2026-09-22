@@ -1,17 +1,23 @@
 import 'package:extended_image/extended_image.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:whatsapp_monitor_viewer/core/responsive/responsive_layout.dart';
 import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
-import 'package:whatsapp_monitor_viewer/features/messages/presentation/controllers/image_zoom_controller.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/domain/entities/image_view_item.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/providers/chat_image_items_provider.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/providers/image_url_provider.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/providers/messages_provider.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/viewer/image_controler_actions.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/widgets/nav_button.dart';
+
+/// Escala mínima/máxima permitida al hacer zoom en el visor.
+const double _minZoomScale = 1.0;
+const double _maxZoomScale = 6.0;
+
+/// Escala a la que salta el doble-tap/doble-click cuando la imagen está a
+/// escala 1.0 (un segundo doble tap vuelve a 1.0).
+const double _doubleTapZoomScale = 2.5;
 
 class ImageDetailPage extends ConsumerStatefulWidget {
   final int initialIndex;
@@ -22,33 +28,110 @@ class ImageDetailPage extends ConsumerStatefulWidget {
   ConsumerState<ImageDetailPage> createState() => _ImageDetailPageState();
 }
 
-class _ImageDetailPageState extends ConsumerState<ImageDetailPage> {
-  late final PageController _controller;
-  late final ImageZoomController _zoom;
+class _ImageDetailPageState extends ConsumerState<ImageDetailPage>
+    with SingleTickerProviderStateMixin {
+  late final ExtendedPageController _controller;
   late int _index;
+
+  /// Una `GlobalKey` de estado de gesto por página, para que el zoom de una
+  /// imagen sea independiente del resto (antes se compartía un único
+  /// `TransformationController` entre todas las páginas del pager).
+  final Map<int, GlobalKey<ExtendedImageGestureState>> _gestureKeys = {};
+
+  late final AnimationController _zoomAnimationController;
+  Animation<double>? _zoomAnimation;
+  VoidCallback? _zoomAnimationListener;
 
   @override
   void initState() {
     super.initState();
     _index = widget.initialIndex;
-    _controller = PageController(initialPage: _index);
-    _zoom = ImageZoomController();
+    _controller = ExtendedPageController(initialPage: _index);
+    _zoomAnimationController = AnimationController(
+      vsync: this,
+      duration: AppDurations.quick,
+    );
   }
 
   @override
   void dispose() {
     _controller.dispose();
-    _zoom.dispose();
+    _zoomAnimationController.dispose();
     super.dispose();
   }
 
+  GlobalKey<ExtendedImageGestureState> _gestureKeyFor(int index) {
+    return _gestureKeys.putIfAbsent(
+      index,
+      () => GlobalKey<ExtendedImageGestureState>(),
+    );
+  }
+
+  ExtendedImageGestureState? get _currentGestureState =>
+      _gestureKeys[_index]?.currentState;
+
   void _onPageChanged(int index) {
     setState(() => _index = index);
-    _zoom.reset();
     final items = ref.read(chatImageItemsProvider);
     if (index >= items.length - 3) {
       ref.read(messagesProvider.notifier).loadMore();
     }
+  }
+
+  /// Solo deja que el pager cambie de página cuando la imagen actual está a
+  /// escala 1.0. Mientras haya zoom, desplazarse hacia un lateral mueve la
+  /// imagen (pan) en vez de cambiar a la foto siguiente/anterior.
+  bool _canScrollPage(GestureDetails? details) {
+    return (details?.totalScale ?? 1.0) <= 1.0;
+  }
+
+  void _handleDoubleTap(ExtendedImageGestureState state) {
+    final position = state.pointerDownPosition;
+    final begin = state.gestureDetails?.totalScale ?? 1.0;
+    final end = begin > 1.05 ? 1.0 : _doubleTapZoomScale;
+    _animateScaleTo(state, begin: begin, end: end, focalPoint: position);
+  }
+
+  void _zoomIn() => _adjustZoom(1.25);
+  void _zoomOut() => _adjustZoom(0.8);
+
+  void _adjustZoom(double factor) {
+    final state = _currentGestureState;
+    final box = state?.context.findRenderObject() as RenderBox?;
+    if (state == null || box == null) return;
+
+    final current = state.gestureDetails?.totalScale ?? 1.0;
+    final target = (current * factor).clamp(_minZoomScale, _maxZoomScale);
+    final center = box.localToGlobal(box.size.center(Offset.zero));
+    _animateScaleTo(state, begin: current, end: target, focalPoint: center);
+  }
+
+  void _resetZoom() => _currentGestureState?.reset();
+
+  void _animateScaleTo(
+    ExtendedImageGestureState state, {
+    required double begin,
+    required double end,
+    Offset? focalPoint,
+  }) {
+    if (_zoomAnimationListener != null) {
+      _zoomAnimation?.removeListener(_zoomAnimationListener!);
+    }
+    _zoomAnimationController
+      ..stop()
+      ..reset();
+
+    _zoomAnimationListener = () {
+      state.handleDoubleTap(
+        scale: _zoomAnimation!.value,
+        doubleTapPosition: focalPoint,
+      );
+    };
+    _zoomAnimation = _zoomAnimationController.drive(
+      Tween<double>(begin: begin, end: end),
+    );
+    _zoomAnimation!.addListener(_zoomAnimationListener!);
+    _zoomAnimationController.forward();
   }
 
   @override
@@ -74,8 +157,8 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage> {
       actions: {
         NextImageIntent: CallbackAction<NextImageIntent>(
           onInvoke: (_) {
-            if (_index > 0) {
-              _controller.previousPage(
+            if (_index < items.length - 1) {
+              _controller.nextPage(
                 duration: AppDurations.quick,
                 curve: Curves.easeOut,
               );
@@ -85,8 +168,8 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage> {
         ),
         PreviousImageIntent: CallbackAction<PreviousImageIntent>(
           onInvoke: (_) {
-            if (_index < items.length - 1) {
-              _controller.nextPage(
+            if (_index > 0) {
+              _controller.previousPage(
                 duration: AppDurations.quick,
                 curve: Curves.easeOut,
               );
@@ -102,19 +185,19 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage> {
         ),
         ZoomInIntent: CallbackAction<ZoomInIntent>(
           onInvoke: (_) {
-            _zoom.zoomIn();
+            _zoomIn();
             return null;
           },
         ),
         ZoomOutIntent: CallbackAction<ZoomOutIntent>(
           onInvoke: (_) {
-            _zoom.zoomOut();
+            _zoomOut();
             return null;
           },
         ),
         ZoomResetIntent: CallbackAction<ZoomResetIntent>(
           onInvoke: (_) {
-            _zoom.reset();
+            _resetZoom();
             return null;
           },
         ),
@@ -129,9 +212,9 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage> {
               localTime: item.localTime,
               isEdited: item.isEdited,
               shiftImageIndex: item.shiftImageIndex,
-              zoomOut: _zoom.zoomOut,
-              zoomIn: _zoom.zoomIn,
-              zoomRest: _zoom.reset,
+              zoomOut: _zoomOut,
+              zoomIn: _zoomIn,
+              zoomRest: _resetZoom,
               close: () => Navigator.pop(context),
             ),
             Expanded(
@@ -139,7 +222,9 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage> {
                 currentIndex: _index,
                 controller: _controller,
                 items: items,
-                zoom: _zoom,
+                gestureKeyFor: _gestureKeyFor,
+                onDoubleTap: _handleDoubleTap,
+                canScrollPage: _canScrollPage,
                 onPageChanged: _onPageChanged,
               ),
             ),
@@ -176,16 +261,20 @@ class _ImageIndexIndicator extends StatelessWidget {
 }
 
 class _ImagePager extends ConsumerWidget {
-  final PageController controller;
+  final ExtendedPageController controller;
   final List<ImageViewItem> items;
-  final ImageZoomController zoom;
+  final GlobalKey<ExtendedImageGestureState> Function(int index) gestureKeyFor;
+  final void Function(ExtendedImageGestureState state) onDoubleTap;
+  final bool Function(GestureDetails? details) canScrollPage;
   final ValueChanged<int> onPageChanged;
   final int currentIndex;
 
   const _ImagePager({
     required this.controller,
     required this.items,
-    required this.zoom,
+    required this.gestureKeyFor,
+    required this.onDoubleTap,
+    required this.canScrollPage,
     required this.onPageChanged,
     required this.currentIndex,
   });
@@ -194,38 +283,45 @@ class _ImagePager extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Stack(
       children: [
-        PageView.builder(
+        ExtendedImageGesturePageView.builder(
           controller: controller,
-          itemCount: items.length,
-          reverse: true,
+          canScrollPage: canScrollPage,
           onPageChanged: onPageChanged,
+          itemCount: items.length,
           itemBuilder: (_, index) {
             final item = items[index];
             final urlAsync = ref.watch(imageUrlProvider(item.storagePath));
-            return _ImageCanvas(zoom: zoom, urlAsync: urlAsync);
+            return _ImageCanvas(
+              key: ValueKey(item.storagePath),
+              gestureKey: gestureKeyFor(index),
+              urlAsync: urlAsync,
+              onDoubleTap: onDoubleTap,
+            );
           },
         ),
-        if (currentIndex < items.length - 1)
+        // Izquierda = retroceder a la imagen anterior.
+        if (currentIndex > 0)
           Positioned(
             left: 12,
             top: 0,
             bottom: 0,
             child: NavButton(
               icon: Icons.chevron_left,
-              onTap: () => controller.nextPage(
+              onTap: () => controller.previousPage(
                 duration: AppDurations.quick,
                 curve: Curves.easeOut,
               ),
             ),
           ),
-        if (currentIndex > 0)
+        // Derecha = avanzar a la siguiente imagen.
+        if (currentIndex < items.length - 1)
           Positioned(
             right: 12,
             top: 0,
             bottom: 0,
             child: NavButton(
               icon: Icons.chevron_right,
-              onTap: () => controller.previousPage(
+              onTap: () => controller.nextPage(
                 duration: AppDurations.quick,
                 curve: Curves.easeOut,
               ),
@@ -237,72 +333,67 @@ class _ImagePager extends ConsumerWidget {
 }
 
 class _ImageCanvas extends StatelessWidget {
-  final ImageZoomController zoom;
+  final GlobalKey<ExtendedImageGestureState> gestureKey;
   final String urlAsync;
-  const _ImageCanvas({required this.zoom, required this.urlAsync});
+  final void Function(ExtendedImageGestureState state) onDoubleTap;
+
+  const _ImageCanvas({
+    super.key,
+    required this.gestureKey,
+    required this.urlAsync,
+    required this.onDoubleTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    //final screenWidth = MediaQuery.sizeOf(context).width;
-    //final isMobile = screenWidth < 700;
-    //final cacheDimension = isMobile ? (screenWidth * 1.25).round() : 1600;
-
-    return Center(
-      child: Listener(
-        onPointerSignal: (event) {
-          if (event is PointerScrollEvent) {
-            zoom.onScroll(event);
-          }
-        },
-        child: GestureDetector(
-          onDoubleTap: () => zoom.reset(),
-          child: InteractiveViewer(
-            transformationController: zoom.tc,
-            minScale: ImageZoomController.minScale,
-            maxScale: ImageZoomController.maxScale,
-            panEnabled: true,
-            scaleEnabled: true,
-            boundaryMargin: const EdgeInsets.all(20),
-            child: ExtendedImage.network(
-              urlAsync,
-              fit: BoxFit.contain,
-              cache: true,
-              loadStateChanged: (ExtendedImageState state) {
-                switch (state.extendedImageLoadState) {
-                  case LoadState.loading:
-                    return SizedBox(
-                      height: 200,
-                      width: 200,
-                      child: const Center(child: CircularProgressIndicator()),
-                    );
-                  case LoadState.completed:
-                    return null;
-                  case LoadState.failed:
-                    return GestureDetector(
-                      onTap: () {
-                        state.reLoadImage();
-                      },
-                      child: SizedBox(
-                        height: 200,
-                        width: 200,
-                        child: const Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.broken_image, size: 40),
-                              SizedBox(height: AppSpacing.sm),
-                              Text('Toca para reintentar'),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                }
-              },
-            ),
-          ),
-        ),
-      ),
+    return ExtendedImage.network(
+      urlAsync,
+      fit: BoxFit.contain,
+      cache: true,
+      mode: ExtendedImageMode.gesture,
+      extendedImageGestureKey: gestureKey,
+      onDoubleTap: onDoubleTap,
+      initGestureConfigHandler: (ExtendedImageState state) {
+        return GestureConfig(
+          minScale: _minZoomScale,
+          maxScale: _maxZoomScale,
+          animationMinScale: _minZoomScale,
+          animationMaxScale: _maxZoomScale * 1.1,
+          initialScale: _minZoomScale,
+          inPageView: true,
+          initialAlignment: InitialAlignment.center,
+        );
+      },
+      loadStateChanged: (ExtendedImageState state) {
+        switch (state.extendedImageLoadState) {
+          case LoadState.loading:
+            return const SizedBox(
+              height: 200,
+              width: 200,
+              child: Center(child: CircularProgressIndicator()),
+            );
+          case LoadState.completed:
+            return null;
+          case LoadState.failed:
+            return GestureDetector(
+              onTap: () => state.reLoadImage(),
+              child: const SizedBox(
+                height: 200,
+                width: 200,
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.broken_image, size: 40),
+                      SizedBox(height: AppSpacing.sm),
+                      Text('Toca para reintentar'),
+                    ],
+                  ),
+                ),
+              ),
+            );
+        }
+      },
     );
   }
 }
