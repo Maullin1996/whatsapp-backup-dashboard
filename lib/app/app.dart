@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:whatsapp_monitor_viewer/app/router.dart';
+import 'package:whatsapp_monitor_viewer/core/theme/app_theme.dart';
 
 class WhatsAppMonitorApp extends ConsumerWidget {
   const WhatsAppMonitorApp({super.key});
@@ -20,6 +21,7 @@ class WhatsAppMonitorApp extends ConsumerWidget {
         },
       ),
       debugShowCheckedModeBanner: false,
+      theme: AppTheme.light,
       routerConfig: router,
       builder: (context, child) {
         return FocusScope(autofocus: true, child: child!);

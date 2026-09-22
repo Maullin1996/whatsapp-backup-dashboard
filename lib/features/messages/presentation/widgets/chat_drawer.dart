@@ -3,6 +3,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
 import 'package:whatsapp_monitor_viewer/core/time/shifts.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/domain/entities/date_filter.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/providers/date_filter_provider.dart';
@@ -21,7 +22,10 @@ class ChatDrawer extends ConsumerWidget {
       backgroundColor: Colors.white,
       child: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: 20,
+          ),
           children: [
             // ── Título principal ──
             Text(
@@ -31,13 +35,13 @@ class ChatDrawer extends ConsumerWidget {
                 color: Colors.green,
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpacing.xl),
 
             // ══════════════════════════
             // SECCIÓN: Filtro de fecha
             // ══════════════════════════
             _SectionTitle(label: 'Filtrar por fecha'),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             _FilterOption(
               label: 'Hoy y ayer',
               icon: Icons.today,
@@ -94,7 +98,7 @@ class ChatDrawer extends ConsumerWidget {
                             backgroundColor: Colors.white,
                           ),
                           colorScheme: const ColorScheme.light(
-                            primary: Color.fromARGB(184, 47, 208, 23),
+                            primary: AppColors.primaryGreen,
                             onPrimary: Colors.white,
                             surface: Colors.white,
                             onSurface: Colors.black87,
@@ -117,21 +121,21 @@ class ChatDrawer extends ConsumerWidget {
                     backgroundColor: Colors.white,
                     shape: const RoundedRectangleBorder(
                       borderRadius: BorderRadius.vertical(
-                        top: Radius.circular(20),
+                        top: Radius.circular(AppRadius.pill),
                       ),
                     ),
                     builder: (context) => StatefulBuilder(
                       builder: (context, setState) => Theme(
                         data: Theme.of(context).copyWith(
                           colorScheme: const ColorScheme.light(
-                            primary: Color.fromARGB(184, 47, 208, 23),
+                            primary: AppColors.primaryGreen,
                             onPrimary: Colors.white,
                             surface: Colors.white,
                             onSurface: Colors.black87,
                           ),
                         ),
                         child: Container(
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(AppSpacing.lg),
                           color: Colors.white,
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
@@ -141,7 +145,9 @@ class ChatDrawer extends ConsumerWidget {
                                 child: Container(
                                   width: 40,
                                   height: 4,
-                                  margin: const EdgeInsets.only(bottom: 16),
+                                  margin: const EdgeInsets.only(
+                                    bottom: AppSpacing.lg,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: Colors.grey.shade300,
                                     borderRadius: BorderRadius.circular(2),
@@ -153,7 +159,7 @@ class ChatDrawer extends ConsumerWidget {
                                 style: Theme.of(context).textTheme.titleMedium
                                     ?.copyWith(fontWeight: FontWeight.w700),
                               ),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: AppSpacing.lg),
                               CalendarDatePicker(
                                 initialDate: selectedDate,
                                 firstDate: DateTime(2020),
@@ -162,7 +168,7 @@ class ChatDrawer extends ConsumerWidget {
                                   setState(() => selectedDate = date);
                                 },
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: AppSpacing.sm),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.end,
                                 children: [
@@ -173,20 +179,8 @@ class ChatDrawer extends ConsumerWidget {
                                     onPressed: () => Navigator.pop(context),
                                     child: const Text('Cancelar'),
                                   ),
-                                  const SizedBox(width: 8),
+                                  const SizedBox(width: AppSpacing.sm),
                                   ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color.fromARGB(
-                                        184,
-                                        47,
-                                        208,
-                                        23,
-                                      ),
-                                      foregroundColor: Colors.white,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                    ),
                                     onPressed: () {
                                       notifier.setFilter(
                                         DateFilterSpecificDay(
@@ -220,14 +214,12 @@ class ChatDrawer extends ConsumerWidget {
             // SECCIÓN: Imágenes por jornada
             // ══════════════════════════
             _SectionTitle(label: 'Imágenes por jornada'),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               'Calculado sobre los mensajes cargados',
-              style: Theme.of(
-                context,
-              ).textTheme.labelSmall?.copyWith(color: Colors.grey),
+              style: AppTypography.timestamp(context),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             ...Shift.values.map(
               (shift) => _ShiftStatRow(
                 label: shiftNames[shift]!,
@@ -275,24 +267,27 @@ class _FilterOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isSelected ? const Color(0xFF00897B) : Colors.black87;
+    final color = isSelected ? AppColors.accentTeal : Colors.black87;
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: AppRadius.tileAll,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: 13,
+        ),
         margin: const EdgeInsets.only(bottom: 2),
         decoration: BoxDecoration(
           color: isSelected
-              ? const Color(0xFF00897B).withValues(alpha: 0.08)
+              ? AppColors.accentTeal.withValues(alpha: 0.08)
               : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: AppRadius.tileAll,
         ),
         child: Row(
           children: [
             Icon(icon, color: color, size: 20),
-            const SizedBox(width: 12),
+            const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Text(
                 label,
@@ -322,20 +317,23 @@ class _ShiftStatRow extends StatelessWidget {
     final hasImages = count > 0;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-      margin: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: 11,
+      ),
+      margin: const EdgeInsets.only(bottom: AppSpacing.xs),
       decoration: BoxDecoration(
         color: hasImages
-            ? const Color(0xFF00897B).withValues(alpha: 0.06)
+            ? AppColors.accentTeal.withValues(alpha: 0.06)
             : Colors.grey.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: AppRadius.tileAll,
       ),
       child: Row(
         children: [
           Icon(
             Icons.image_outlined,
             size: 18,
-            color: hasImages ? const Color(0xFF00897B) : Colors.grey,
+            color: hasImages ? AppColors.accentTeal : Colors.grey,
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -353,7 +351,7 @@ class _ShiftStatRow extends StatelessWidget {
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w700,
-              color: hasImages ? const Color(0xFF00897B) : Colors.grey,
+              color: hasImages ? AppColors.accentTeal : Colors.grey,
             ),
           ),
         ],

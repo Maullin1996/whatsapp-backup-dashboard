@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
 
 class CustomTextFormField extends StatelessWidget {
   final TextEditingController textController;
@@ -30,6 +31,10 @@ class CustomTextFormField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const border = OutlineInputBorder(
+      borderRadius: AppRadius.dialogAll,
+      borderSide: BorderSide(color: AppColors.inputBorder, width: 2),
+    );
     return TextFormField(
       autofocus: autofocus,
       onChanged: onChanged,
@@ -45,36 +50,12 @@ class CustomTextFormField extends StatelessWidget {
         labelText: labelText,
         floatingLabelStyle: const TextStyle(color: Colors.black),
         filled: true,
-        fillColor: const Color.fromARGB(96, 236, 248, 240),
+        fillColor: AppColors.inputBackground,
         contentPadding: const EdgeInsets.symmetric(horizontal: 18),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(
-            color: Color.fromARGB(255, 167, 231, 200),
-            width: 2,
-          ),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(
-            color: Color.fromARGB(255, 167, 231, 200),
-            width: 2,
-          ),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(
-            color: Color.fromARGB(255, 167, 231, 200),
-            width: 2,
-          ),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(
-            color: Color.fromARGB(255, 167, 231, 200),
-            width: 2,
-          ),
-        ),
+        enabledBorder: border,
+        focusedBorder: border,
+        errorBorder: border,
+        focusedErrorBorder: border,
       ),
       obscureText: obscureText,
     );

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:whatsapp_monitor_viewer/core/responsive/breakpoints.dart';
+import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
 import 'package:whatsapp_monitor_viewer/features/chats/presentation/provider/active_chat_provider.dart';
 import 'package:whatsapp_monitor_viewer/features/chats/presentation/widgets/chat_list.dart';
 import 'package:whatsapp_monitor_viewer/features/home/presentation/widgets/custom_message_group.dart';
@@ -10,18 +12,14 @@ import 'package:whatsapp_monitor_viewer/features/messages/presentation/widgets/m
 class HomePage extends ConsumerWidget {
   const HomePage({super.key});
 
-  static const double _mobileBreakpoint = 700;
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final activeChat = ref.watch(activeChatProvider);
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isMobile = constraints.maxWidth < _mobileBreakpoint;
-        final chatListWidth = (constraints.maxWidth * 0.34)
-            .clamp(320.0, 420.0)
-            .toDouble();
+        final isMobile = constraints.maxWidth < AppBreakpoints.homeSplit;
+        final chatListWidth = AppSizes.chatListWidth(constraints.maxWidth);
 
         return PopScope<Object?>(
           canPop: !isMobile || activeChat == null,
@@ -31,12 +29,12 @@ class HomePage extends ConsumerWidget {
             }
           },
           child: Scaffold(
-            backgroundColor: const Color.fromARGB(255, 240, 239, 236),
+            backgroundColor: AppColors.screenBackground,
             endDrawer: const ChatDrawer(),
             body: SafeArea(
               child: isMobile
                   ? AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 220),
+                      duration: AppDurations.pageTransition,
                       child: activeChat == null
                           ? const ColoredBox(
                               key: ValueKey('mobile-chat-list'),
@@ -78,7 +76,7 @@ class _DesktopConversationPanel extends ConsumerWidget {
     final chat = ref.watch(activeChatProvider);
 
     return ColoredBox(
-      color: const Color.fromARGB(255, 240, 239, 236),
+      color: AppColors.screenBackground,
       child: chat == null
           ? const _EmptyConversationView()
           : const _ConversationView(),
@@ -109,14 +107,14 @@ class _EmptyConversationView extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        const contentMaxWidth = 420.0;
+        const contentMaxWidth = AppSizes.emptyStateMaxWidth;
 
         final sidePadding = constraints.maxWidth > contentMaxWidth
             ? (constraints.maxWidth - contentMaxWidth) / 2
-            : 16.0;
+            : AppSpacing.lg;
 
         return Container(
-          color: const Color.fromARGB(255, 240, 239, 236),
+          color: AppColors.screenBackground,
           padding: EdgeInsets.symmetric(horizontal: sidePadding),
           alignment: Alignment.center,
           child: const CustomMessageGroup(),
@@ -135,15 +133,16 @@ class _MobileConversationView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return ColoredBox(
       key: key,
-      color: const Color.fromARGB(255, 240, 239, 236),
+      color: AppColors.screenBackground,
       child: _ConversationView(
         header: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm,
+            vertical: AppSpacing.md,
+          ),
           decoration: BoxDecoration(
             color: Colors.white,
-            border: Border(
-              bottom: BorderSide(color: Colors.black.withValues(alpha: 0.12)),
-            ),
+            border: Border(bottom: BorderSide(color: AppColors.divider)),
           ),
           child: Row(
             children: [
@@ -159,9 +158,7 @@ class _MobileConversationView extends ConsumerWidget {
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: AppTypography.headerTitle(context),
                 ),
               ),
               IconButton(

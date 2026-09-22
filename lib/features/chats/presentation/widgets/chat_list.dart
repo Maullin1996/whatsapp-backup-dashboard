@@ -1,6 +1,7 @@
 //chat_list.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
 import 'package:whatsapp_monitor_viewer/features/chats/presentation/widgets/chats_loading_view.dart';
 import 'package:whatsapp_monitor_viewer/features/chats/domain/entities/chat.dart';
 import 'package:whatsapp_monitor_viewer/features/chats/presentation/provider/chat_search_query_provider.dart';
@@ -71,7 +72,7 @@ class _ChatHeader extends StatelessWidget {
       height: 56,
       child: Row(
         children: [
-          const SizedBox(width: 12),
+          const SizedBox(width: AppSpacing.md),
           const Text(
             'Monitor de Imagenes',
             style: TextStyle(
@@ -122,7 +123,7 @@ class _ChateSearchBarState extends ConsumerState<_ChateSearchBar> {
     });
 
     return Padding(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(AppSpacing.sm),
       child: TextFormField(
         controller: _controller,
         decoration: InputDecoration(
@@ -131,7 +132,7 @@ class _ChateSearchBarState extends ConsumerState<_ChateSearchBar> {
           filled: true,
           fillColor: Colors.grey.shade200,
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(AppRadius.search),
             borderSide: BorderSide.none,
           ),
         ),
@@ -157,18 +158,18 @@ class _ChatSearchResults extends ConsumerWidget {
 
     if (results.isEmpty) {
       return const Padding(
-        padding: EdgeInsets.all(8),
+        padding: EdgeInsets.all(AppSpacing.sm),
         child: Text('No se encontraron grupos'),
       );
     }
 
     return Container(
       constraints: const BoxConstraints(maxHeight: 240),
-      margin: const EdgeInsets.symmetric(horizontal: 8),
+      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: AppRadius.tileAll,
       ),
       child: ListView.separated(
         shrinkWrap: true,
@@ -209,7 +210,6 @@ class _ChatMainList extends ConsumerWidget {
     ];
 
     return ListView.builder(
-      cacheExtent: 300,
       itemCount: items.length,
       itemBuilder: (context, index) {
         final (:chat, :time) = items[index];
@@ -273,18 +273,14 @@ class _CustonGroupContainerState extends State<CustonGroupContainer> {
       child: Row(
         children: [
           CircleAvatar(
-            radius: 27.5,
+            radius: AppSizes.chatAvatarRadius,
             backgroundColor: _bgColor,
             child: Text(
               _initial,
-              style: TextStyle(
-                color: _textColor,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
+              style: AppTypography.avatarInitials.copyWith(color: _textColor),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -296,10 +292,7 @@ class _CustonGroupContainerState extends State<CustonGroupContainer> {
                         widget.chat.groupName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: AppTypography.chatTileTitle,
                       ),
                     ),
                     Text(
@@ -308,7 +301,7 @@ class _CustonGroupContainerState extends State<CustonGroupContainer> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: AppSpacing.xs),
                 Text(
                   '${widget.chat.totalImages} mensajes',
                   style: Theme.of(context).textTheme.bodyMedium,
@@ -345,9 +338,7 @@ class _HoverBackgroundState extends State<_HoverBackground> {
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = widget.isActive
-        ? const Color.fromARGB(159, 236, 234, 234)
-        : Colors.transparent;
+    final bgColor = widget.isActive ? AppColors.activeTile : Colors.transparent;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
@@ -357,11 +348,14 @@ class _HoverBackgroundState extends State<_HoverBackground> {
         child: InkWell(
           onTap: widget.onTap,
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 120),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+            duration: AppDurations.hover,
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.md,
+            ),
             decoration: BoxDecoration(
               color: _hovered ? _hoverColor : bgColor,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: AppRadius.cardAll,
             ),
             child: widget.child,
           ),

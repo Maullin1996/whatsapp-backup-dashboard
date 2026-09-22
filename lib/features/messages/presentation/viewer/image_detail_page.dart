@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:whatsapp_monitor_viewer/core/responsive/responsive_layout.dart';
-import 'package:whatsapp_monitor_viewer/core/theme/app_colors.dart';
+import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/controllers/image_zoom_controller.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/domain/entities/image_view_item.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/providers/chat_image_items_provider.dart';
@@ -76,7 +76,7 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage> {
           onInvoke: (_) {
             if (_index > 0) {
               _controller.previousPage(
-                duration: const Duration(milliseconds: 200),
+                duration: AppDurations.quick,
                 curve: Curves.easeOut,
               );
             }
@@ -87,7 +87,7 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage> {
           onInvoke: (_) {
             if (_index < items.length - 1) {
               _controller.nextPage(
-                duration: const Duration(milliseconds: 200),
+                duration: AppDurations.quick,
                 curve: Curves.easeOut,
               );
             }
@@ -159,13 +159,16 @@ class _ImageIndexIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: AppRadius.pillAll,
           color: const Color.fromARGB(167, 211, 208, 208),
         ),
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+        padding: const EdgeInsets.symmetric(
+          vertical: 10,
+          horizontal: AppSpacing.md,
+        ),
         child: Text('${index + 1} de $total'),
       ),
     );
@@ -210,7 +213,7 @@ class _ImagePager extends ConsumerWidget {
             child: NavButton(
               icon: Icons.chevron_left,
               onTap: () => controller.nextPage(
-                duration: const Duration(milliseconds: 200),
+                duration: AppDurations.quick,
                 curve: Curves.easeOut,
               ),
             ),
@@ -223,7 +226,7 @@ class _ImagePager extends ConsumerWidget {
             child: NavButton(
               icon: Icons.chevron_right,
               onTap: () => controller.previousPage(
-                duration: const Duration(milliseconds: 200),
+                duration: AppDurations.quick,
                 curve: Curves.easeOut,
               ),
             ),
@@ -287,7 +290,7 @@ class _ImageCanvas extends StatelessWidget {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(Icons.broken_image, size: 40),
-                              SizedBox(height: 8),
+                              SizedBox(height: AppSpacing.sm),
                               Text('Toca para reintentar'),
                             ],
                           ),
@@ -463,7 +466,10 @@ class _ViewerTopBarMobile extends StatelessWidget {
     );
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xl,
+        vertical: AppSpacing.md,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [controls, const SizedBox(height: 10), info],
@@ -579,7 +585,10 @@ class _ViewerTopBarDesktop extends StatelessWidget {
     );
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xl,
+        vertical: AppSpacing.md,
+      ),
       child: Row(
         children: [
           Expanded(child: info),

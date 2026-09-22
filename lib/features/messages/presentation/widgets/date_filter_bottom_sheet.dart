@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/domain/entities/date_filter.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/providers/date_filter_provider.dart';
 
@@ -12,7 +13,7 @@ class DateFilterBottomSheet extends ConsumerWidget {
     return showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.pill)),
       ),
       builder: (_) => const DateFilterBottomSheet(),
     );
@@ -24,7 +25,10 @@ class DateFilterBottomSheet extends ConsumerWidget {
 
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: 20,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -47,7 +51,7 @@ class DateFilterBottomSheet extends ConsumerWidget {
                 context,
               ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.lg),
             _FilterOption(
               label: 'Hoy y ayer',
               icon: Icons.today,
@@ -135,19 +139,22 @@ class _FilterOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isSelected ? const Color(0xFF00897B) : Colors.black87;
+    final color = isSelected ? AppColors.accentTeal : Colors.black87;
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: AppRadius.tileAll,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-        margin: const EdgeInsets.only(bottom: 4),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: 14,
+        ),
+        margin: const EdgeInsets.only(bottom: AppSpacing.xs),
         decoration: BoxDecoration(
           color: isSelected
-              ? const Color(0xFF00897B).withValues(alpha: 0.08)
+              ? AppColors.accentTeal.withValues(alpha: 0.08)
               : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: AppRadius.tileAll,
         ),
         child: Row(
           children: [

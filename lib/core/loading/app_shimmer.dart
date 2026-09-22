@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
 
 class AppShimmer extends StatelessWidget {
   final Widget child;
@@ -11,7 +12,7 @@ class AppShimmer extends StatelessWidget {
     return Shimmer.fromColors(
       baseColor: Colors.grey.shade300,
       highlightColor: Colors.grey.shade100,
-      period: const Duration(milliseconds: 1200),
+      period: AppDurations.shimmer,
       child: child,
     );
   }

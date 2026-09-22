@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:whatsapp_monitor_viewer/core/theme/app_colors.dart';
+import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
 
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/widgets/custom_rich_text.dart';
 import '../../domain/entities/message.dart';
@@ -15,22 +15,22 @@ class MessageInformationWidget extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         CustomRichText(
           keyParam: 'Enviado por:  ',
           valueParam: message.senderName,
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         CustomRichText(keyParam: 'Jornada:  ', valueParam: message.shift),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         CustomRichText(keyParam: 'Fecha:  ', valueParam: message.localTime),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         if (message.isImage && message.shiftImageIndex != null)
           CustomRichText(
             keyParam: 'Imagen de jornada:  ',
             valueParam: '# ${message.shiftImageIndex}',
           ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         // CustomRichText(
         //   keyParam: 'timestamp:  ',
         //   valueParam: message.messageTimestamp.toString(),

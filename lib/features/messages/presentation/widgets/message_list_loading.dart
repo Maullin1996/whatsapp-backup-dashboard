@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:whatsapp_monitor_viewer/core/loading/app_shimmer.dart';
+import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/widgets/message_bubble_skeleton.dart';
 
 class MessageListLoading extends StatelessWidget {
@@ -11,7 +12,7 @@ class MessageListLoading extends StatelessWidget {
     return AppShimmer(
       child: ListView.builder(
         reverse: true,
-        padding: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.only(bottom: AppSpacing.md),
         itemCount: itemCount,
         itemBuilder: (_, index) => Padding(
           padding: const EdgeInsets.symmetric(vertical: 10),
