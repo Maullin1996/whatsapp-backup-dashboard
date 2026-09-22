@@ -119,19 +119,20 @@ class _AdminPageMobile extends StatelessWidget {
             : state.users.isEmpty
             ? KeyedSubtree(
                 key: const ValueKey('empty'),
-                child: const Center(
-                  child: Text('No hay usuarios registrados'),
-                ),
+                child: const Center(child: Text('No hay usuarios registrados')),
               )
             : KeyedSubtree(
                 key: const ValueKey('users'),
                 child: Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: AppSizes.adminPanelMaxWidth),
+                    constraints: const BoxConstraints(
+                      maxWidth: AppSizes.adminPanelMaxWidth,
+                    ),
                     child: ListView.separated(
                       padding: const EdgeInsets.all(AppSpacing.md),
                       itemCount: state.users.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
+                      separatorBuilder: (_, _) =>
+                          const SizedBox(height: AppSpacing.sm),
                       itemBuilder: (context, index) {
                         final user = state.users[index];
                         return _UserCard(
@@ -207,15 +208,15 @@ class _AdminPageDesktop extends StatelessWidget {
             : state.users.isEmpty
             ? KeyedSubtree(
                 key: const ValueKey('empty'),
-                child: const Center(
-                  child: Text('No hay usuarios registrados'),
-                ),
+                child: const Center(child: Text('No hay usuarios registrados')),
               )
             : KeyedSubtree(
                 key: const ValueKey('users'),
                 child: Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: AppSizes.adminPanelMaxWidth),
+                    constraints: const BoxConstraints(
+                      maxWidth: AppSizes.adminPanelMaxWidth,
+                    ),
                     child: ListView.separated(
                       padding: const EdgeInsets.all(AppSpacing.xl),
                       itemCount: state.users.length,
@@ -440,7 +441,9 @@ class _UserCard extends ConsumerWidget {
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: isAdmin ? AppColors.roleAdmin : AppColors.roleSuperAdmin,
+                backgroundColor: isAdmin
+                    ? AppColors.roleAdmin
+                    : AppColors.roleSuperAdmin,
                 foregroundColor: Colors.white,
               ),
               onPressed: () {
