@@ -157,8 +157,8 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage>
       actions: {
         NextImageIntent: CallbackAction<NextImageIntent>(
           onInvoke: (_) {
-            if (_index < items.length - 1) {
-              _controller.nextPage(
+            if (_index > 0) {
+              _controller.previousPage(
                 duration: AppDurations.quick,
                 curve: Curves.easeOut,
               );
@@ -168,8 +168,8 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage>
         ),
         PreviousImageIntent: CallbackAction<PreviousImageIntent>(
           onInvoke: (_) {
-            if (_index > 0) {
-              _controller.previousPage(
+            if (_index < items.length - 1) {
+              _controller.nextPage(
                 duration: AppDurations.quick,
                 curve: Curves.easeOut,
               );
@@ -285,6 +285,7 @@ class _ImagePager extends ConsumerWidget {
       children: [
         ExtendedImageGesturePageView.builder(
           controller: controller,
+          reverse: true,
           canScrollPage: canScrollPage,
           onPageChanged: onPageChanged,
           itemCount: items.length,
@@ -299,29 +300,28 @@ class _ImagePager extends ConsumerWidget {
             );
           },
         ),
-        // Izquierda = retroceder a la imagen anterior.
-        if (currentIndex > 0)
+        // El pager va en reverse: la izquierda avanza en el índice.
+        if (currentIndex < items.length - 1)
           Positioned(
             left: 12,
             top: 0,
             bottom: 0,
             child: NavButton(
               icon: Icons.chevron_left,
-              onTap: () => controller.previousPage(
+              onTap: () => controller.nextPage(
                 duration: AppDurations.quick,
                 curve: Curves.easeOut,
               ),
             ),
           ),
-        // Derecha = avanzar a la siguiente imagen.
-        if (currentIndex < items.length - 1)
+        if (currentIndex > 0)
           Positioned(
             right: 12,
             top: 0,
             bottom: 0,
             child: NavButton(
               icon: Icons.chevron_right,
-              onTap: () => controller.nextPage(
+              onTap: () => controller.previousPage(
                 duration: AppDurations.quick,
                 curve: Curves.easeOut,
               ),
