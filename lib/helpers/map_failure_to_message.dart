@@ -1,4 +1,5 @@
 import 'package:whatsapp_monitor_viewer/core/errors/failure.dart';
+import 'package:whatsapp_monitor_viewer/core/errors/image_review_failure.dart';
 
 String mapFailureToMessage(Object error) {
   if (error is Failure) {
@@ -7,6 +8,10 @@ String mapFailureToMessage(Object error) {
       unauthorized: (message) => message,
       unknown: (message) => message,
     );
+  }
+
+  if (error is ImageReviewFailure) {
+    return error.message;
   }
 
   return 'Error inesperado';
