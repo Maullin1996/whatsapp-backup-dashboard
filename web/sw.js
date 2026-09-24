@@ -1,8 +1,9 @@
-const CACHE_NAME = 'whatsapp-monitor-v2';
+const CACHE_NAME = 'whatsapp-monitor-v3';
 const urlsToCache = [
   '/',
   '/index.html',
   '/manifest.json',
+  '/favicon.png',
   '/flutter_bootstrap.js',
   '/main.dart.js',
   '/assets/assets/images/edicion-de-fotos.png',
