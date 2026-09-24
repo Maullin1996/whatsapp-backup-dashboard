@@ -29,10 +29,72 @@
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>whatsapp_monitor_viewer</title>
+  <title>Monitor de Imágenes</title>
   <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#BDEAD6">
+
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: linear-gradient(135deg, #BDEAD6, #F0F9E8);
+    }
+    #splash {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      background: linear-gradient(135deg, #BDEAD6, #F0F9E8);
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      transition: opacity 0.35s ease;
+    }
+    #splash.hide { opacity: 0; pointer-events: none; }
+    #splash img {
+      width: 96px;
+      height: 96px;
+      animation: splash-pulse 1.8s ease-in-out infinite;
+    }
+    #splash h1 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 600;
+      color: #2E7D32;
+    }
+    #splash .spinner {
+      width: 28px;
+      height: 28px;
+      border: 3px solid rgba(46, 125, 50, 0.2);
+      border-top-color: #2E7D32;
+      border-radius: 50%;
+      animation: splash-spin 0.9s linear infinite;
+    }
+    @keyframes splash-spin { to { transform: rotate(360deg); } }
+    @keyframes splash-pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.06); }
+    }
+  </style>
 </head>
 <body>
+  <div id="splash">
+    <img src="favicon.png" alt="">
+    <h1>Monitor de Imágenes</h1>
+    <div class="spinner"></div>
+  </div>
+
+  <script>
+    // Quita el splash cuando Flutter dibuja su primer frame.
+    window.addEventListener('flutter-first-frame', function () {
+      var splash = document.getElementById('splash');
+      if (!splash) return;
+      splash.classList.add('hide');
+      setTimeout(function () { splash.remove(); }, 400);
+    });
+  </script>
   <script src="flutter_bootstrap.js" async></script>
   <script>
     // Register service worker for PWA functionality
