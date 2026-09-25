@@ -34,20 +34,42 @@ Future<void> _settle(WidgetTester tester) async {
   }
 }
 
-/// Índice 0 = el más nuevo (como en la app).
-ImageViewItem _item(int i) => ImageViewItem(
-  messageId: 'm$i',
+ImageViewItem _itemFor(String id) => ImageViewItem(
+  messageId: id,
   chatJid: 'chat@g.us',
-  storagePath: 'img$i.png',
-  senderName: 'Remitente $i',
-  messageTimestamp: 1000 - i,
-  localTime: '10:0$i',
+  storagePath: 'img_$id.png',
+  senderName: 'Remitente $id',
+  messageTimestamp: 1000,
+  localTime: '10:00',
   shift: 'Jornada Mañana',
 );
 
-class _FakeMessagesNotifier extends MessagesNotifier {
+/// Índice 0 = el más nuevo (como en la app).
+ImageViewItem _item(int i) => _itemFor('m$i');
+
+/// Lista de imágenes del chat, modificable como lo haría el tiempo real.
+class _ItemsNotifier extends Notifier<List<ImageViewItem>> {
+  @override
+  List<ImageViewItem> build() => [_item(0), _item(1), _item(2)];
+
+  /// Las imágenes nuevas llegan al principio (más nuevas = índice 0).
+  void insertAtFront(List<ImageViewItem> newer) => state = [...newer, ...state];
+
+  void replace(List<ImageViewItem> items) => state = items;
+}
+
+final _itemsProvider = NotifierProvider<_ItemsNotifier, List<ImageViewItem>>(
+  _ItemsNotifier.new,
+);
+
+class _CountingMessagesNotifier extends MessagesNotifier {
+  static int loadMoreCalls = 0;
+
   @override
   Future<List<Message>> build() async => const [];
+
+  @override
+  Future<void> loadMore() async => loadMoreCalls++;
 }
 
 /// Abre el visor (initialIndex 1 de 3 imágenes) desde una pantalla de inicio.
@@ -64,13 +86,9 @@ Future<void> _openViewer(
     ProviderScope(
       overrides: [
         reviewerEmailProvider.overrideWithValue('revisor@test.com'),
-        chatImageItemsProvider.overrideWithValue([
-          _item(0),
-          _item(1),
-          _item(2),
-        ]),
+        chatImageItemsProvider.overrideWith((ref) => ref.watch(_itemsProvider)),
         imageUrlProvider.overrideWith((ref, path) => 'http://localhost/$path'),
-        messagesProvider.overrideWith(_FakeMessagesNotifier.new),
+        messagesProvider.overrideWith(_CountingMessagesNotifier.new),
       ],
       child: MaterialApp(
         theme: AppTheme.light,
@@ -151,7 +169,27 @@ Future<void> _swipeRight(WidgetTester tester) async {
   await _settle(tester);
 }
 
-Finder _pos(int n) => find.text('$n de 3');
+Finder _pos(int n, [int total = 3]) => find.text('$n de $total');
+
+/// La imagen `id` está centrada en el pager (es la que se ve).
+void _expectViewing(WidgetTester tester, String id) {
+  final pager = tester.getCenter(find.byType(ExtendedImageGesturePageView));
+  // A ≥ 840 px el panel usa la misma ValueKey(messageId): se busca en el pager.
+  final image = find.descendant(
+    of: find.byType(ExtendedImageGesturePageView),
+    matching: find.byKey(ValueKey(id)),
+  );
+  expect(image, findsOneWidget, reason: 'la imagen $id debe estar construida');
+  expect(tester.getCenter(image).dx, closeTo(pager.dx, 1));
+}
+
+void _insertAtFront(WidgetTester tester, List<String> ids) => _container(tester)
+    .read(_itemsProvider.notifier)
+    .insertAtFront([for (final id in ids) _itemFor(id)]);
+
+void _replaceItems(WidgetTester tester, List<String> ids) => _container(
+  tester,
+).read(_itemsProvider.notifier).replace([for (final id in ids) _itemFor(id)]);
 
 Finder _chevron(IconData icon) => find.widgetWithIcon(NavButton, icon);
 
@@ -176,6 +214,8 @@ Future<void> _fillAndSave(
 
 void main() {
   setUpAll(setUpMockAssets);
+
+  setUp(() => _CountingMessagesNotifier.loadMoreCalls = 0);
 
   // La caché global de imágenes (avatar del asset mockeado) filtra estado
   // entre tests y descuadra el layout de la barra superior.
@@ -440,6 +480,190 @@ void main() {
     await _key(tester, LogicalKeyboardKey.arrowRight);
     expect(_pos(2), findsOneWidget);
     expect(_text(tester, 'codigo-0'), 'AAA2');
+  });
+
+  group('llega una imagen nueva por tiempo real: el visor se ancla por '
+      'messageId', () {
+    for (final width in [1200.0, 700.0]) {
+      final label = width >= 840 ? '≥ 840 px' : '< 840 px';
+
+      testWidgets('$label: sigue mostrando la misma imagen; índice y total '
+          'se actualizan', (tester) async {
+        await _openViewer(tester, width: width); // B = m1 (índice 1)
+        _expectViewing(tester, 'm1');
+        expect(_pos(2), findsOneWidget);
+
+        _insertAtFront(tester, ['n1']);
+        await _settle(tester);
+
+        _expectViewing(tester, 'm1');
+        expect(_pos(3, 4), findsOneWidget); // índice 2 de 4
+        expect(find.text('Remitente m1', findRichText: true), findsWidgets);
+        expect(_CountingMessagesNotifier.loadMoreCalls, 0);
+        expect(find.text(_blockedMessage), findsNothing);
+      });
+
+      testWidgets('$label: varias imágenes de una vez (batching) no mueven la '
+          'imagen actual', (tester) async {
+        await _openViewer(tester, width: width);
+
+        _insertAtFront(tester, ['n1', 'n2', 'n3']);
+        await _settle(tester);
+
+        _expectViewing(tester, 'm1');
+        expect(_pos(5, 6), findsOneWidget);
+        expect(_CountingMessagesNotifier.loadMoreCalls, 0);
+      });
+
+      testWidgets('$label: si la actual es la última, la inserción tampoco la '
+          'mueve', (tester) async {
+        await _openViewer(tester, width: width, initialIndex: 2);
+        _expectViewing(tester, 'm2');
+
+        _insertAtFront(tester, ['n1']);
+        await _settle(tester);
+
+        _expectViewing(tester, 'm2');
+        expect(_pos(4, 4), findsOneWidget);
+      });
+    }
+
+    testWidgets('≥ 840 px: el panel sigue siendo el de la imagen actual, con '
+        'su texto y su foco; el borrador de la nueva está vacío', (
+      tester,
+    ) async {
+      await _openViewer(tester, width: 1200);
+      await tester.enterText(find.byKey(const ValueKey('codigo-0')), 'AAA');
+      await tester.pump();
+      final focusBefore = FocusManager.instance.primaryFocus;
+      expect(isTextFieldFocused(), isTrue);
+
+      _insertAtFront(tester, ['n1']);
+      await _settle(tester);
+
+      expect(
+        tester
+            .widget<ImageReviewPanel>(find.byType(ImageReviewPanel))
+            .target
+            .messageId,
+        'm1',
+      );
+      expect(_text(tester, 'codigo-0'), 'AAA');
+      expect(isTextFieldFocused(), isTrue);
+      expect(FocusManager.instance.primaryFocus, same(focusBefore));
+      expect(
+        _container(
+          tester,
+        ).read(reviewDraftProvider('n1')).comprobantes.single.codigo,
+        isEmpty,
+      );
+      expect(_CountingMessagesNotifier.loadMoreCalls, 0);
+
+      // Lo que se sigue tecleando queda en el borrador de la imagen actual.
+      await tester.enterText(find.byKey(const ValueKey('codigo-0')), 'AAAB');
+      await tester.pump();
+      expect(
+        _container(
+          tester,
+        ).read(reviewDraftProvider('m1')).comprobantes.single.codigo,
+        'AAAB',
+      );
+      expect(
+        _container(
+          tester,
+        ).read(reviewDraftProvider('n1')).comprobantes.single.codigo,
+        isEmpty,
+      );
+    });
+
+    testWidgets('≥ 840 px sin registro: el salto no lo bloquea el bloqueo de '
+        'navegación ni muestra el aviso; la navegación sigue bloqueada', (
+      tester,
+    ) async {
+      await _openViewer(tester, width: 1200);
+
+      _insertAtFront(tester, ['n1', 'n2']);
+      await _settle(tester);
+
+      // El salto programático llegó a destino sin aviso.
+      _expectViewing(tester, 'm1');
+      expect(find.text(_blockedMessage), findsNothing);
+
+      // Y el bloqueo sigue funcionando en ambos sentidos.
+      await _key(tester, LogicalKeyboardKey.arrowRight);
+      expect(_pos(4, 5), findsOneWidget);
+      expect(find.text(_blockedMessage), findsOneWidget);
+      await _key(tester, LogicalKeyboardKey.arrowLeft);
+      expect(_pos(4, 5), findsOneWidget);
+
+      for (final icon in [Icons.chevron_left, Icons.chevron_right]) {
+        expect(tester.widget<NavButton>(_chevron(icon)).enabled, isFalse);
+        await tester.tap(_chevron(icon));
+        await _settle(tester);
+        expect(_pos(4, 5), findsOneWidget);
+      }
+
+      await _swipeLeft(tester);
+      expect(_pos(4, 5), findsOneWidget);
+      await _swipeRight(tester);
+      expect(_pos(4, 5), findsOneWidget);
+      _expectViewing(tester, 'm1');
+    });
+
+    testWidgets('≥ 840 px con registro: tras la inserción se navega libre en '
+        'ambos sentidos', (tester) async {
+      await _openViewer(tester, width: 1200);
+      await _saveRecordFor(tester, 'm1');
+
+      _insertAtFront(tester, ['n1']);
+      await _settle(tester);
+      _expectViewing(tester, 'm1');
+
+      await _key(tester, LogicalKeyboardKey.arrowRight); // hacia el índice−1
+      expect(_pos(2, 4), findsOneWidget);
+      _expectViewing(tester, 'm0'); // lista: [n1, m0, m1, m2]
+      expect(find.text(_blockedMessage), findsNothing);
+
+      // m0 no tiene registro: desde ahí se bloquea.
+      await _key(tester, LogicalKeyboardKey.arrowLeft);
+      expect(_pos(2, 4), findsOneWidget);
+      expect(find.text(_blockedMessage), findsOneWidget);
+    });
+
+    testWidgets(
+      '< 840 px: tras la inserción se navega libre (teclas y swipe)',
+      (tester) async {
+        await _openViewer(tester, width: 700);
+
+        _insertAtFront(tester, ['n1']);
+        await _settle(tester);
+        _expectViewing(tester, 'm1');
+
+        await _key(tester, LogicalKeyboardKey.arrowRight);
+        expect(_pos(2, 4), findsOneWidget);
+        await _swipeRight(tester);
+        expect(_pos(3, 4), findsOneWidget);
+        expect(find.text(_blockedMessage), findsNothing);
+      },
+    );
+
+    testWidgets('si la imagen actual desaparece de la lista, se queda en la '
+        'misma posición (acotada) sin romperse', (tester) async {
+      await _openViewer(tester, width: 700);
+
+      // m1 (índice 1) desaparece: en el índice 1 ahora está m2.
+      _replaceItems(tester, ['m0', 'm2']);
+      await _settle(tester);
+      _expectViewing(tester, 'm2');
+      expect(_pos(2, 2), findsOneWidget);
+
+      // Si era la última y desaparece, se acota a la nueva última.
+      _replaceItems(tester, ['m0']);
+      await _settle(tester);
+      _expectViewing(tester, 'm0');
+      expect(_pos(1, 1), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
   });
 
   group('GuardedAction', () {

@@ -43,12 +43,24 @@ class ImageDetailPage extends ConsumerStatefulWidget {
 class _ImageDetailPageState extends ConsumerState<ImageDetailPage>
     with SingleTickerProviderStateMixin {
   late final ExtendedPageController _controller;
+
+  /// Posición actual dentro de `chatImageItemsProvider` (0 = el más nuevo).
+  /// Se mantiene sincronizada con [_anchorId]: cuando llegan imágenes nuevas
+  /// (se insertan al principio) el índice cambia pero la imagen no.
   late int _index;
 
-  /// Una `GlobalKey` de estado de gesto por página, para que el zoom de una
-  /// imagen sea independiente del resto (antes se compartía un único
-  /// `TransformationController` entre todas las páginas del pager).
-  final Map<int, GlobalKey<ExtendedImageGestureState>> _gestureKeys = {};
+  /// messageId de la imagen que se está viendo. El visor se ancla a ella y no
+  /// al índice, que se corre cuando la lista cambia por tiempo real.
+  String? _anchorId;
+
+  /// true mientras el visor reposiciona el pager por un cambio de la lista
+  /// (no es navegación del usuario: no dispara loadMore, foco ni avisos).
+  bool _anchoring = false;
+
+  /// Una `GlobalKey` de estado de gesto por imagen (por messageId, no por
+  /// posición), para que el zoom de una imagen sea independiente del resto y
+  /// se quede con ella aunque su posición cambie.
+  final Map<String, GlobalKey<ExtendedImageGestureState>> _gestureKeys = {};
 
   late final AnimationController _zoomAnimationController;
   Animation<double>? _zoomAnimation;
@@ -76,6 +88,13 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage>
       vsync: this,
       duration: AppDurations.quick,
     );
+    final items = ref.read(chatImageItemsProvider);
+    if (items.isNotEmpty) _resolveIndex(items);
+    // El listener corre antes del rebuild: el pager se reposiciona antes de
+    // que se dibuje una imagen distinta a la que el usuario está viendo.
+    ref.listenManual(chatImageItemsProvider, (_, items) {
+      _onItemsChanged(items);
+    });
   }
 
   @override
@@ -86,15 +105,59 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage>
     super.dispose();
   }
 
-  GlobalKey<ExtendedImageGestureState> _gestureKeyFor(int index) {
+  GlobalKey<ExtendedImageGestureState> _gestureKeyFor(String messageId) {
     return _gestureKeys.putIfAbsent(
-      index,
+      messageId,
       () => GlobalKey<ExtendedImageGestureState>(),
     );
   }
 
-  ExtendedImageGestureState? get _currentGestureState =>
-      _gestureKeys[_index]?.currentState;
+  ExtendedImageGestureState? get _currentGestureState {
+    final anchor = _anchorId;
+    return anchor == null ? null : _gestureKeys[anchor]?.currentState;
+  }
+
+  /// Índice de la imagen anclada en [items]. Si esa imagen ya no está (caso
+  /// raro: cambio de filtro o de chat con el visor abierto) se queda en la
+  /// misma posición, acotada a la lista, y se reancla ahí. [items] no debe
+  /// estar vacía.
+  int _resolveIndex(List<ImageViewItem> items) {
+    final anchor = _anchorId;
+    if (anchor != null) {
+      final index = items.indexWhere((item) => item.messageId == anchor);
+      if (index >= 0) return index;
+    }
+    final index = _index.clamp(0, items.length - 1);
+    _anchorId = items[index].messageId;
+    return index;
+  }
+
+  void _onItemsChanged(List<ImageViewItem> items) {
+    if (items.isEmpty || !mounted) return;
+    final ids = {for (final item in items) item.messageId};
+    _gestureKeys.removeWhere((id, _) => !ids.contains(id));
+
+    final target = _resolveIndex(items);
+    if (target == _index) return;
+    // Primero el índice: así el onPageChanged que provoca el salto se ignora.
+    _index = target;
+    _jumpPagerTo(target);
+    setState(() {});
+  }
+
+  /// Salto programático (sin animación) del pager. No es bloqueado por
+  /// `canScrollPage` (solo filtra el drag del usuario) ni cuenta como
+  /// navegación del usuario.
+  void _jumpPagerTo(int page) {
+    if (!_controller.hasClients || !_controller.position.haveDimensions) return;
+    if (_controller.page?.round() == page) return;
+    _anchoring = true;
+    try {
+      _controller.jumpToPage(page);
+    } finally {
+      _anchoring = false;
+    }
+  }
 
   /// El panel del formulario (y el bloqueo de navegación) solo existen en
   /// pantallas anchas; por debajo el visor es el de siempre.
@@ -155,10 +218,13 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage>
   }
 
   void _onPageChanged(int index) {
+    // Los saltos del ancla no son navegación del usuario.
+    if (_anchoring || index == _index) return;
     setState(() => _index = index);
+    final items = ref.read(chatImageItemsProvider);
+    if (index < items.length) _anchorId = items[index].messageId;
     // Si el campo enfocado era de la imagen anterior, su foco se perdió.
     if (_showReviewPanel) _viewerFocus.requestFocus();
-    final items = ref.read(chatImageItemsProvider);
     if (index >= items.length - 3) {
       ref.read(messagesProvider.notifier).loadMore();
     }
@@ -235,7 +301,17 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage>
     if (items.isEmpty) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    final safeIndex = _index.clamp(0, items.length - 1);
+    // Red de seguridad: si la lista cambió y el listener aún no reposicionó
+    // el pager, el índice se deriva del ancla (el panel nunca se equivoca de
+    // imagen) y el pager se corrige al terminar el frame.
+    final resolved = _resolveIndex(items);
+    if (resolved != _index) {
+      _index = resolved;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _jumpPagerTo(_index);
+      });
+    }
+    final safeIndex = _index;
     final item = items[safeIndex];
 
     final width = MediaQuery.sizeOf(context).width;
@@ -415,7 +491,8 @@ class _ImageIndexIndicator extends StatelessWidget {
 class _ImagePager extends ConsumerWidget {
   final ExtendedPageController controller;
   final List<ImageViewItem> items;
-  final GlobalKey<ExtendedImageGestureState> Function(int index) gestureKeyFor;
+  final GlobalKey<ExtendedImageGestureState> Function(String messageId)
+  gestureKeyFor;
   final void Function(ExtendedImageGestureState state) onDoubleTap;
   final bool Function(GestureDetails? details) canScrollPage;
   final ValueChanged<int> onPageChanged;
@@ -451,8 +528,8 @@ class _ImagePager extends ConsumerWidget {
         final item = items[index];
         final urlAsync = ref.watch(imageUrlProvider(item.storagePath));
         return _ImageCanvas(
-          key: ValueKey(item.storagePath),
-          gestureKey: gestureKeyFor(index),
+          key: ValueKey(item.messageId),
+          gestureKey: gestureKeyFor(item.messageId),
           urlAsync: urlAsync,
           onDoubleTap: onDoubleTap,
         );
