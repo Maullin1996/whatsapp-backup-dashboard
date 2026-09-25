@@ -148,6 +148,8 @@ void main() {
 
     final items = [
       ImageViewItem(
+        messageId: 'm-0',
+        chatJid: 'jid-1',
         storagePath: 'image-0.png',
         senderName: 'X',
         messageTimestamp: 1000,
@@ -155,6 +157,8 @@ void main() {
         shift: 'AM',
       ),
       ImageViewItem(
+        messageId: 'm-img',
+        chatJid: 'jid-1',
         storagePath: 'image-1.png',
         senderName: 'Ana',
         messageTimestamp: 2000,

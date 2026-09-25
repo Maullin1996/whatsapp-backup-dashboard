@@ -32,4 +32,17 @@ abstract class AppSizes {
         chatListMinWidth,
         chatListMaxWidth,
       );
+
+  /// Fracción del ancho de pantalla que ocupa el panel del formulario del
+  /// Revisor junto al visor de imágenes, acotada entre [reviewPanelMinWidth]
+  /// y [reviewPanelMaxWidth].
+  static const double reviewPanelWidthFraction = 0.34;
+  static const double reviewPanelMinWidth = 360;
+  static const double reviewPanelMaxWidth = 440;
+
+  static double reviewPanelWidth(double screenWidth) =>
+      (screenWidth * reviewPanelWidthFraction).clamp(
+        reviewPanelMinWidth,
+        reviewPanelMaxWidth,
+      );
 }

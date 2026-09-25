@@ -39,6 +39,12 @@ abstract class AppTypography {
     fontWeight: FontWeight.w600,
   );
 
+  /// Cifras de ancho fijo para códigos y números que se comparan a simple
+  /// vista ("0457" vs "457"). Se combina con `copyWith` sobre otro estilo.
+  static const TextStyle tabular = TextStyle(
+    fontFeatures: [FontFeature.tabularFigures()],
+  );
+
   /// Nombre del chat en el tile de la lista.
   static const TextStyle chatTileTitle = TextStyle(
     fontSize: 18,

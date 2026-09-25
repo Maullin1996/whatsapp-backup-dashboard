@@ -1,4 +1,6 @@
 class ImageViewItem {
+  final String messageId;
+  final String chatJid;
   final String storagePath;
   final String senderName;
   final int messageTimestamp;
@@ -8,6 +10,8 @@ class ImageViewItem {
   final int? shiftImageIndex;
 
   ImageViewItem({
+    required this.messageId,
+    required this.chatJid,
     required this.storagePath,
     required this.senderName,
     required this.messageTimestamp,
