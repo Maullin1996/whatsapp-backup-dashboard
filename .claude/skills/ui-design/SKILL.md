@@ -29,7 +29,7 @@ Importa todo con un solo barrel: `import 'package:whatsapp_monitor_viewer/core/t
 | `app_shadows.dart` (`AppShadows`) | `AppShadows.bubble` (sutil) y `AppShadows.loginCard` (la única sombra pronunciada de la app). |
 | `app_sizes.dart` (`AppSizes`) | Anchos máximos (`loginFormMaxWidth`, `adminPanelMaxWidth`, `messageBubbleMaxWidth`, `emptyStateMaxWidth`), `chatAvatarRadius`, `AppSizes.chatListWidth(screenWidth)`, `AppSizes.reviewPanelWidth(screenWidth)` (panel del formulario del visor: 34 % del ancho, entre 360 y 440). |
 | `app_durations.dart` (`AppDurations`) | Duraciones de animación de UI con nombre semántico (`hover`, `quick`, `pageTransition`, `chatItemAppear`, `messageItemAppear`, `stateSwitch`, `scrollToLatest`, `shimmer`). No uses esto para timers de lógica de negocio (debounce/batching de notifiers): esos se quedan como `Duration` literal en el notifier. |
-| `app_typography.dart` (`AppTypography`) | Estilos con nombre para patrones repetidos: `senderName(context)`, `timestamp(context)`, `headerTitle(context)`, `adminAppBarTitle`, `badge`, `chatTileTitle`, `avatarInitials`. |
+| `app_typography.dart` (`AppTypography`) | Estilos con nombre para patrones repetidos: `senderName(context)`, `timestamp(context)`, `headerTitle(context)`, `adminAppBarTitle`, `badge`, `chatTileTitle`, `avatarInitials`, `tabular` (cifras de ancho fijo para códigos/números que se comparan a simple vista; se combina con `copyWith`). |
 
 Regla general: **si vas a escribir un número mágico de espaciado/radio/duración/ancho máximo, primero mira si ya existe un token que lo cubra.** Si el valor no calza con ningún token (p. ej. un `6` o `20` puntual que no se repite), un literal está bien — no fuerces un token a un valor distinto solo por parecerse.
 
@@ -49,6 +49,7 @@ Definida en `lib/core/theme/app_colors.dart` (`AppColors`). Úsala en vez de lit
 | `AppColors.accentTeal` | Teal de filtros/acento secundario (badge de filtro activo, iconos activos) |
 | `AppColors.roleAdmin` / `AppColors.roleSuperAdmin` | Colores de rol (naranja / morado) |
 | `AppColors.success` | Éxito (`Colors.green`) |
+| `AppColors.warning` | Advertencia / pendiente (ámbar oscuro, p. ej. chip "Sin guardar" del panel del Revisor). No uses `roleAdmin` para esto: tiene otro significado |
 | `AppColors.divider` | Divisores/bordes suaves (`black alpha 0.12`) |
 | `AppColors.activeTile` | Fondo de tile activo/seleccionado en listas |
 

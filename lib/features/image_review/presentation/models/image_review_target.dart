@@ -6,9 +6,16 @@ class ImageReviewTarget {
   final String chatJid;
   final String shift;
 
+  /// Hora local de la imagen y su número dentro de la jornada. Solo se
+  /// muestran en el encabezado del panel; no forman parte del registro.
+  final String? localTime;
+  final int? shiftImageIndex;
+
   const ImageReviewTarget({
     required this.messageId,
     required this.chatJid,
     required this.shift,
+    this.localTime,
+    this.shiftImageIndex,
   });
 }

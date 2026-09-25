@@ -453,7 +453,7 @@ void main() {
     // A = m1, B = m2 (más vieja). Para salir de A hay que guardarla.
     await _openViewer(tester, width: 1200);
     await _fillAndSave(tester, codigo: 'A1');
-    expect(find.text('Código: A1'), findsOneWidget);
+    expect(find.text('A1'), findsOneWidget);
 
     // Editar A y dejar un cambio sin guardar; navegar sigue permitido.
     await tester.tap(find.widgetWithText(ElevatedButton, 'Editar'));
@@ -474,7 +474,7 @@ void main() {
     expect(_pos(3), findsOneWidget);
     expect(find.text(_blockedMessage), findsOneWidget);
     await _fillAndSave(tester, codigo: 'BBB');
-    expect(find.text('Código: BBB'), findsOneWidget);
+    expect(find.text('BBB'), findsOneWidget);
 
     // Al volver a A sigue su borrador sin guardar (y el foco volvió al visor).
     await _key(tester, LogicalKeyboardKey.arrowRight);

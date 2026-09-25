@@ -37,6 +37,10 @@ class AppColors {
   /// Color de éxito (snackbars, confirmaciones).
   static const success = Colors.green;
 
+  /// Advertencia / pendiente (p. ej. "Sin guardar"). Ámbar oscuro: al 12 % de
+  /// alpha sobre blanco sigue siendo legible; no reutiliza [roleAdmin].
+  static const warning = Color(0xFFB7791F);
+
   /// Divisores y bordes suaves.
   static Color divider = Colors.black.withValues(alpha: 0.12);
 

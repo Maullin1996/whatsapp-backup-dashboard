@@ -35,10 +35,14 @@ Future<ProviderContainer> _pumpPanel(WidgetTester tester) async {
 
   await tester.pumpWidget(_app(child: const ImageReviewPanel(target: _target)));
   await tester.pumpAndSettle();
-  return ProviderScope.containerOf(tester.element(find.byType(ImageReviewPanel)));
+  return ProviderScope.containerOf(
+    tester.element(find.byType(ImageReviewPanel)),
+  );
 }
 
 Finder _key(String key) => find.byKey(ValueKey(key));
+
+Finder _badge(int n) => find.byKey(ValueKey('comprobante-badge-$n'));
 
 String _text(WidgetTester tester, String key) =>
     tester.widget<TextField>(_key(key)).controller!.text;
@@ -80,7 +84,7 @@ void main() {
     ) async {
       await _pumpPanel(tester);
 
-      expect(find.text('Comprobante 1'), findsOneWidget);
+      expect(_badge(1), findsOneWidget);
       final remove = tester.widget<IconButton>(_key('quitar-0'));
       expect(remove.onPressed, isNull);
       expect(remove.tooltip, 'Debe haber al menos un comprobante');
@@ -91,12 +95,12 @@ void main() {
 
       await tester.tap(find.text('Agregar comprobante'));
       await tester.pump();
-      expect(find.text('Comprobante 2'), findsOneWidget);
+      expect(_badge(2), findsOneWidget);
       expect(tester.widget<IconButton>(_key('quitar-0')).onPressed, isNotNull);
 
       await tester.tap(_key('quitar-1')); // vacío: sin confirmación
       await tester.pumpAndSettle();
-      expect(find.text('Comprobante 2'), findsNothing);
+      expect(_badge(2), findsNothing);
       expect(tester.widget<IconButton>(_key('quitar-0')).onPressed, isNull);
     });
 
@@ -115,38 +119,39 @@ void main() {
 
       await tester.tap(_inDialog('Cancelar'));
       await tester.pumpAndSettle();
-      expect(find.text('Comprobante 2'), findsOneWidget);
+      expect(_badge(2), findsOneWidget);
 
       await tester.tap(_key('quitar-1'));
       await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(ElevatedButton, 'Quitar'));
       await tester.pumpAndSettle();
-      expect(find.text('Comprobante 2'), findsNothing);
+      expect(_badge(2), findsNothing);
     });
   });
 
   group('números', () {
-    testWidgets('se agregan con "+" y con Enter, y se quitan con la x del chip', (
-      tester,
-    ) async {
-      await _pumpPanel(tester);
+    testWidgets(
+      'se agregan con "+" y con Enter, y se quitan con la x del chip',
+      (tester) async {
+        await _pumpPanel(tester);
 
-      await tester.enterText(_key('numero-0'), '5311');
-      await tester.tap(_key('agregar-numero-0'));
-      await tester.pump();
-      expect(find.widgetWithText(InputChip, '5311'), findsOneWidget);
-      expect(_text(tester, 'numero-0'), isEmpty);
+        await tester.enterText(_key('numero-0'), '5311');
+        await tester.tap(_key('agregar-numero-0'));
+        await tester.pump();
+        expect(find.widgetWithText(InputChip, '5311'), findsOneWidget);
+        expect(_text(tester, 'numero-0'), isEmpty);
 
-      await tester.enterText(_key('numero-0'), '  1111 ');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pump();
-      expect(find.widgetWithText(InputChip, '1111'), findsOneWidget);
+        await tester.enterText(_key('numero-0'), '  1111 ');
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await tester.pump();
+        expect(find.widgetWithText(InputChip, '1111'), findsOneWidget);
 
-      await tester.tap(find.byTooltip('Quitar número').first);
-      await tester.pump();
-      expect(find.widgetWithText(InputChip, '5311'), findsNothing);
-      expect(find.widgetWithText(InputChip, '1111'), findsOneWidget);
-    });
+        await tester.tap(find.byTooltip('Quitar número').first);
+        await tester.pump();
+        expect(find.widgetWithText(InputChip, '5311'), findsNothing);
+        expect(find.widgetWithText(InputChip, '1111'), findsOneWidget);
+      },
+    );
 
     testWidgets('un número vacío no se agrega', (tester) async {
       await _pumpPanel(tester);
@@ -189,7 +194,14 @@ void main() {
 
       await tester.enterText(_key('total-0'), 'a1b2-3.4');
       await tester.pump();
-      expect(_text(tester, 'total-0'), '1234');
+      expect(_text(tester, 'total-0'), '1.234');
+      // El borrador guarda solo dígitos.
+      expect(
+        ProviderScope.containerOf(
+          tester.element(find.byType(ImageReviewPanel)),
+        ).read(reviewDraftProvider('m1')).comprobantes.single.total,
+        '1234',
+      );
     });
   });
 
@@ -255,9 +267,9 @@ void main() {
       await tester.enterText(_key('anotaciones'), 'nota');
       await _tapButton(tester, 'Guardar');
 
-      expect(find.text('Código: A1'), findsOneWidget);
+      expect(find.text('A1'), findsOneWidget);
       expect(find.widgetWithText(Chip, '0123'), findsOneWidget);
-      expect(find.text('Total: \$9.000'), findsOneWidget);
+      expect(find.text('\$9.000'), findsOneWidget);
       expect(find.text('nota'), findsOneWidget);
       expect(find.text('Editado'), findsNothing);
       expect(find.widgetWithText(ElevatedButton, 'Editar'), findsOneWidget);
@@ -274,7 +286,7 @@ void main() {
       await _tapButton(tester, 'Editar');
       // El borrador se copia del registro guardado.
       expect(_text(tester, 'codigo-0'), 'A1');
-      expect(_text(tester, 'total-0'), '9000');
+      expect(_text(tester, 'total-0'), '9.000');
       expect(find.widgetWithText(InputChip, '0123'), findsOneWidget);
 
       await tester.enterText(_key('total-0'), '12000');
@@ -283,7 +295,7 @@ void main() {
       final record = await _savedRecord(container);
       expect(record!.editado, isTrue);
       expect(record.form.comprobantes.single.total, 12000);
-      expect(find.text('Total: \$12.000'), findsOneWidget);
+      expect(find.text('\$12.000'), findsOneWidget);
       expect(find.text('Editado'), findsOneWidget);
     });
   });
@@ -320,7 +332,7 @@ void main() {
       await tester.tap(find.widgetWithText(TextButton, 'Seguir editando'));
       await tester.pumpAndSettle();
       expect(find.widgetWithText(ElevatedButton, 'Guardar'), findsOneWidget);
-      expect(_text(tester, 'total-0'), '12000');
+      expect(_text(tester, 'total-0'), '12.000');
 
       // Descartar vuelve a lectura con el registro original.
       await tester.tap(find.widgetWithText(TextButton, 'Cancelar'));
@@ -328,7 +340,7 @@ void main() {
       await tester.tap(find.widgetWithText(ElevatedButton, 'Descartar'));
       await tester.pumpAndSettle();
       expect(find.widgetWithText(ElevatedButton, 'Editar'), findsOneWidget);
-      expect(find.text('Total: \$9.000'), findsOneWidget);
+      expect(find.text('\$9.000'), findsOneWidget);
     });
   });
 

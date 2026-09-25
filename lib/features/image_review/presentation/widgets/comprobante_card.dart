@@ -2,23 +2,27 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/presentation/helpers/thousands_input_formatter.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/image_review_providers.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/review_draft_notifier.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/review_draft_state.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/widgets/review_field_hints.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/presentation/widgets/review_section_card.dart';
 
-/// Máximo de dígitos del total: evita desbordar el `int` al parsear.
-const int _maxTotalDigits = 12;
-
-/// Tarjeta editable de un comprobante (código, números y total).
+/// Tarjeta editable de un comprobante, en una columna y en el orden del
+/// ticket: código, números y total.
 class ComprobanteCard extends ConsumerStatefulWidget {
   final String messageId;
 
-  /// Posición 1-based que ve el usuario ("Comprobante N").
+  /// Posición 1-based que ve el usuario (círculo de la cabecera).
   final int number;
   final ComprobanteDraft draft;
   final bool showErrors;
   final bool canRemove;
+
+  /// true si la tarjeta acaba de agregarse: al crearse hace scroll hasta ella
+  /// y enfoca su código. Solo se lee al crear el estado.
+  final bool focusOnCreate;
 
   const ComprobanteCard({
     super.key,
@@ -27,6 +31,7 @@ class ComprobanteCard extends ConsumerStatefulWidget {
     required this.draft,
     required this.showErrors,
     required this.canRemove,
+    this.focusOnCreate = false,
   });
 
   @override
@@ -37,7 +42,8 @@ class _ComprobanteCardState extends ConsumerState<ComprobanteCard> {
   late final TextEditingController _codigo;
   late final TextEditingController _total;
   late final TextEditingController _numero;
-  final FocusNode _numeroFocus = FocusNode();
+  final FocusNode _codigoFocus = FocusNode();
+  late final FocusNode _numeroFocus = FocusNode(onKeyEvent: _onNumeroKey);
 
   ReviewDraftNotifier get _notifier =>
       ref.read(reviewDraftProvider(widget.messageId).notifier);
@@ -46,8 +52,15 @@ class _ComprobanteCardState extends ConsumerState<ComprobanteCard> {
   void initState() {
     super.initState();
     _codigo = TextEditingController(text: widget.draft.codigo);
-    _total = TextEditingController(text: widget.draft.total);
+    _total = TextEditingController(text: formatThousands(widget.draft.total));
     _numero = TextEditingController(text: widget.draft.numeroPendiente);
+    if (widget.focusOnCreate) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Scrollable.ensureVisible(context, duration: AppDurations.quick);
+        _codigoFocus.requestFocus();
+      });
+    }
   }
 
   @override
@@ -65,6 +78,7 @@ class _ComprobanteCardState extends ConsumerState<ComprobanteCard> {
     _codigo.dispose();
     _total.dispose();
     _numero.dispose();
+    _codigoFocus.dispose();
     _numeroFocus.dispose();
     super.dispose();
   }
@@ -92,6 +106,21 @@ class _ComprobanteCardState extends ConsumerState<ComprobanteCard> {
   void _addNumero() {
     _notifier.addNumero(widget.draft.id);
     _numeroFocus.requestFocus(); // permite seguir agregando con Enter
+  }
+
+  /// Patrón de campo de chips: Backspace con el input vacío quita el último
+  /// número. Con texto, Backspace borra caracteres como siempre.
+  KeyEventResult _onNumeroKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    if (event.logicalKey != LogicalKeyboardKey.backspace ||
+        _numero.text.isNotEmpty ||
+        widget.draft.numeros.isEmpty) {
+      return KeyEventResult.ignored;
+    }
+    _notifier.removeNumero(widget.draft.id, widget.draft.numeros.length - 1);
+    return KeyEventResult.handled;
   }
 
   Future<void> _confirmRemove() async {
@@ -127,95 +156,97 @@ class _ComprobanteCardState extends ConsumerState<ComprobanteCard> {
   @override
   Widget build(BuildContext context) {
     final id = widget.draft.id;
+    final numeros = widget.draft.numeros;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Comprobante ${widget.number}',
-                    style: AppTypography.headerTitle(context),
-                  ),
-                ),
-                IconButton(
-                  key: ValueKey('quitar-$id'),
-                  tooltip: widget.canRemove
-                      ? 'Quitar comprobante'
-                      : 'Debe haber al menos un comprobante',
-                  onPressed: widget.canRemove ? _confirmRemove : null,
-                  icon: const Icon(Icons.delete_outline_rounded),
-                ),
-              ],
+    return ReviewSectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ComprobanteHeader(
+            number: widget.number,
+            trailing: IconButton(
+              key: ValueKey('quitar-$id'),
+              color: Colors.grey.shade600,
+              tooltip: widget.canRemove
+                  ? 'Quitar comprobante'
+                  : 'Debe haber al menos un comprobante',
+              onPressed: widget.canRemove ? _confirmRemove : null,
+              icon: const Icon(Icons.delete_outline_rounded),
             ),
-            const SizedBox(height: AppSpacing.sm),
-            TextField(
-              key: ValueKey('codigo-$id'),
-              controller: _codigo,
-              textInputAction: TextInputAction.next,
-              decoration: InputDecoration(
-                labelText: 'Código',
-                errorText: _codigoError,
-              ),
-              onChanged: (value) => _notifier.setCodigo(id, value),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          TextField(
+            key: ValueKey('codigo-$id'),
+            controller: _codigo,
+            focusNode: _codigoFocus,
+            textInputAction: TextInputAction.next,
+            style: AppTypography.tabular,
+            decoration: InputDecoration(
+              labelText: 'Código',
+              errorText: _codigoError,
             ),
-            const SizedBox(height: AppSpacing.md),
-            TextField(
-              key: ValueKey('numero-$id'),
-              controller: _numero,
-              focusNode: _numeroFocus,
-              textInputAction: TextInputAction.done,
-              decoration: InputDecoration(
-                labelText: 'Número',
-                errorText: _numerosError,
-                suffixIcon: IconButton(
+            onChanged: (value) => _notifier.setCodigo(id, value),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          TextField(
+            key: ValueKey('numero-$id'),
+            controller: _numero,
+            focusNode: _numeroFocus,
+            textInputAction: TextInputAction.done,
+            style: AppTypography.tabular,
+            decoration: InputDecoration(
+              labelText: numeros.isEmpty
+                  ? 'Números'
+                  : 'Números · ${numeros.length}',
+              errorText: _numerosError,
+              // Tab va de Números a Total; se agrega con Enter.
+              suffixIcon: ExcludeFocus(
+                child: IconButton(
                   key: ValueKey('agregar-numero-$id'),
                   tooltip: 'Agregar número',
                   onPressed: _addNumero,
                   icon: const Icon(Icons.add_rounded),
                 ),
               ),
-              onChanged: (value) => _notifier.setNumeroPendiente(id, value),
-              onSubmitted: (_) => _addNumero(),
             ),
-            if (widget.draft.numeros.isNotEmpty) ...[
-              const SizedBox(height: AppSpacing.sm),
-              Wrap(
+            onChanged: (value) => _notifier.setNumeroPendiente(id, value),
+            onSubmitted: (_) => _addNumero(),
+          ),
+          if (numeros.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.sm),
+            ExcludeFocus(
+              child: Wrap(
                 spacing: AppSpacing.sm,
                 runSpacing: AppSpacing.xs,
                 children: [
-                  for (var i = 0; i < widget.draft.numeros.length; i++)
+                  for (var i = 0; i < numeros.length; i++)
                     InputChip(
                       key: ValueKey('chip-$id-$i'),
-                      label: Text(widget.draft.numeros[i]),
+                      label: Text(numeros[i], style: AppTypography.tabular),
                       deleteButtonTooltipMessage: 'Quitar número',
                       onDeleted: () => _notifier.removeNumero(id, i),
                     ),
                 ],
               ),
-            ],
-            const SizedBox(height: AppSpacing.md),
-            TextField(
-              key: ValueKey('total-$id'),
-              controller: _total,
-              keyboardType: TextInputType.number,
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(_maxTotalDigits),
-              ],
-              decoration: InputDecoration(
-                labelText: 'Total',
-                prefixText: '\$ ',
-                errorText: _totalError,
-              ),
-              onChanged: (value) => _notifier.setTotal(id, value),
             ),
           ],
-        ),
+          const SizedBox(height: AppSpacing.md),
+          TextField(
+            key: ValueKey('total-$id'),
+            controller: _total,
+            keyboardType: TextInputType.number,
+            textAlign: TextAlign.end,
+            style: AppTypography.tabular.copyWith(fontWeight: FontWeight.bold),
+            inputFormatters: const [ThousandsInputFormatter()],
+            decoration: InputDecoration(
+              labelText: 'Total',
+              prefixText: '\$ ',
+              errorText: _totalError,
+            ),
+            // El controller muestra "9.000"; el borrador guarda "9000".
+            onChanged: (value) => _notifier.setTotal(id, onlyDigits(value)),
+          ),
+        ],
       ),
     );
   }
