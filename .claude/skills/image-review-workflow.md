@@ -77,7 +77,8 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    resto (no depende de las otras tres).
 2. **Formulario de captura** (`image-review-domain` + `image-review-roles`):
    comprobantes/números/total en `image_detail_page`, restringido a
-   tablet/PC, con la validación de "no avanzar sin completar". Empieza
+   tablet/PC, con el bloqueo de navegación hasta guardar el registro
+   (en ambos sentidos). Empieza
    guardando en memoria (Riverpod) nada más, sin persistencia todavía —
    eso es el siguiente paso.
 3. **Persistencia local** (`image-review-offline-sync`): mover el
@@ -146,9 +147,9 @@ para tener de un vistazo qué falta resolver antes de poder implementar
 todo sin adivinar. Se actualiza a medida que se van resolviendo (borrar
 de aquí y de la skill correspondiente cuando el usuario confirme):
 
-- **Valor exacto del breakpoint nuevo** para tablet/PC
-  (`image-review-roles`) — el enfoque ya está confirmado, falta el
-  número (se define probando dispositivos reales al implementar).
+- **Validar `reviewForm = 840` en dispositivos reales** (tablet
+  vertical/horizontal, laptop) (`image-review-roles`) — el valor ya está
+  adoptado en `AppBreakpoints`, falta comprobarlo fuera de los tests.
 - **`sqflite`/`drift` vs. `Hive`** (`image-review-offline-sync`) —
   decisión libre, a tomar en Claude Code; no hay nada existente que
   condicione la elección.

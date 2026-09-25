@@ -10,6 +10,8 @@ final chatImageItemsProvider = Provider<List<ImageViewItem>>((ref) {
         .where((m) => m.isImage)
         .map(
           (m) => ImageViewItem(
+            messageId: m.id,
+            chatJid: m.chatJid,
             storagePath: m.storagePath!,
             senderName: m.senderName,
             messageTimestamp: m.messageTimestamp,

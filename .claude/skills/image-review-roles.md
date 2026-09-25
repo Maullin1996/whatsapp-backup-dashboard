@@ -9,8 +9,8 @@ description: >
   Revisor/Sumador (únicos por rol, nunca dos personas del mismo rol
   comparten grupo+jornada), la restricción de que el formulario de
   captura en image_detail_page es exclusivo de tablet/PC (nunca
-  mobile), y la validación de que no se puede avanzar de imagen sin
-  completar el formulario. Consulta esta skill SIEMPRE que se trabaje
+  mobile), y el bloqueo de navegación (en ambos sentidos) mientras la
+  imagen actual no tenga registro guardado. Consulta esta skill SIEMPRE que se trabaje
   en: el sistema de autenticación/roles (AuthenticatedUser, custom
   claims, AdminPage, Cloud Functions de gestión de usuarios), el
   formulario de captura de image_detail_page, o cualquier
@@ -88,26 +88,39 @@ El repo ya tiene un patrón completo en `lib/features/admin/` y
   `ImageDetailPage` — el visor de imágenes en sí (zoom, navegación,
   gestos) sigue funcionando igual en mobile; simplemente ese dispositivo
   nunca muestra el panel de captura de Revisor/Sumador.
-- Implementación: reusar `AppBreakpoints` como base (ver `ui-design`
-  SKILL.md del proyecto), pero **el usuario ya confirmó que el umbral
-  actual (`mobile = 600`) probablemente no alcanza** para distinguir
-  "mobile real" de "tablet" — lo más probable es que haga falta agregar
-  un umbral nuevo a `AppBreakpoints` (con su comentario documentando
-  la razón, igual que `homeSplit`), específico para decidir si se
-  muestra el formulario de captura. El valor exacto (¿768? ¿840?) se
-  define al implementar, probando con dispositivos/anchos reales.
+- Implementación: el umbral `mobile = 600` no alcanza para distinguir
+  "mobile real" de "tablet", así que se agregó
+  **`AppBreakpoints.reviewForm = 840`** (clase de ventana "expanded" de
+  Material 3; entre 600 y 840 hay tablets verticales y celulares
+  horizontales). **Adoptado, pendiente de validar en dispositivos
+  reales** (tablet vertical/horizontal, laptop).
+  - Con ancho < 840 el visor es exactamente el de siempre: sin panel,
+    sin bloqueo de avance y sin cambios de atajos.
+  - Con ancho ≥ 840 el panel va a la derecha de la imagen, con ancho
+    `AppSizes.reviewPanelWidth(screenWidth)` (34 %, entre 360 y 440).
 - Un usuario con rol Revisor o Sumador que entra desde un celular debe
   poder seguir viendo las imágenes normalmente; solo no ve el
   formulario de captura ahí.
 
-## Validación: no se puede avanzar de imagen sin completar el formulario
+## Validación: no se puede cambiar de imagen sin completar el formulario
 
 - Si el usuario activo tiene rol Revisor o Sumador **y** está en una
-  pantalla donde el formulario aplica (tablet/PC), **no puede pasar a
-  la siguiente imagen del visor sin completar el formulario de la
-  imagen actual**.
-- "Completar" significa, como mínimo, los campos obligatorios definidos
-  en `image-review-domain`. Para el **Revisor**: al menos un
+  pantalla donde el formulario aplica (tablet/PC), **no puede cambiar de
+  imagen en el visor mientras la imagen actual no tenga un registro
+  guardado**. El bloqueo es **en AMBAS direcciones** (las dos flechas
+  del teclado, los dos chevrons y el swipe hacia ambos lados), porque el
+  Revisor puede empezar desde cualquier imagen (muy probablemente la
+  última que ve) y por eso **no hay una dirección de avance confiable**.
+  Feedback: SnackBar "Guarda el formulario para continuar" (y tooltip en
+  los chevrons deshabilitados).
+- Con la imagen actual **ya registrada** la navegación es libre en ambos
+  sentidos, también en modo "Editar" con cambios sin guardar (el
+  borrador se conserva al volver). **Cerrar el visor siempre está
+  permitido** (Esc sin campo enfocado o el botón de cerrar).
+- "Completar" = **guardar** (botón "Guardar" explícito): llenar los
+  campos no basta, se navega solo cuando existe un registro guardado.
+  Los campos obligatorios son los definidos en `image-review-domain`.
+  Para el **Revisor**: al menos un
   comprobante, y cada comprobante con código, al menos un número y
   total > 0 (regla implementada en `validateImageReviewForm`). Para el
   **Sumador**: al menos un comprobante, y cada comprobante con código y
@@ -116,8 +129,15 @@ El repo ya tiene un patrón completo en `lib/features/admin/` y
   anotaciones nunca son obligatorias, son siempre opcionales.
 - Esta validación es **de navegación dentro del visor**, no de guardado:
   no impide cerrar la app o salir de `image_detail_page` por completo,
-  solo bloquea el gesto/flecha/botón de "imagen siguiente" mientras
-  falte el formulario de la imagen actual.
+  solo bloquea el gesto/flecha/botón de cambio de imagen mientras falte
+  el registro de la imagen actual.
+- **Es una guía de flujo, no un candado**: quien puede saltarse una
+  imagen (cerrando el visor y abriendo otra) no queda registrado como
+  error. Lo que detecta los faltantes es la **reconciliación agregada del
+  resumen** (`image-review-domain`, regla 3), no este bloqueo.
+- El bloqueo de un swipe se decide con la imagen sobre la que **empezó**
+  el gesto, no con la de destino: un arrastre que empieza en una imagen
+  registrada nunca se congela a mitad de camino.
 - Un usuario que **no** tiene rol Revisor ni Sumador (ej. un usuario
   normal, o un `admin`/`superAdmin` sin esos roles activados) navega el
   visor exactamente igual que hoy, **sin ningún formulario, ni siquiera
@@ -127,9 +147,9 @@ El repo ya tiene un patrón completo en `lib/features/admin/` y
   navega (buscando manualmente, sin atajo — ver `image-review-offline-sync`)
   hasta una imagen que **ya tiene un registro guardado** (local o ya
   subido), `image_detail_page` debe mostrar un **botón "Editar"** en
-  vez de un formulario vacío. La validación de "no avanzar sin
-  completar" (arriba) no aplica sobre una imagen que ya tiene registro
-  — esa restricción es solo para imágenes sin diligenciar todavía.
+  vez de un formulario vacío. El bloqueo de navegación (arriba) no
+  aplica sobre una imagen que ya tiene registro — esa restricción es
+  solo para imágenes sin diligenciar todavía.
 
 ## Identificación del autor del registro
 
@@ -186,6 +206,6 @@ grupos/jornadas. Además:
 
 ## Zona gris / a confirmar antes de implementar
 
-- **Valor exacto del breakpoint nuevo** para distinguir tablet/PC de
-  celular real (el enfoque ya está confirmado — hace falta uno nuevo —
-  falta solo el número, ver sección de dispositivo arriba).
+- **Validar `reviewForm = 840` en dispositivos reales** (tablet
+  vertical/horizontal, laptop): el valor está adoptado y funcionando,
+  pero no es una decisión cerrada (ver sección de dispositivo arriba).
