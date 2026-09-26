@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:dartz/dartz.dart';
@@ -425,6 +426,119 @@ void main() {
         _right(await repoFor('u1').getByMessageId('m1', ReviewRole.revisor)),
         _record(),
       );
+    });
+  });
+
+  group('getPendingJornadas', () {
+    Future<List<(String, String, int)>> jornadas(
+      LocalImageReviewRepository repo, {
+      String chatJid = _chat,
+      ReviewRole rol = ReviewRole.revisor,
+    }) async => _right(
+      await repo.getPendingJornadas(chatJid: chatJid, rol: rol),
+    ).map((j) => (j.fechaJornada, j.shift, j.cantidad)).toList();
+
+    test('cuenta por jornada, de cualquier día, ordenado por fecha', () async {
+      final repo = repoFor('u1');
+      await repo.save(_record(messageId: 'a', fechaJornada: '2026-01-16'));
+      await repo.save(_record(messageId: 'b', fechaJornada: '2026-01-15'));
+      await repo.save(_record(messageId: 'c', fechaJornada: '2026-01-15'));
+      await repo.save(
+        _record(messageId: 'd', fechaJornada: '2026-01-15', shift: 'Tarde'),
+      );
+
+      expect(await jornadas(repo), [
+        ('2026-01-15', _shift, 2),
+        ('2026-01-15', 'Tarde', 1),
+        ('2026-01-16', _shift, 1),
+      ]);
+    });
+
+    test('filtra por chat, rol y usuario', () async {
+      final repo = repoFor('u1');
+      await repo.save(_record(messageId: 'a'));
+      await repo.save(_record(messageId: 'b', chatJid: 'otro@g.us'));
+      await repo.save(_record(messageId: 'c', rol: ReviewRole.sumador));
+      await repoFor('u2').save(_record(messageId: 'd'));
+
+      expect(await jornadas(repo), [(_fecha, _shift, 1)]);
+      expect(await jornadas(repo, chatJid: 'otro@g.us'), [(_fecha, _shift, 1)]);
+      expect(await jornadas(repo, rol: ReviewRole.sumador), [
+        (_fecha, _shift, 1),
+      ]);
+      expect(await jornadas(repo, chatJid: 'nada@g.us'), isEmpty);
+    });
+
+    test(
+      'no cuenta sincronizados y un re-guardado pendiente reaparece',
+      () async {
+        final repo = repoFor('u1');
+        await repo.save(_record());
+        await repo.save(_record(estadoSync: EstadoSync.sincronizado));
+        expect(await jornadas(repo), isEmpty);
+
+        await repo.save(_record(editado: true));
+        expect(await jornadas(repo), [(_fecha, _shift, 1)]);
+      },
+    );
+
+    test('sobrevive a recargar', () async {
+      await repoFor('u1').save(_record());
+      final reopened = await reload();
+      expect(await jornadas(repoFor('u1', reopened)), [(_fecha, _shift, 1)]);
+    });
+
+    test('un "|" dentro del chat o la jornada no rompe las claves', () async {
+      final repo = repoFor('u1');
+      await repo.save(_record(chatJid: 'a|b@g.us', shift: 'Mañana | Tarde'));
+
+      expect(await jornadas(repo, chatJid: 'a|b@g.us'), [
+        (_fecha, 'Mañana | Tarde', 1),
+      ]);
+    });
+
+    test('no lee los registros: uno ilegible igual cuenta, y getPending '
+        'falla identificándolo', () async {
+      final repo = repoFor('u1');
+      await repo.save(_record());
+      await Hive.lazyBox<String>(
+        ReviewLocalDatasource.boxName,
+      ).put('r|u1|revisor|m1', 'basura');
+
+      expect(await jornadas(repo), [(_fecha, _shift, 1)]);
+      final failure = _left(
+        await repo.getPending(
+          chatJid: _chat,
+          fechaJornada: _fecha,
+          shift: _shift,
+          rol: ReviewRole.revisor,
+        ),
+      );
+      expect(mapFailureToMessage(failure), contains('m1'));
+    });
+
+    test('un índice viejo (registro ya sincronizado) deja de contar cuando '
+        'getPending lo limpia', () async {
+      final repo = repoFor('u1');
+      await repo.save(_record());
+      // Simula un corte a mitad de la sincronización: el registro quedó
+      // sincronizado pero el índice de pendientes siguió ahí.
+      final box = Hive.lazyBox<String>(ReviewLocalDatasource.boxName);
+      final synced = jsonEncode({
+        ...jsonDecode((await box.get('r|u1|revisor|m1'))!) as Map,
+        'estadoSync': 'sincronizado',
+      });
+      await box.put('r|u1|revisor|m1', synced);
+      expect(await jornadas(repo), [(_fecha, _shift, 1)]);
+
+      await repo.getPending(
+        chatJid: _chat,
+        fechaJornada: _fecha,
+        shift: _shift,
+        rol: ReviewRole.revisor,
+      );
+
+      expect(await jornadas(repo), isEmpty);
     });
   });
 

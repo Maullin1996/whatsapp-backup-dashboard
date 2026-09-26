@@ -191,4 +191,30 @@ void main() {
       expect(await ids(shift: 'night'), isEmpty);
     });
   });
+
+  group('getPendingJornadas', () {
+    test('cuenta por día y jornada, solo del chat y rol pedidos, sin '
+        'sincronizados', () async {
+      await repo.save(_record(messageId: 'a'));
+      await repo.save(_record(messageId: 'b'));
+      await repo.save(
+        _record(messageId: 'c').copyWith(fechaJornada: '2026-01-16'),
+      );
+      await repo.save(_record(messageId: 'd', rol: ReviewRole.sumador));
+      await repo.save(_record(messageId: 'e').copyWith(chatJid: 'otro@g.us'));
+      await repo.save(
+        _record(messageId: 'f').copyWith(estadoSync: EstadoSync.sincronizado),
+      );
+
+      final result = (await repo.getPendingJornadas(
+        chatJid: 'chat@g.us',
+        rol: ReviewRole.revisor,
+      )).fold((_) => fail('Left'), (l) => l);
+
+      expect(result.map((j) => (j.fechaJornada, j.shift, j.cantidad)), [
+        ('2026-01-15', 'morning', 2),
+        ('2026-01-16', 'morning', 1),
+      ]);
+    });
+  });
 }

@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 import 'package:whatsapp_monitor_viewer/core/errors/failure.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/image_review_record.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/pending_jornada.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
 
 /// Registros de revisión del usuario actual (cada implementación ya está
@@ -27,6 +28,14 @@ abstract class ImageReviewRepository {
     required String chatJid,
     required String fechaJornada,
     required String shift,
+    required ReviewRole rol,
+  });
+
+  /// Jornadas de [chatJid] (de cualquier día) con registros pendientes de
+  /// [rol], con la cantidad de cada una. No depende de qué mensajes estén
+  /// cargados. Orden estable: por fecha y luego por jornada.
+  Future<Either<Failure, List<PendingJornada>>> getPendingJornadas({
+    required String chatJid,
     required ReviewRole rol,
   });
 }

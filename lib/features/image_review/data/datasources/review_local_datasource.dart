@@ -5,6 +5,7 @@ import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 import 'package:whatsapp_monitor_viewer/core/errors/failure.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/data/models/image_review_record_model.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/estado_sync.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/pending_jornada.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
 
 /// Almacenamiento local (`hive_ce`: IndexedDB en web) de los registros de
@@ -155,6 +156,72 @@ class ReviewLocalDatasource {
     }
   }
 
+  /// Jornadas del chat con pendientes y cuántos tiene cada una. Solo recorre
+  /// las claves del índice `p|uid|rol|chatJid|`; no lee ni deserializa ningún
+  /// registro (por eso un índice viejo, ver [pending], cuenta hasta que
+  /// `pending` lo limpie).
+  Future<Either<Failure, List<PendingJornada>>> pendingJornadas({
+    required String uid,
+    required ReviewRole rol,
+    required String chatJid,
+  }) async {
+    try {
+      final prefix = 'p|${_enc(uid)}|${rol.name}|${_enc(chatJid)}|';
+      final counts = <(String, String), int>{};
+      for (final key in _box.keys) {
+        if (key is! String || !key.startsWith(prefix)) continue;
+        // fechaJornada|shift|messageId
+        final parts = key.substring(prefix.length).split('|');
+        if (parts.length != 3) continue;
+        final jornada = (
+          Uri.decodeComponent(parts[0]),
+          Uri.decodeComponent(parts[1]),
+        );
+        counts[jornada] = (counts[jornada] ?? 0) + 1;
+      }
+      final jornadas = [
+        for (final e in counts.entries)
+          PendingJornada(
+            fechaJornada: e.key.$1,
+            shift: e.key.$2,
+            cantidad: e.value,
+          ),
+      ];
+      jornadas.sort((a, b) {
+        final byDate = a.fechaJornada.compareTo(b.fechaJornada);
+        return byDate != 0 ? byDate : a.shift.compareTo(b.shift);
+      });
+      return Right(jornadas);
+    } catch (_) {
+      return const Left(
+        Failure.storage(
+          message: 'No se pudieron leer los registros pendientes de este chat',
+        ),
+      );
+    }
+  }
+
+  /// Borra [indexKey] solo si, releyendo el registro justo ahora, sigue
+  /// huérfano. Solo escribe cuando hay orfandad (nunca en una lectura normal).
+  /// La relectura evita borrar el índice de un registro que se re-guardó como
+  /// pendiente mientras `pending` estaba leyendo (dejaría un pendiente
+  /// invisible). Cualquier error se ignora: el índice viejo se ignora otra
+  /// vez la próxima vez.
+  Future<void> _deleteIfStale(
+    String indexKey,
+    String uid,
+    ReviewRole rol,
+    String messageId,
+  ) async {
+    try {
+      final current = await _read(uid, rol, messageId);
+      if (current == null ||
+          current.record.estadoSync != EstadoSync.pendiente) {
+        await _box.delete(indexKey);
+      }
+    } catch (_) {}
+  }
+
   /// Registros pendientes de la jornada, del más antiguo al más nuevo. Falla
   /// entera (identificando el messageId) si alguno no se puede leer.
   Future<Either<Failure, List<ImageReviewRecordModel>>> pending({
@@ -165,19 +232,20 @@ class ReviewLocalDatasource {
     required String shift,
   }) async {
     final prefix = _pendingPrefix(uid, rol, chatJid, fechaJornada, shift);
-    final ids = [
+    final indexKeys = [
       for (final key in _box.keys)
-        if (key is String && key.startsWith(prefix))
-          Uri.decodeComponent(key.substring(prefix.length)),
+        if (key is String && key.startsWith(prefix)) key,
     ];
 
     final models = <ImageReviewRecordModel>[];
-    for (final id in ids) {
+    for (final indexKey in indexKeys) {
+      final id = Uri.decodeComponent(indexKey.substring(prefix.length));
       try {
         final model = await _read(uid, rol, id);
-        // Índice viejo (registro ya sincronizado o inexistente): se ignora.
-        if (model == null ||
-            model.record.estadoSync != EstadoSync.pendiente) {
+        // Índice viejo (registro ya sincronizado o inexistente): se ignora
+        // y se limpia, para que [pendingJornadas] no lo siga contando.
+        if (model == null || model.record.estadoSync != EstadoSync.pendiente) {
+          await _deleteIfStale(indexKey, uid, rol, id);
           continue;
         }
         models.add(model);
