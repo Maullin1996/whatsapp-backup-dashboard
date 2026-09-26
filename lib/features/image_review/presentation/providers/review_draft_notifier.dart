@@ -1,19 +1,26 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:whatsapp_monitor_viewer/core/errors/failure.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/estado_sync.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/image_review_record.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/helpers/validate_image_review_form.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/models/image_review_target.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/presentation/models/review_key.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/image_review_providers.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/review_draft_state.dart';
 
 class ReviewDraftNotifier extends Notifier<ReviewDraftState> {
-  ReviewDraftNotifier(this.messageId);
+  ReviewDraftNotifier(this.key);
 
-  final String messageId;
+  /// Imagen y rol de este borrador.
+  final ReviewKey key;
+
+  String get messageId => key.messageId;
 
   @override
   ReviewDraftState build() {
-    ref.watch(reviewerEmailProvider); // se reinicia al cambiar de sesión
+    // El borrador (solo en memoria) se reinicia al cambiar de usuario. Lo ya
+    // guardado NO se pierde: vive en el almacenamiento local de cada uid.
+    ref.watch(reviewerUidProvider);
     return ReviewDraftState.empty();
   }
 
@@ -114,7 +121,7 @@ class ReviewDraftNotifier extends Notifier<ReviewDraftState> {
       comprobantes: [for (final c in state.comprobantes) _commitPending(c)],
     );
 
-    final validation = validateImageReviewForm(state.toForm());
+    final validation = validateImageReviewForm(state.toForm(), key.rol);
     final form = validation.fold((failure) {
       state = state.copyWith(showErrors: true, saveError: failure);
       return null;
@@ -133,7 +140,7 @@ class ReviewDraftNotifier extends Notifier<ReviewDraftState> {
     state = state.copyWith(isSaving: true, saveError: null);
     final repository = ref.read(imageReviewRepositoryProvider);
 
-    final existing = await repository.getByMessageId(messageId);
+    final existing = await repository.getByMessageId(messageId, key.rol);
     if (!ref.mounted) return;
     final previous = existing.fold((_) => null, (record) => record);
 
@@ -141,11 +148,17 @@ class ReviewDraftNotifier extends Notifier<ReviewDraftState> {
       messageId: messageId,
       chatJid: target.chatJid,
       shift: target.shift,
+      rol: key.rol,
+      storagePath: target.storagePath,
+      fechaJornada: target.fechaJornada,
       form: form,
       registradoEn: DateTime.now(),
       registradoPor: email,
-      // Lo decide presentation, no el repositorio.
+      // Lo deciden presentation, no el repositorio: re-guardar un registro
+      // existente lo marca editado, y (nuevo o re-guardado, aunque estuviera
+      // sincronizado) siempre queda pendiente: habrá que volver a subirlo.
       editado: previous != null,
+      estadoSync: EstadoSync.pendiente,
     );
 
     final saved = await repository.save(record);
@@ -154,7 +167,7 @@ class ReviewDraftNotifier extends Notifier<ReviewDraftState> {
     saved.fold(
       (failure) => state = state.copyWith(isSaving: false, saveError: failure),
       (_) {
-        ref.invalidate(savedRecordProvider(messageId));
+        ref.invalidate(savedRecordProvider(key));
         state = state.copyWith(
           isSaving: false,
           isEditing: false,

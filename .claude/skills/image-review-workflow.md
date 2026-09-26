@@ -81,8 +81,10 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    (en ambos sentidos). Empieza
    guardando en memoria (Riverpod) nada más, sin persistencia todavía —
    eso es el siguiente paso.
-3. **Persistencia local** (`image-review-offline-sync`): mover el
-   guardado del formulario a SQLite/Hive real, probando que sobrevive
+3. **Persistencia local** (`image-review-offline-sync`) — ✅ hecha con
+   `hive_ce` (pasos 1 y 2 de esa skill: guardar y listar pendientes por
+   jornada, sin UI): sobrevive a recargar, separada por uid y por rol.
+   Mover el guardado del formulario a SQLite/Hive real, probando que sobrevive
    un reload antes de seguir. Como ya no hay que "detectar jornada
    completa" (se descartó, ver `image-review-domain`), este paso es más
    simple de lo que se pensaba originalmente: solo guardar y listar

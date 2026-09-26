@@ -10,6 +10,9 @@ abstract class Failure with _$Failure {
     @Default('No autorizado') String message,
   }) = UnauthorizedFailure;
 
+  /// Almacenamiento local del dispositivo (abrir, leer o guardar).
+  const factory Failure.storage({required String message}) = StorageFailure;
+
   const factory Failure.unknown({
     @Default('Error desconocido') String message,
   }) = UnknownFailure;

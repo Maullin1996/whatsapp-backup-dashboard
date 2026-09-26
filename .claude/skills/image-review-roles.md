@@ -122,10 +122,9 @@ El repo ya tiene un patrón completo en `lib/features/admin/` y
   Los campos obligatorios son los definidos en `image-review-domain`.
   Para el **Revisor**: al menos un
   comprobante, y cada comprobante con código, al menos un número y
-  total > 0 (regla implementada en `validateImageReviewForm`). Para el
-  **Sumador**: al menos un comprobante, y cada comprobante con código y
-  total > 0, sin números (regla confirmada; falta implementarla en
-  código, hoy `validateImageReviewForm` solo cubre al Revisor). Las
+  total > 0. Para el **Sumador**: al menos un comprobante, y cada
+  comprobante con código y total > 0, sin números. Ambas reglas están
+  implementadas en `validateImageReviewForm(form, rol)`. Las
   anotaciones nunca son obligatorias, son siempre opcionales.
 - Esta validación es **de navegación dentro del visor**, no de guardado:
   no impide cerrar la app o salir de `image_detail_page` por completo,
@@ -208,4 +207,11 @@ grupos/jornadas. Además:
 
 - **Validar `reviewForm = 840` en dispositivos reales** (tablet
   vertical/horizontal, laptop): el valor está adoptado y funcionando,
-  pero no es una decisión cerrada (ver sección de dispositivo arriba).
+  pero no es una decisión cerrada (ver sección de dispositivo arriba).- **Rol activo TEMPORAL (`currentReviewRoleProvider`)**: mientras no
+  existan los roles reales (custom claims `revisor`/`sumador`), el rol con
+  el que se abre el formulario sale de
+  `--dart-define=REVIEW_ROLE=revisor|sumador` (sin el parámetro, o con un
+  valor inválido, es Revisor). Es el ÚNICO punto que decide el rol activo:
+  al conectar los claims solo cambia ese provider. Borrador, registro
+  guardado y bloqueo de navegación se indexan por (`messageId`, rol)
+  (`ReviewKey`), así que cada rol ve solo lo suyo de la imagen actual.

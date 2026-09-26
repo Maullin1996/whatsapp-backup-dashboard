@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:whatsapp_monitor_viewer/core/errors/failure.dart';
 import 'package:whatsapp_monitor_viewer/core/theme/app_theme.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/data/repositories/in_memory_image_review_repository.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/data/repositories/unavailable_image_review_repository.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/models/image_review_target.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/image_review_providers.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/widgets/image_review_panel.dart';
@@ -12,6 +16,8 @@ const _target = ImageReviewTarget(
   messageId: 'm1',
   chatJid: 'chat@g.us',
   shift: 'Jornada Mañana',
+  storagePath: 'img_m1.png',
+  fechaJornada: '2026-01-15',
   localTime: '10:03',
   shiftImageIndex: 4,
 );
@@ -26,7 +32,13 @@ Future<ProviderContainer> _pumpPanel(
 
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [reviewerEmailProvider.overrideWithValue('revisor@test.com')],
+      overrides: [
+        reviewerEmailProvider.overrideWithValue('revisor@test.com'),
+        reviewerUidProvider.overrideWithValue('uid-test'),
+        imageReviewRepositoryProvider.overrideWithValue(
+          InMemoryImageReviewRepository(),
+        ),
+      ],
       child: MaterialApp(
         theme: AppTheme.light,
         home: Scaffold(
@@ -84,7 +96,10 @@ void main() {
       await _pumpPanel(tester);
 
       expect(find.text('Registro de la imagen'), findsOneWidget);
-      expect(find.text('Jornada Mañana · 10:03 · Imagen #4'), findsOneWidget);
+      expect(
+        find.text('Revisor · Jornada Mañana · 10:03 · Imagen #4'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('chip de estado: Sin guardar → Guardado → Editando → Editado', (
@@ -190,9 +205,15 @@ void main() {
       tester,
     ) async {
       final container = await _pumpPanel(tester, height: 600);
-      final notifier = container.read(reviewDraftProvider('m1').notifier)
-        ..addComprobante()
-        ..addComprobante();
+      final notifier =
+          container.read(
+              reviewDraftProvider((
+                messageId: 'm1',
+                rol: ReviewRole.revisor,
+              )).notifier,
+            )
+            ..addComprobante()
+            ..addComprobante();
       await tester.pumpAndSettle();
       expect(notifier, isNotNull);
 
@@ -338,7 +359,13 @@ void main() {
 
       expect(_text(tester, 'total-0'), '9.000');
       expect(
-        container.read(reviewDraftProvider('m1')).comprobantes.single.total,
+        container
+            .read(
+              reviewDraftProvider((messageId: 'm1', rol: ReviewRole.revisor)),
+            )
+            .comprobantes
+            .single
+            .total,
         '9000',
       );
     });
@@ -352,7 +379,13 @@ void main() {
 
         expect(_text(tester, 'total-0'), '9.000');
         expect(
-          container.read(reviewDraftProvider('m1')).comprobantes.single.total,
+          container
+              .read(
+                reviewDraftProvider((messageId: 'm1', rol: ReviewRole.revisor)),
+              )
+              .comprobantes
+              .single
+              .total,
           '9000',
         );
       });
@@ -384,6 +417,51 @@ void main() {
 
       expect(_text(tester, 'total-0'), '9.000');
       expect(find.text('Suma: \$9.000'), findsOneWidget);
+    });
+  });
+
+  group('almacenamiento no disponible', () {
+    testWidgets('el panel muestra el error, no queda cargando', (tester) async {
+      const failure = Failure.storage(
+        message: 'No se pudo abrir el almacenamiento local de este dispositivo',
+      );
+      tester.view.physicalSize = const Size(900, 2400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            reviewerEmailProvider.overrideWithValue('revisor@test.com'),
+            reviewerUidProvider.overrideWithValue('uid-test'),
+            imageReviewRepositoryProvider.overrideWithValue(
+              const UnavailableImageReviewRepository(failure),
+            ),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.light,
+            home: const Scaffold(
+              body: SizedBox(
+                width: 420,
+                height: 900,
+                child: ImageReviewPanel(target: _target),
+              ),
+            ),
+          ),
+        ),
+      );
+      // Sin reintentos: en pocos frames ya aparece el error.
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 200));
+      }
+
+      expect(
+        find.text(
+          'No se pudo abrir el almacenamiento local de este dispositivo',
+        ),
+        findsOneWidget,
+      );
+      expect(find.byType(CircularProgressIndicator), findsNothing);
     });
   });
 }

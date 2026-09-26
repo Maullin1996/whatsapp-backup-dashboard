@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/image_review_record.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/models/image_review_target.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/presentation/models/review_key.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/image_review_providers.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/widgets/comprobante_card.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/widgets/dashed_border_button.dart';
@@ -13,11 +14,14 @@ import 'package:whatsapp_monitor_viewer/features/image_review/presentation/widge
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/widgets/review_status_chip.dart';
 import 'package:whatsapp_monitor_viewer/helpers/map_failure_to_message.dart';
 
-/// Panel del formulario del Revisor para una imagen.
+/// Panel del formulario (Revisor o Sumador, según `currentReviewRoleProvider`)
+/// para una imagen.
 ///
 /// Widget aislado: solo necesita el [target] (messageId, chatJid, shift) y un
 /// ancho acotado por quien lo aloja. Todo el estado vive en los providers de
-/// `image_review_providers.dart` (en memoria por ahora).
+/// `image_review_providers.dart` (en memoria por ahora), indexado por imagen y
+/// rol: cada rol ve solo su propio borrador y registro. El Sumador no anota
+/// números.
 ///
 /// Estructura: encabezado (estado del registro), cuerpo con scroll y pie fijo
 /// (resumen y acciones). Modos: registro guardado (solo lectura + "Editar"), o
@@ -29,9 +33,11 @@ class ImageReviewPanel extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final saved = ref.watch(savedRecordProvider(target.messageId));
+    final rol = ref.watch(currentReviewRoleProvider);
+    final reviewKey = (messageId: target.messageId, rol: rol);
+    final saved = ref.watch(savedRecordProvider(reviewKey));
     final isEditing = ref.watch(
-      reviewDraftProvider(target.messageId).select((s) => s.isEditing),
+      reviewDraftProvider(reviewKey).select((s) => s.isEditing),
     );
 
     return ColoredBox(
@@ -50,13 +56,15 @@ class ImageReviewPanel extends ConsumerWidget {
         ),
         data: (record) => record != null && !isEditing
             ? _ReadOnlyMode(
-                key: ValueKey('read-${target.messageId}'),
+                key: ValueKey('read-${target.messageId}-${rol.name}'),
                 target: target,
+                reviewKey: reviewKey,
                 record: record,
               )
             : _FormMode(
-                key: ValueKey('form-${target.messageId}'),
+                key: ValueKey('form-${target.messageId}-${rol.name}'),
                 target: target,
+                reviewKey: reviewKey,
                 record: record,
               ),
       ),
@@ -66,9 +74,15 @@ class ImageReviewPanel extends ConsumerWidget {
 
 class _ReadOnlyMode extends ConsumerWidget {
   final ImageReviewTarget target;
+  final ReviewKey reviewKey;
   final ImageReviewRecord record;
 
-  const _ReadOnlyMode({super.key, required this.target, required this.record});
+  const _ReadOnlyMode({
+    super.key,
+    required this.target,
+    required this.reviewKey,
+    required this.record,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -78,6 +92,7 @@ class _ReadOnlyMode extends ConsumerWidget {
       children: [
         ReviewPanelHeader(
           target: target,
+          rol: reviewKey.rol,
           status: record.editado ? ReviewStatus.edited : ReviewStatus.saved,
         ),
         Expanded(child: ReviewReadOnlyView(record: record)),
@@ -86,7 +101,7 @@ class _ReadOnlyMode extends ConsumerWidget {
           sum: comprobantes.fold(0, (sum, c) => sum + c.total),
           child: ElevatedButton(
             onPressed: () => ref
-                .read(reviewDraftProvider(target.messageId).notifier)
+                .read(reviewDraftProvider(reviewKey).notifier)
                 .startEditing(record),
             child: const _ButtonLabel(icon: Icons.edit_rounded, text: 'Editar'),
           ),
@@ -98,11 +113,17 @@ class _ReadOnlyMode extends ConsumerWidget {
 
 class _FormMode extends ConsumerStatefulWidget {
   final ImageReviewTarget target;
+  final ReviewKey reviewKey;
 
   /// Registro guardado al que corresponde este formulario (null si es nuevo).
   final ImageReviewRecord? record;
 
-  const _FormMode({super.key, required this.target, required this.record});
+  const _FormMode({
+    super.key,
+    required this.target,
+    required this.reviewKey,
+    required this.record,
+  });
 
   @override
   ConsumerState<_FormMode> createState() => _FormModeState();
@@ -113,14 +134,15 @@ class _FormModeState extends ConsumerState<_FormMode> {
   /// scroll y foco al crearse.
   late final Set<int> _seenIds = {
     for (final c
-        in ref.read(reviewDraftProvider(widget.target.messageId)).comprobantes)
+        in ref.read(reviewDraftProvider(widget.reviewKey)).comprobantes)
       c.id,
   };
 
-  String get _messageId => widget.target.messageId;
+  ReviewKey get _reviewKey => widget.reviewKey;
+  String get _messageId => _reviewKey.messageId;
 
   Future<void> _confirmDiscard() async {
-    final notifier = ref.read(reviewDraftProvider(_messageId).notifier);
+    final notifier = ref.read(reviewDraftProvider(_reviewKey).notifier);
     if (notifier.hasChangesAgainst(widget.record!)) {
       final discard = await showDialog<bool>(
         context: context,
@@ -150,8 +172,8 @@ class _FormModeState extends ConsumerState<_FormMode> {
 
   @override
   Widget build(BuildContext context) {
-    final draft = ref.watch(reviewDraftProvider(_messageId));
-    final notifier = ref.read(reviewDraftProvider(_messageId).notifier);
+    final draft = ref.watch(reviewDraftProvider(_reviewKey));
+    final notifier = ref.read(reviewDraftProvider(_reviewKey).notifier);
     final record = widget.record;
 
     final newIds = {
@@ -164,6 +186,7 @@ class _FormModeState extends ConsumerState<_FormMode> {
       children: [
         ReviewPanelHeader(
           target: widget.target,
+          rol: _reviewKey.rol,
           status: record == null ? ReviewStatus.unsaved : ReviewStatus.editing,
         ),
         Expanded(
@@ -174,8 +197,10 @@ class _FormModeState extends ConsumerState<_FormMode> {
               children: [
                 for (var i = 0; i < draft.comprobantes.length; i++) ...[
                   ComprobanteCard(
-                    key: ValueKey('$_messageId-${draft.comprobantes[i].id}'),
-                    messageId: _messageId,
+                    key: ValueKey(
+                      '$_messageId-${_reviewKey.rol.name}-${draft.comprobantes[i].id}',
+                    ),
+                    reviewKey: _reviewKey,
                     number: i + 1,
                     draft: draft.comprobantes[i],
                     showErrors: draft.showErrors,
@@ -191,7 +216,7 @@ class _FormModeState extends ConsumerState<_FormMode> {
                 ),
                 const SizedBox(height: AppSpacing.md),
                 _AnotacionesCard(
-                  messageId: _messageId,
+                  reviewKey: _reviewKey,
                   initialValue: draft.anotaciones,
                 ),
               ],
@@ -258,10 +283,10 @@ class _ButtonLabel extends StatelessWidget {
 }
 
 class _AnotacionesCard extends ConsumerStatefulWidget {
-  final String messageId;
+  final ReviewKey reviewKey;
   final String initialValue;
 
-  const _AnotacionesCard({required this.messageId, required this.initialValue});
+  const _AnotacionesCard({required this.reviewKey, required this.initialValue});
 
   @override
   ConsumerState<_AnotacionesCard> createState() => _AnotacionesCardState();
@@ -312,7 +337,7 @@ class _AnotacionesCardState extends ConsumerState<_AnotacionesCard> {
               hintText: 'El número del comprobante 2 no se lee bien',
             ),
             onChanged: (value) => ref
-                .read(reviewDraftProvider(widget.messageId).notifier)
+                .read(reviewDraftProvider(widget.reviewKey).notifier)
                 .setAnotaciones(value),
           ),
         ],

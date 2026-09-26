@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:whatsapp_monitor_viewer/core/errors/image_review_failure.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/comprobante.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/image_review_form.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/helpers/validate_image_review_form.dart';
 import 'package:whatsapp_monitor_viewer/helpers/map_failure_to_message.dart';
 
@@ -11,12 +12,20 @@ Comprobante _c({
   int total = 9000,
 }) => Comprobante(codigo: codigo, numeros: numeros, total: total);
 
-ImageReviewFailure _failure(ImageReviewForm form) => validateImageReviewForm(
+ImageReviewFailure _failure(
+  ImageReviewForm form, [
+  ReviewRole rol = ReviewRole.revisor,
+]) => validateImageReviewForm(
   form,
+  rol,
 ).fold((f) => f, (_) => fail('se esperaba un error'));
 
-ImageReviewForm _ok(ImageReviewForm form) => validateImageReviewForm(
+ImageReviewForm _ok(
+  ImageReviewForm form, [
+  ReviewRole rol = ReviewRole.revisor,
+]) => validateImageReviewForm(
   form,
+  rol,
 ).fold((f) => fail('error inesperado: ${f.message}'), (v) => v);
 
 void main() {
@@ -77,7 +86,13 @@ void main() {
 
       test('solo vacíos/espacios -> comprobanteSinNumeros', () {
         expect(
-          _failure(ImageReviewForm(comprobantes: [_c(numeros: ['', '  '])])),
+          _failure(
+            ImageReviewForm(
+              comprobantes: [
+                _c(numeros: ['', '  ']),
+              ],
+            ),
+          ),
           const ImageReviewFailure.comprobanteSinNumeros(1),
         );
       });
@@ -156,7 +171,12 @@ void main() {
       test('fail-fast: un comprobante anterior con error gana', () {
         expect(
           _failure(
-            ImageReviewForm(comprobantes: [_c(codigo: ''), _c(total: 0)]),
+            ImageReviewForm(
+              comprobantes: [
+                _c(codigo: ''),
+                _c(total: 0),
+              ],
+            ),
           ),
           const ImageReviewFailure.codigoVacio(1),
         );
@@ -191,10 +211,147 @@ void main() {
         expect(
           validateImageReviewForm(
             const ImageReviewForm(comprobantes: [], anotaciones: 'nota'),
+            ReviewRole.revisor,
           ).isLeft(),
           isTrue,
         );
       });
+    });
+  });
+
+  group('validateImageReviewForm como Sumador', () {
+    const sumador = ReviewRole.sumador;
+
+    Comprobante c({
+      String codigo = 'A1',
+      List<String> numeros = const [],
+      int total = 9000,
+    }) => _c(codigo: codigo, numeros: numeros, total: total);
+
+    test('código y total, sin números: es válido', () {
+      final form = ImageReviewForm(comprobantes: [c()]);
+      expect(_ok(form, sumador), form);
+    });
+
+    test('sin comprobantes -> sinComprobantes', () {
+      expect(
+        _failure(const ImageReviewForm(comprobantes: []), sumador),
+        const ImageReviewFailure.sinComprobantes(),
+      );
+    });
+
+    test('código vacío o solo espacios -> codigoVacio', () {
+      expect(
+        _failure(ImageReviewForm(comprobantes: [c(codigo: '')]), sumador),
+        const ImageReviewFailure.codigoVacio(1),
+      );
+      expect(
+        _failure(ImageReviewForm(comprobantes: [c(codigo: '   ')]), sumador),
+        const ImageReviewFailure.codigoVacio(1),
+      );
+    });
+
+    test('al código se le aplica trim', () {
+      final r = _ok(
+        ImageReviewForm(comprobantes: [c(codigo: '  A1 ')]),
+        sumador,
+      );
+      expect(r.comprobantes.single.codigo, 'A1');
+    });
+
+    test('total 0 o negativo -> totalInvalido; 1 es válido', () {
+      expect(
+        _failure(ImageReviewForm(comprobantes: [c(total: 0)]), sumador),
+        const ImageReviewFailure.totalInvalido(1),
+      );
+      expect(
+        _failure(ImageReviewForm(comprobantes: [c(total: -1)]), sumador),
+        const ImageReviewFailure.totalInvalido(1),
+      );
+      _ok(ImageReviewForm(comprobantes: [c(total: 1)]), sumador);
+    });
+
+    test('NO exige números: la lista vacía no es error', () {
+      final r = _ok(
+        ImageReviewForm(comprobantes: [c(numeros: const [])]),
+        sumador,
+      );
+      expect(r.comprobantes.single.numeros, isEmpty);
+    });
+
+    test('los números que lleguen se descartan (lista vacía)', () {
+      final r = _ok(
+        ImageReviewForm(
+          comprobantes: [
+            c(numeros: ['5311', ' 1111 ', '']),
+          ],
+        ),
+        sumador,
+      );
+      expect(r.comprobantes.single.numeros, isEmpty);
+    });
+
+    test('orden: comprobantes, código y total; índice 1-based', () {
+      expect(
+        _failure(
+          ImageReviewForm(comprobantes: [c(codigo: '', total: 0)]),
+          sumador,
+        ),
+        const ImageReviewFailure.codigoVacio(1),
+      );
+      expect(
+        _failure(ImageReviewForm(comprobantes: [c(), c(total: 0)]), sumador),
+        const ImageReviewFailure.totalInvalido(2),
+      );
+      expect(
+        _failure(
+          ImageReviewForm(
+            comprobantes: [
+              c(codigo: ''),
+              c(total: 0),
+            ],
+          ),
+          sumador,
+        ),
+        const ImageReviewFailure.codigoVacio(1),
+      );
+    });
+
+    test('el mismo código repetido es válido y no agrupa', () {
+      final r = _ok(
+        ImageReviewForm(
+          comprobantes: [
+            c(codigo: 'A1', total: 9000),
+            c(codigo: 'A1', total: 3000),
+          ],
+        ),
+        sumador,
+      );
+      expect(r.comprobantes.map((x) => x.total), [9000, 3000]);
+    });
+
+    test('anotaciones opcionales: vacías -> null, con texto con trim', () {
+      expect(
+        _ok(
+          ImageReviewForm(comprobantes: [c()], anotaciones: '  '),
+          sumador,
+        ).anotaciones,
+        isNull,
+      );
+      expect(
+        _ok(
+          ImageReviewForm(comprobantes: [c()], anotaciones: ' nota '),
+          sumador,
+        ).anotaciones,
+        'nota',
+      );
+    });
+
+    test('el Revisor con esos mismos datos (sin números) sigue fallando', () {
+      expect(
+        _failure(ImageReviewForm(comprobantes: [c(numeros: const [])])),
+        const ImageReviewFailure.comprobanteSinNumeros(1),
+      );
     });
   });
 

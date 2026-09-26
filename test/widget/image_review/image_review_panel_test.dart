@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:whatsapp_monitor_viewer/core/theme/app_theme.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/data/repositories/in_memory_image_review_repository.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/estado_sync.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/image_review_record.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/models/image_review_target.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/image_review_providers.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/widgets/image_review_panel.dart';
@@ -11,12 +14,20 @@ const _target = ImageReviewTarget(
   messageId: 'm1',
   chatJid: 'chat@g.us',
   shift: 'Jornada Mañana',
+  storagePath: 'img_m1.png',
+  fechaJornada: '2026-01-15',
 );
 
 const _email = 'revisor@test.com';
 
 Widget _app({required Widget child}) => ProviderScope(
-  overrides: [reviewerEmailProvider.overrideWithValue(_email)],
+  overrides: [
+    reviewerEmailProvider.overrideWithValue(_email),
+    reviewerUidProvider.overrideWithValue('uid-test'),
+    imageReviewRepositoryProvider.overrideWithValue(
+      InMemoryImageReviewRepository(),
+    ),
+  ],
   child: MaterialApp(
     theme: AppTheme.light,
     home: Scaffold(
@@ -70,7 +81,7 @@ Future<void> _tapButton(WidgetTester tester, String label) async {
 Future<ImageReviewRecord?> _savedRecord(ProviderContainer container) async {
   final result = await container
       .read(imageReviewRepositoryProvider)
-      .getByMessageId('m1');
+      .getByMessageId('m1', ReviewRole.revisor);
   return result.fold((_) => fail('no se esperaba Left'), (r) => r);
 }
 
@@ -197,9 +208,13 @@ void main() {
       expect(_text(tester, 'total-0'), '1.234');
       // El borrador guarda solo dígitos.
       expect(
-        ProviderScope.containerOf(
-          tester.element(find.byType(ImageReviewPanel)),
-        ).read(reviewDraftProvider('m1')).comprobantes.single.total,
+        ProviderScope.containerOf(tester.element(find.byType(ImageReviewPanel)))
+            .read(
+              reviewDraftProvider((messageId: 'm1', rol: ReviewRole.revisor)),
+            )
+            .comprobantes
+            .single
+            .total,
         '1234',
       );
     });
@@ -249,11 +264,19 @@ void main() {
       expect(record.chatJid, 'chat@g.us');
       expect(record.shift, 'Jornada Mañana');
       expect(record.registradoPor, _email);
+      expect(record.storagePath, 'img_m1.png');
+      expect(record.fechaJornada, '2026-01-15');
+      expect(record.estadoSync, EstadoSync.pendiente);
       expect(record.editado, isFalse);
       expect(record.form.comprobantes.single.codigo, 'A1');
       expect(record.form.comprobantes.single.total, 9000);
       expect(record.form.anotaciones, 'ilegible');
-      expect(container.read(canAdvanceProvider('m1')), isTrue);
+      expect(
+        container.read(
+          canAdvanceProvider((messageId: 'm1', rol: ReviewRole.revisor)),
+        ),
+        isTrue,
+      );
     });
   });
 
@@ -355,7 +378,13 @@ void main() {
     addTearDown(visible.dispose);
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [reviewerEmailProvider.overrideWithValue(_email)],
+        overrides: [
+          reviewerEmailProvider.overrideWithValue(_email),
+          reviewerUidProvider.overrideWithValue('uid-test'),
+          imageReviewRepositoryProvider.overrideWithValue(
+            InMemoryImageReviewRepository(),
+          ),
+        ],
         child: MaterialApp(
           theme: AppTheme.light,
           home: Scaffold(

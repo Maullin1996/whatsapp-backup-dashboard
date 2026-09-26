@@ -14,10 +14,16 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$ImageReviewRecord {
 
- String get messageId; String get chatJid; String get shift; ImageReviewForm get form; DateTime get registradoEn;/// Email del usuario autenticado que diligenció el registro.
+ String get messageId; String get chatJid; String get shift;/// Rol con el que se diligenció (Revisor o Sumador).
+ ReviewRole get rol;/// Referencia de la imagen en Storage (nunca la imagen ni una URL).
+ String get storagePath;/// Día de la jornada (`yyyy-MM-dd`): la fecha del mensaje, no la de
+/// [registradoEn]. Ver `fechaJornadaDe`.
+ String get fechaJornada; ImageReviewForm get form; DateTime get registradoEn;/// Email del usuario autenticado que diligenció el registro.
  String get registradoPor;/// false al crear. Quien re-guarda un registro existente (presentation)
 /// lo pone en true; el repositorio no lo decide.
- bool get editado;
+ bool get editado;/// Nace pendiente; al re-guardar vuelve a pendiente (lo decide
+/// presentation, igual que [editado]).
+ EstadoSync get estadoSync;
 /// Create a copy of ImageReviewRecord
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +34,16 @@ $ImageReviewRecordCopyWith<ImageReviewRecord> get copyWith => _$ImageReviewRecor
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ImageReviewRecord&&(identical(other.messageId, messageId) || other.messageId == messageId)&&(identical(other.chatJid, chatJid) || other.chatJid == chatJid)&&(identical(other.shift, shift) || other.shift == shift)&&(identical(other.form, form) || other.form == form)&&(identical(other.registradoEn, registradoEn) || other.registradoEn == registradoEn)&&(identical(other.registradoPor, registradoPor) || other.registradoPor == registradoPor)&&(identical(other.editado, editado) || other.editado == editado));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ImageReviewRecord&&(identical(other.messageId, messageId) || other.messageId == messageId)&&(identical(other.chatJid, chatJid) || other.chatJid == chatJid)&&(identical(other.shift, shift) || other.shift == shift)&&(identical(other.rol, rol) || other.rol == rol)&&(identical(other.storagePath, storagePath) || other.storagePath == storagePath)&&(identical(other.fechaJornada, fechaJornada) || other.fechaJornada == fechaJornada)&&(identical(other.form, form) || other.form == form)&&(identical(other.registradoEn, registradoEn) || other.registradoEn == registradoEn)&&(identical(other.registradoPor, registradoPor) || other.registradoPor == registradoPor)&&(identical(other.editado, editado) || other.editado == editado)&&(identical(other.estadoSync, estadoSync) || other.estadoSync == estadoSync));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,messageId,chatJid,shift,form,registradoEn,registradoPor,editado);
+int get hashCode => Object.hash(runtimeType,messageId,chatJid,shift,rol,storagePath,fechaJornada,form,registradoEn,registradoPor,editado,estadoSync);
 
 @override
 String toString() {
-  return 'ImageReviewRecord(messageId: $messageId, chatJid: $chatJid, shift: $shift, form: $form, registradoEn: $registradoEn, registradoPor: $registradoPor, editado: $editado)';
+  return 'ImageReviewRecord(messageId: $messageId, chatJid: $chatJid, shift: $shift, rol: $rol, storagePath: $storagePath, fechaJornada: $fechaJornada, form: $form, registradoEn: $registradoEn, registradoPor: $registradoPor, editado: $editado, estadoSync: $estadoSync)';
 }
 
 
@@ -48,7 +54,7 @@ abstract mixin class $ImageReviewRecordCopyWith<$Res>  {
   factory $ImageReviewRecordCopyWith(ImageReviewRecord value, $Res Function(ImageReviewRecord) _then) = _$ImageReviewRecordCopyWithImpl;
 @useResult
 $Res call({
- String messageId, String chatJid, String shift, ImageReviewForm form, DateTime registradoEn, String registradoPor, bool editado
+ String messageId, String chatJid, String shift, ReviewRole rol, String storagePath, String fechaJornada, ImageReviewForm form, DateTime registradoEn, String registradoPor, bool editado, EstadoSync estadoSync
 });
 
 
@@ -65,16 +71,20 @@ class _$ImageReviewRecordCopyWithImpl<$Res>
 
 /// Create a copy of ImageReviewRecord
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? messageId = null,Object? chatJid = null,Object? shift = null,Object? form = null,Object? registradoEn = null,Object? registradoPor = null,Object? editado = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? messageId = null,Object? chatJid = null,Object? shift = null,Object? rol = null,Object? storagePath = null,Object? fechaJornada = null,Object? form = null,Object? registradoEn = null,Object? registradoPor = null,Object? editado = null,Object? estadoSync = null,}) {
   return _then(_self.copyWith(
 messageId: null == messageId ? _self.messageId : messageId // ignore: cast_nullable_to_non_nullable
 as String,chatJid: null == chatJid ? _self.chatJid : chatJid // ignore: cast_nullable_to_non_nullable
 as String,shift: null == shift ? _self.shift : shift // ignore: cast_nullable_to_non_nullable
+as String,rol: null == rol ? _self.rol : rol // ignore: cast_nullable_to_non_nullable
+as ReviewRole,storagePath: null == storagePath ? _self.storagePath : storagePath // ignore: cast_nullable_to_non_nullable
+as String,fechaJornada: null == fechaJornada ? _self.fechaJornada : fechaJornada // ignore: cast_nullable_to_non_nullable
 as String,form: null == form ? _self.form : form // ignore: cast_nullable_to_non_nullable
 as ImageReviewForm,registradoEn: null == registradoEn ? _self.registradoEn : registradoEn // ignore: cast_nullable_to_non_nullable
 as DateTime,registradoPor: null == registradoPor ? _self.registradoPor : registradoPor // ignore: cast_nullable_to_non_nullable
 as String,editado: null == editado ? _self.editado : editado // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,estadoSync: null == estadoSync ? _self.estadoSync : estadoSync // ignore: cast_nullable_to_non_nullable
+as EstadoSync,
   ));
 }
 /// Create a copy of ImageReviewRecord
@@ -168,10 +178,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String messageId,  String chatJid,  String shift,  ImageReviewForm form,  DateTime registradoEn,  String registradoPor,  bool editado)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String messageId,  String chatJid,  String shift,  ReviewRole rol,  String storagePath,  String fechaJornada,  ImageReviewForm form,  DateTime registradoEn,  String registradoPor,  bool editado,  EstadoSync estadoSync)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ImageReviewRecord() when $default != null:
-return $default(_that.messageId,_that.chatJid,_that.shift,_that.form,_that.registradoEn,_that.registradoPor,_that.editado);case _:
+return $default(_that.messageId,_that.chatJid,_that.shift,_that.rol,_that.storagePath,_that.fechaJornada,_that.form,_that.registradoEn,_that.registradoPor,_that.editado,_that.estadoSync);case _:
   return orElse();
 
 }
@@ -189,10 +199,10 @@ return $default(_that.messageId,_that.chatJid,_that.shift,_that.form,_that.regis
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String messageId,  String chatJid,  String shift,  ImageReviewForm form,  DateTime registradoEn,  String registradoPor,  bool editado)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String messageId,  String chatJid,  String shift,  ReviewRole rol,  String storagePath,  String fechaJornada,  ImageReviewForm form,  DateTime registradoEn,  String registradoPor,  bool editado,  EstadoSync estadoSync)  $default,) {final _that = this;
 switch (_that) {
 case _ImageReviewRecord():
-return $default(_that.messageId,_that.chatJid,_that.shift,_that.form,_that.registradoEn,_that.registradoPor,_that.editado);case _:
+return $default(_that.messageId,_that.chatJid,_that.shift,_that.rol,_that.storagePath,_that.fechaJornada,_that.form,_that.registradoEn,_that.registradoPor,_that.editado,_that.estadoSync);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -209,10 +219,10 @@ return $default(_that.messageId,_that.chatJid,_that.shift,_that.form,_that.regis
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String messageId,  String chatJid,  String shift,  ImageReviewForm form,  DateTime registradoEn,  String registradoPor,  bool editado)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String messageId,  String chatJid,  String shift,  ReviewRole rol,  String storagePath,  String fechaJornada,  ImageReviewForm form,  DateTime registradoEn,  String registradoPor,  bool editado,  EstadoSync estadoSync)?  $default,) {final _that = this;
 switch (_that) {
 case _ImageReviewRecord() when $default != null:
-return $default(_that.messageId,_that.chatJid,_that.shift,_that.form,_that.registradoEn,_that.registradoPor,_that.editado);case _:
+return $default(_that.messageId,_that.chatJid,_that.shift,_that.rol,_that.storagePath,_that.fechaJornada,_that.form,_that.registradoEn,_that.registradoPor,_that.editado,_that.estadoSync);case _:
   return null;
 
 }
@@ -224,12 +234,19 @@ return $default(_that.messageId,_that.chatJid,_that.shift,_that.form,_that.regis
 
 
 class _ImageReviewRecord implements ImageReviewRecord {
-  const _ImageReviewRecord({required this.messageId, required this.chatJid, required this.shift, required this.form, required this.registradoEn, required this.registradoPor, this.editado = false});
+  const _ImageReviewRecord({required this.messageId, required this.chatJid, required this.shift, required this.rol, required this.storagePath, required this.fechaJornada, required this.form, required this.registradoEn, required this.registradoPor, this.editado = false, this.estadoSync = EstadoSync.pendiente});
   
 
 @override final  String messageId;
 @override final  String chatJid;
 @override final  String shift;
+/// Rol con el que se diligenció (Revisor o Sumador).
+@override final  ReviewRole rol;
+/// Referencia de la imagen en Storage (nunca la imagen ni una URL).
+@override final  String storagePath;
+/// Día de la jornada (`yyyy-MM-dd`): la fecha del mensaje, no la de
+/// [registradoEn]. Ver `fechaJornadaDe`.
+@override final  String fechaJornada;
 @override final  ImageReviewForm form;
 @override final  DateTime registradoEn;
 /// Email del usuario autenticado que diligenció el registro.
@@ -237,6 +254,9 @@ class _ImageReviewRecord implements ImageReviewRecord {
 /// false al crear. Quien re-guarda un registro existente (presentation)
 /// lo pone en true; el repositorio no lo decide.
 @override@JsonKey() final  bool editado;
+/// Nace pendiente; al re-guardar vuelve a pendiente (lo decide
+/// presentation, igual que [editado]).
+@override@JsonKey() final  EstadoSync estadoSync;
 
 /// Create a copy of ImageReviewRecord
 /// with the given fields replaced by the non-null parameter values.
@@ -248,16 +268,16 @@ _$ImageReviewRecordCopyWith<_ImageReviewRecord> get copyWith => __$ImageReviewRe
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ImageReviewRecord&&(identical(other.messageId, messageId) || other.messageId == messageId)&&(identical(other.chatJid, chatJid) || other.chatJid == chatJid)&&(identical(other.shift, shift) || other.shift == shift)&&(identical(other.form, form) || other.form == form)&&(identical(other.registradoEn, registradoEn) || other.registradoEn == registradoEn)&&(identical(other.registradoPor, registradoPor) || other.registradoPor == registradoPor)&&(identical(other.editado, editado) || other.editado == editado));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ImageReviewRecord&&(identical(other.messageId, messageId) || other.messageId == messageId)&&(identical(other.chatJid, chatJid) || other.chatJid == chatJid)&&(identical(other.shift, shift) || other.shift == shift)&&(identical(other.rol, rol) || other.rol == rol)&&(identical(other.storagePath, storagePath) || other.storagePath == storagePath)&&(identical(other.fechaJornada, fechaJornada) || other.fechaJornada == fechaJornada)&&(identical(other.form, form) || other.form == form)&&(identical(other.registradoEn, registradoEn) || other.registradoEn == registradoEn)&&(identical(other.registradoPor, registradoPor) || other.registradoPor == registradoPor)&&(identical(other.editado, editado) || other.editado == editado)&&(identical(other.estadoSync, estadoSync) || other.estadoSync == estadoSync));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,messageId,chatJid,shift,form,registradoEn,registradoPor,editado);
+int get hashCode => Object.hash(runtimeType,messageId,chatJid,shift,rol,storagePath,fechaJornada,form,registradoEn,registradoPor,editado,estadoSync);
 
 @override
 String toString() {
-  return 'ImageReviewRecord(messageId: $messageId, chatJid: $chatJid, shift: $shift, form: $form, registradoEn: $registradoEn, registradoPor: $registradoPor, editado: $editado)';
+  return 'ImageReviewRecord(messageId: $messageId, chatJid: $chatJid, shift: $shift, rol: $rol, storagePath: $storagePath, fechaJornada: $fechaJornada, form: $form, registradoEn: $registradoEn, registradoPor: $registradoPor, editado: $editado, estadoSync: $estadoSync)';
 }
 
 
@@ -268,7 +288,7 @@ abstract mixin class _$ImageReviewRecordCopyWith<$Res> implements $ImageReviewRe
   factory _$ImageReviewRecordCopyWith(_ImageReviewRecord value, $Res Function(_ImageReviewRecord) _then) = __$ImageReviewRecordCopyWithImpl;
 @override @useResult
 $Res call({
- String messageId, String chatJid, String shift, ImageReviewForm form, DateTime registradoEn, String registradoPor, bool editado
+ String messageId, String chatJid, String shift, ReviewRole rol, String storagePath, String fechaJornada, ImageReviewForm form, DateTime registradoEn, String registradoPor, bool editado, EstadoSync estadoSync
 });
 
 
@@ -285,16 +305,20 @@ class __$ImageReviewRecordCopyWithImpl<$Res>
 
 /// Create a copy of ImageReviewRecord
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? messageId = null,Object? chatJid = null,Object? shift = null,Object? form = null,Object? registradoEn = null,Object? registradoPor = null,Object? editado = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? messageId = null,Object? chatJid = null,Object? shift = null,Object? rol = null,Object? storagePath = null,Object? fechaJornada = null,Object? form = null,Object? registradoEn = null,Object? registradoPor = null,Object? editado = null,Object? estadoSync = null,}) {
   return _then(_ImageReviewRecord(
 messageId: null == messageId ? _self.messageId : messageId // ignore: cast_nullable_to_non_nullable
 as String,chatJid: null == chatJid ? _self.chatJid : chatJid // ignore: cast_nullable_to_non_nullable
 as String,shift: null == shift ? _self.shift : shift // ignore: cast_nullable_to_non_nullable
+as String,rol: null == rol ? _self.rol : rol // ignore: cast_nullable_to_non_nullable
+as ReviewRole,storagePath: null == storagePath ? _self.storagePath : storagePath // ignore: cast_nullable_to_non_nullable
+as String,fechaJornada: null == fechaJornada ? _self.fechaJornada : fechaJornada // ignore: cast_nullable_to_non_nullable
 as String,form: null == form ? _self.form : form // ignore: cast_nullable_to_non_nullable
 as ImageReviewForm,registradoEn: null == registradoEn ? _self.registradoEn : registradoEn // ignore: cast_nullable_to_non_nullable
 as DateTime,registradoPor: null == registradoPor ? _self.registradoPor : registradoPor // ignore: cast_nullable_to_non_nullable
 as String,editado: null == editado ? _self.editado : editado // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,estadoSync: null == estadoSync ? _self.estadoSync : estadoSync // ignore: cast_nullable_to_non_nullable
+as EstadoSync,
   ));
 }
 

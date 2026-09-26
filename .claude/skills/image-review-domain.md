@@ -82,10 +82,25 @@ Imagen (1)
            ├── anotado por el Revisor
            └── anotado por el Sumador (independiente, para verificación)
 
-Registro de imagen (lo que se guarda por imagen, ver image-review-roles)
+Registro de imagen (lo que se guarda por imagen Y POR ROL, ver
+image-review-roles: cada imagen tiene DOS registros independientes, uno del
+Revisor y otro del Sumador, con clave (messageId, rol); guardar uno nunca
+toca al otro y ninguno lee al otro)
+ ├── rol = Revisor o Sumador (`ReviewRole`): con qué rol se diligenció
  ├── jornada (derivada de la hora del mensaje, no elegida a mano)
- ├── fecha del registro = fecha en que se leyó/registró la imagen
- │    (NO la fecha de captura del mensaje en WhatsApp — ver nota abajo)
+ ├── fechaJornada = día de la jornada (`yyyy-MM-dd`) = la fecha del
+ │    mensaje en hora local, derivada de `messageTimestamp` con
+ │    `fechaJornadaDe` (lib/core/time/fecha_jornada.dart). Junto con el
+ │    chat y la jornada permite listar los pendientes de una jornada.
+ │    OJO: NO es `Message.messageDate` (a pesar del nombre guarda la
+ │    hora "HH:mm"); por eso el campo se llama distinto.
+ ├── storagePath = referencia de la imagen (nunca la imagen ni una URL)
+ ├── estadoSync = `pendiente` | `sincronizado` (nace pendiente; re-guardar
+ │    lo devuelve a pendiente; hoy nada lo pasa a sincronizado, no hay
+ │    subida — ver image-review-offline-sync)
+ ├── fecha del registro (`registradoEn`) = momento en que se diligenció
+ │    el formulario (NO la fecha del mensaje: esa es `fechaJornada` —
+ │    ver nota abajo)
  ├── registrado por = correo del usuario (Revisor o Sumador) que lo
  │    diligenció (ver image-review-roles, auditoría por correo)
  ├── editado = booleano, true si se corrigió después de guardado/subido
@@ -96,12 +111,12 @@ Registro de imagen (lo que se guarda por imagen, ver image-review-roles)
       image-review-roles, punto de redirección)
 ```
 
-**Nota sobre la fecha**: el formulario NO reutiliza la fecha del mensaje
-de WhatsApp como si fuera la fecha del registro — la fecha "que ya se
-tiene por defecto cuando se lee la imagen" se refiere al momento en que
-el Revisor/Sumador abre y diligencia el formulario, no a la metadata
-original del mensaje. Si esto se malinterpretó, confirmar con el usuario
-antes de implementar.
+**Nota sobre la fecha**: hay DOS fechas distintas en el registro y no se
+confunden. `registradoEn` es el momento en que el Revisor/Sumador
+diligencia el formulario (no la metadata original del mensaje).
+`fechaJornada` sí sale del mensaje: es el día de la jornada a la que
+pertenece la imagen (decisión confirmada al implementar la persistencia
+local), y es lo que agrupa los registros pendientes.
 
 ## El modelo `Message` existente y qué se puede derivar de él
 
@@ -126,6 +141,11 @@ class Message {
   bool get isImage => hasMedia && storagePath != null;
 }
 ```
+
+**Trampa de nombre**: `Message.messageDate` NO es una fecha, es la **hora**
+("HH:mm", ver `toDomain`, cubierto por `to_domain_test`). La fecha del día
+de la jornada se deriva de `messageTimestamp` (`fechaJornadaDe`) y es lo
+que guarda el registro como `fechaJornada`.
 
 Consecuencias para el feature de revisión:
 
@@ -239,9 +259,10 @@ recomendación de diseño es:
    - **Sumador**: al menos un comprobante; y por comprobante, código
      (mismas reglas) y total entero > 0. **Sin números.**
 
-   `validateImageReviewForm` (fail-fast; orden: comprobantes, código,
-   números, total) **hoy implementa solo las reglas del Revisor**. Separar
-   la validación por rol queda para la sesión del Sumador.
+   `validateImageReviewForm(form, rol)` (fail-fast; orden: comprobantes,
+   código, números —solo Revisor—, total) aplica las reglas del rol. Para
+   el Sumador la lista de números se normaliza siempre a vacía (lo que
+   llegue se descarta).
 7. **Coincidencia con números ganadores**: se busca solo contra los
    **números** que registró el Revisor, porque el Sumador no anota
    números. Si un número coincide con un número ganador, debe
