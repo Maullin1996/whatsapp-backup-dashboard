@@ -7,6 +7,7 @@ import 'package:whatsapp_monitor_viewer/core/theme/app_theme.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/comprobante.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/image_review_form.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/image_review_record.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/image_review_providers.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/widgets/image_review_panel.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/domain/entities/image_view_item.dart';
@@ -125,6 +126,7 @@ Future<void> _saveRecordFor(WidgetTester tester, String messageId) async {
           messageId: messageId,
           chatJid: 'chat@g.us',
           shift: 'Jornada Mañana',
+          rol: ReviewRole.revisor,
           form: const ImageReviewForm(
             comprobantes: [
               Comprobante(codigo: 'A1', numeros: ['0123'], total: 9000),

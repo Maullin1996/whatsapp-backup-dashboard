@@ -122,10 +122,9 @@ El repo ya tiene un patrón completo en `lib/features/admin/` y
   Los campos obligatorios son los definidos en `image-review-domain`.
   Para el **Revisor**: al menos un
   comprobante, y cada comprobante con código, al menos un número y
-  total > 0 (regla implementada en `validateImageReviewForm`). Para el
-  **Sumador**: al menos un comprobante, y cada comprobante con código y
-  total > 0, sin números (regla confirmada; falta implementarla en
-  código, hoy `validateImageReviewForm` solo cubre al Revisor). Las
+  total > 0. Para el **Sumador**: al menos un comprobante, y cada
+  comprobante con código y total > 0, sin números. Ambas reglas están
+  implementadas en `validateImageReviewForm(form, rol)`. Las
   anotaciones nunca son obligatorias, son siempre opcionales.
 - Esta validación es **de navegación dentro del visor**, no de guardado:
   no impide cerrar la app o salir de `image_detail_page` por completo,

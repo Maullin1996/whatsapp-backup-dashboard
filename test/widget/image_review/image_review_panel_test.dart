@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:whatsapp_monitor_viewer/core/theme/app_theme.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/image_review_record.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/models/image_review_target.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/image_review_providers.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/widgets/image_review_panel.dart';
@@ -70,7 +71,7 @@ Future<void> _tapButton(WidgetTester tester, String label) async {
 Future<ImageReviewRecord?> _savedRecord(ProviderContainer container) async {
   final result = await container
       .read(imageReviewRepositoryProvider)
-      .getByMessageId('m1');
+      .getByMessageId('m1', ReviewRole.revisor);
   return result.fold((_) => fail('no se esperaba Left'), (r) => r);
 }
 

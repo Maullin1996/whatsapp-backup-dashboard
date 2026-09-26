@@ -3,6 +3,7 @@ import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/aut
 import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_session_state.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/data/repositories/in_memory_image_review_repository.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/image_review_record.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/repositories/image_review_repository.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/review_draft_notifier.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/review_draft_state.dart';
@@ -47,7 +48,8 @@ final savedRecordProvider = FutureProvider.family<ImageReviewRecord?, String>((
 ) async {
   final result = await ref
       .watch(imageReviewRepositoryProvider)
-      .getByMessageId(messageId);
+      // TEMPORAL (S1): rol fijo hasta que S2 indexe por (messageId, rol).
+      .getByMessageId(messageId, ReviewRole.revisor);
   return result.fold((failure) => throw failure, (record) => record);
 });
 
