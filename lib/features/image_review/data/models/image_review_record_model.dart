@@ -38,6 +38,18 @@ class ImageReviewRecordModel {
     'estadoSync': record.estadoSync.name,
   };
 
+  /// Colección de Firestore a la que se sube el registro.
+  static const String uploadCollection = 'image_reviews';
+
+  /// Id del documento: uno por imagen y por rol.
+  String get uploadDocumentId => '${record.messageId}_${record.rol.name}';
+
+  /// Lo que se sube: lo persistido, sin lo que es solo local (versión de
+  /// esquema y estado de sincronización).
+  Map<String, dynamic> toUploadMap() => toMap()
+    ..remove('v')
+    ..remove('estadoSync');
+
   /// Lee un mapa persistido (de cualquier versión conocida). Lanza si le
   /// falta algo, tiene un tipo inesperado o es de una versión más nueva que
   /// la que esta app entiende; quien lo llama lo convierte en `Failure`.

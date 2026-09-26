@@ -3,6 +3,7 @@ import 'package:whatsapp_monitor_viewer/core/errors/failure.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/data/datasources/review_local_datasource.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/data/models/image_review_record_model.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/image_review_record.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/pending_jornada.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/repositories/image_review_repository.dart';
 
@@ -48,4 +49,10 @@ class LocalImageReviewRepository implements ImageReviewRepository {
     );
     return result.map((models) => [for (final m in models) m.record]);
   }
+
+  @override
+  Future<Either<Failure, List<PendingJornada>>> getPendingJornadas({
+    required String chatJid,
+    required ReviewRole rol,
+  }) => _datasource.pendingJornadas(uid: _uid, rol: rol, chatJid: chatJid);
 }

@@ -176,8 +176,9 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
    nuevo nace `pendiente`. **Re-guardar (editar) un registro, aunque
    estuviera `sincronizado`, lo devuelve a `pendiente` y pone
    `editado = true`** (habrá que volver a subirlo). Lo decide presentation
-   (`ReviewDraftNotifier.save`), no el repositorio. **Hoy nada pasa a
-   `sincronizado`**: no hay subida; el campo solo está preparado.
+   (`ReviewDraftNotifier.save`), no el repositorio. **Pasa a `sincronizado`
+   solo con la subida por jornada** (`ReviewUploadNotifier`, hoy SIMULADA,
+   ver "Indicador de subida por jornada" más abajo).
 4. **Separación por usuario, con el `uid`** (`AuthenticatedUser.id`), no el
    email: `reviewerUidProvider`. Todas las claves llevan el uid, así que
    otro usuario en el mismo navegador ve y guarda solo lo suyo. **Cerrar
@@ -223,6 +224,71 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
 10. **Consulta de pendientes** (paso 2, solo repositorio, sin UI):
     `getPending(chatJid, fechaJornada, shift, rol)` del usuario actual;
     no devuelve sincronizados; ordenados por `registradoEn`.
+11. **Jornadas con pendientes** (`getPendingJornadas(chatJid, rol)`, paso
+    4): recorre SOLO las claves del índice `p|uid|rol|chatJid|` (sin leer ni
+    deserializar registros) y devuelve `PendingJornada { fechaJornada, shift,
+    cantidad }` de cualquier día. No depende de los mensajes cargados ni del
+    filtro de fechas: un pendiente de otro día nunca queda invisible.
+12. **Limpieza de índices huérfanos en `pending()`** (hallazgo del paso 4):
+    como `getPendingJornadas` cuenta por índice, un índice viejo (corte entre
+    escribir el registro sincronizado y quitar el índice) inflaría el
+    contador y el indicador quedaría fijo. Por eso `pending()` — que solo
+    llama `LocalImageReviewRepository.getPending`, el camino del paso 3 —
+    borra un índice cuando el registro no existe o ya está sincronizado.
+    Solo escribe cuando detecta orfandad (nunca en una lectura normal) y
+    RELEE el registro justo antes de borrar (`_deleteIfStale`), para no borrar
+    el índice de un registro que se re-guardó como pendiente mientras se leía.
+    Queda una ventana mínima entre esa relectura y el `delete` (aceptable con
+    una sola pestaña).
+
+## Indicador de subida por jornada (paso 4 — HECHO, subida SIMULADA)
+
+- **Dónde vive**: `PendingUploadIndicators`
+  (`image_review/presentation/widgets/pending_upload_indicators.dart`), un
+  `Positioned` dentro del `Stack` de `MessageList`, encima del hueco de
+  `GoToLatestMessageButton` (`bottom = 20 + 56 + AppSpacing.md`, mismo `right`
+  que el botón). `MessageList` no sabe nada del feature: solo inserta el
+  widget, que lee `currentReviewRoleProvider` por dentro.
+- **Qué muestra**: una píldora por jornada del chat activo con pendientes del
+  rol activo. Reposo: "<Rol> · <jornada corta> · N pendientes" (+ ", dd/MM/yyyy"
+  solo si el día no es hoy). Jornada corta = `shortShiftName` (las dos
+  "Noche" se distinguen por su hora de inicio). Sin pendientes no ocupa
+  espacio. No hay condición de rol: hoy el rol activo siempre existe y un
+  pendiente solo existe si el usuario guardó algo con ese rol; sin condición
+  de ancho (también en móvil).
+- **Datos**: `pendingUploadsProvider` (FutureProvider) depende SOLO del chat
+  activo, el rol activo y el repositorio (`getPendingJornadas`). Se invalida
+  al guardar (`ReviewDraftNotifier.save`) y al terminar una subida.
+- **Subida**: tocar la píldora → diálogo "Subir N registros de <jornada>,
+  <fecha o 'hoy'>" → `ReviewUploadNotifier.upload(jornada)` (provider
+  `reviewUploadProvider`). Sube registro por registro con el
+  `ReviewUploader` (domain; hoy `SimulatedReviewUploader` en `data/sync/`,
+  que hace `debugPrint` de `image_reviews/<messageId>_<rol>` y el payload
+  `toUploadMap()` = `toMap()` sin `v` ni `estadoSync`; nunca falla). Cada
+  registro subido se marca `sincronizado` de inmediato; los que fallan siguen
+  pendientes. El estado del notifier es el avance por jornada
+  (`hechos`, `total`): la píldora muestra "Subiendo X de N" y no se puede tocar
+  mientras sube. Al terminar: SnackBar verde ("N registros subidos") o de
+  advertencia ("N subidos, M no se pudieron subir; siguen pendientes").
+- **Guarda contra ediciones**: antes de marcar sincronizado se relee el
+  registro y se compara `registradoEn` (cada guardado lo renueva): si cambió
+  durante la subida, no se marca (lo subido ya es una versión vieja) y se
+  cuenta como `editados`.
+- **Corte al salir del chat**: antes de subir CADA registro se comprueba que
+  el notifier siga montado y que el chat activo sea el de la jornada; si no,
+  se corta el lote. Lo ya subido queda sincronizado, el resto pendiente
+  (`sinIntentar`), listo para reintentar cuando reaparezca el indicador.
+- **Si subió pero no se pudo marcar** (falló el guardado local): cuenta como
+  fallido y seguirá pendiente; se re-sube (mismo id de documento, no duplica).
+
+### Pendiente de diseño para la integración real (paso 7)
+
+El uploader simulado nunca falla ni se cuelga, así que hoy no hay nada que
+proteja contra una conexión mala. Antes de conectar Firestore de verdad hay
+que decidir: **verificar la calidad de conexión antes de subir y/o un
+timeout por registro** (un registro colgado hoy bloquearía toda la jornada
+con "Subiendo X de N" indefinido). Decidirlo junto con la implementación
+real de `ReviewUploader`.
 
 ## Forma de trabajo dentro de esta skill
 
@@ -236,12 +302,12 @@ una antes de seguir:
 2. ✅ **Listado de pendientes por jornada** — hecho, solo en el
    repositorio (`getPending`), sin UI (esto ya no requiere "detectar
    si está completa", solo listar lo que hay).
-3. **Subida individual** de un registro pendiente a Firestore.
-4. **Subida por jornada** ("subir esta jornada") con manejo de
-   éxitos/fallos parciales (regla 4 de la sección anterior).
-5. **UI del indicador/botón por jornada** en el listado de mensajes,
-   arriba de `GoToLatestMessageButton` — esto va al final, cuando ya se
-   probó que el guardado y la subida funcionan por separado.
+3. ✅ **Subida individual** de un registro pendiente — hecha SIMULADA
+   (`ReviewUploader` + `SimulatedReviewUploader`); la real espera autorización.
+4. ✅ **Subida por jornada** con éxitos/fallos parciales — hecha (simulada),
+   ver "Indicador de subida por jornada".
+5. ✅ **UI del indicador/botón por jornada** en el listado de mensajes,
+   arriba de `GoToLatestMessageButton` — hecha.
 
 ## Zona gris / a confirmar antes de implementar
 

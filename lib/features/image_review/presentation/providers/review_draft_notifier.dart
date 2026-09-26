@@ -6,6 +6,7 @@ import 'package:whatsapp_monitor_viewer/features/image_review/domain/helpers/val
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/models/image_review_target.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/models/review_key.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/image_review_providers.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/pending_uploads_provider.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/review_draft_state.dart';
 
 class ReviewDraftNotifier extends Notifier<ReviewDraftState> {
@@ -168,6 +169,7 @@ class ReviewDraftNotifier extends Notifier<ReviewDraftState> {
       (failure) => state = state.copyWith(isSaving: false, saveError: failure),
       (_) {
         ref.invalidate(savedRecordProvider(key));
+        ref.invalidate(pendingUploadsProvider);
         state = state.copyWith(
           isSaving: false,
           isEditing: false,
