@@ -8,9 +8,11 @@ import 'package:whatsapp_monitor_viewer/features/image_review/data/datasources/r
 import 'package:whatsapp_monitor_viewer/features/image_review/data/repositories/local_image_review_repository.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/data/repositories/no_session_image_review_repository.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/data/repositories/unavailable_image_review_repository.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/data/sync/simulated_review_uploader.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/image_review_record.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/repositories/image_review_repository.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/domain/repositories/review_uploader.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/models/review_key.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/review_draft_notifier.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/review_draft_state.dart';
@@ -125,6 +127,13 @@ final imageReviewRepositoryProvider = Provider<ImageReviewRepository>((ref) {
         (datasource) => LocalImageReviewRepository(datasource, uid: uid),
       );
 });
+
+/// Único punto donde se instancia el uploader. SIMULADO: imprime en consola lo
+/// que se subiría y no toca Firestore. La conexión real (otra implementación
+/// de [ReviewUploader]) no se activa sin autorización explícita.
+final reviewUploaderProvider = Provider<ReviewUploader>(
+  (ref) => const SimulatedReviewUploader(),
+);
 
 /// Registro guardado de una imagen para un rol (por [ReviewKey]); null si no
 /// existe. Nunca devuelve el registro del otro rol. Un `Failure` del
