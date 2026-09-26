@@ -89,9 +89,14 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    completa" (se descartó, ver `image-review-domain`), este paso es más
    simple de lo que se pensaba originalmente: solo guardar y listar
    pendientes.
-4. **Indicador/botón de subida por jornada** (`image-review-offline-sync`):
-   aparece con el primer registro pendiente, sin lógica de conteo — la
-   persona asignada decide cuándo presionarlo.
+4. ✅ **Indicador/botón de subida por jornada** (`image-review-offline-sync`)
+   — hecho, con subida SIMULADA (`debugPrint`, sin tocar Firestore): una
+   píldora por jornada con pendientes, encima de `GoToLatestMessageButton` en
+   `MessageList`; aparece con el primer registro pendiente, sin lógica de
+   conteo — la persona asignada decide cuándo presionarlo. Incluye
+   `getPendingJornadas` (pendientes de cualquier día), progreso "Subiendo X de
+   N", corte al salir del chat y la limpieza de índices huérfanos en
+   `pending()`. Detalle en `image-review-offline-sync`.
 5. **Pantalla de resumen por jornada/grupo** (`image-review-domain` +
    `image-review-roles`): reconciliación agregada (suma de totales del
    Revisor vs. suma de totales del Sumador, por jornada), alertas de
@@ -161,6 +166,10 @@ de aquí y de la skill correspondiente cuando el usuario confirme):
   de las jornadas por fecha, y el contrato completo de la Cloud
   Function puente. El usuario dijo que los revisamos juntos cuando
   tenga acceso a ese proyecto — no intentar adivinarlos antes.
+- **Calidad de conexión / timeout por registro en la subida real**
+  (`image-review-offline-sync`, paso 7) — el uploader simulado nunca falla ni
+  se cuelga; antes de conectar Firestore hay que decidir si se verifica la
+  conexión antes de subir y/o se pone un timeout por registro.
 - **Qué pasa si le quitan el rol a alguien con registros locales sin
   subir** (`image-review-roles`) — queda como decisión operativa del
   superAdmin, no resuelta por la app.
