@@ -155,6 +155,7 @@ void main() {
         messageTimestamp: 1000,
         localTime: '09:00',
         shift: 'AM',
+        fechaJornada: '2026-01-01',
       ),
       ImageViewItem(
         messageId: 'm-img',
@@ -164,6 +165,7 @@ void main() {
         messageTimestamp: 2000,
         localTime: '10:00',
         shift: 'AM',
+        fechaJornada: '2026-01-01',
       ),
     ];
 

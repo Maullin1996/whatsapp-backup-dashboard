@@ -2,6 +2,7 @@ import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/data/repositories/in_memory_image_review_repository.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/comprobante.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/estado_sync.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/image_review_form.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/image_review_record.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
@@ -16,6 +17,8 @@ ImageReviewRecord _record({
   chatJid: 'chat@g.us',
   shift: 'morning',
   rol: rol,
+  storagePath: 'img_$messageId.png',
+  fechaJornada: '2026-01-15',
   form: ImageReviewForm(
     comprobantes: [
       Comprobante(
@@ -45,6 +48,8 @@ void main() {
         chatJid: 'c',
         shift: 's',
         rol: ReviewRole.revisor,
+        storagePath: 'p.png',
+        fechaJornada: '2026-01-15',
         form: const ImageReviewForm(comprobantes: []),
         registradoEn: DateTime(2026),
         registradoPor: 'a@b.c',
@@ -151,6 +156,39 @@ void main() {
         _unwrap(await repo.getByMessageId('m2', ReviewRole.revisor)),
         isNull,
       );
+    });
+  });
+
+  group('consulta de pendientes', () {
+    Future<List<String>> ids({
+      String chatJid = 'chat@g.us',
+      String fechaJornada = '2026-01-15',
+      String shift = 'morning',
+      ReviewRole rol = ReviewRole.revisor,
+    }) async => (await repo.getPending(
+      chatJid: chatJid,
+      fechaJornada: fechaJornada,
+      shift: shift,
+      rol: rol,
+    )).fold((_) => fail('Left'), (l) => l.map((r) => r.messageId).toList());
+
+    test('filtra por rol y no devuelve sincronizados', () async {
+      await repo.save(_record(messageId: 'a'));
+      await repo.save(_record(messageId: 'b', rol: ReviewRole.sumador));
+      await repo.save(
+        _record(messageId: 'c').copyWith(estadoSync: EstadoSync.sincronizado),
+      );
+
+      expect(await ids(), ['a']);
+      expect(await ids(rol: ReviewRole.sumador), ['b']);
+    });
+
+    test('filtra por chat, fecha y jornada', () async {
+      await repo.save(_record(messageId: 'a'));
+
+      expect(await ids(chatJid: 'otro@g.us'), isEmpty);
+      expect(await ids(fechaJornada: '2026-01-16'), isEmpty);
+      expect(await ids(shift: 'night'), isEmpty);
     });
   });
 }

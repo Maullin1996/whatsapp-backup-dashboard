@@ -458,6 +458,8 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage>
                         messageId: item.messageId,
                         chatJid: item.chatJid,
                         shift: item.shift,
+                        storagePath: item.storagePath,
+                        fechaJornada: item.fechaJornada,
                         localTime: item.localTime,
                         shiftImageIndex: item.shiftImageIndex,
                       ),

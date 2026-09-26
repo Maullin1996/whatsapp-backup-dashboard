@@ -16,6 +16,12 @@ void main() {
       mapFailureToMessage(const Failure.unknown(message: 'unknown')),
       'unknown',
     );
+    expect(
+      mapFailureToMessage(
+        const Failure.storage(message: 'No se pudo guardar el registro'),
+      ),
+      'No se pudo guardar el registro',
+    );
   });
 
   test('mapFailureToMessage returns default for unknown errors', () {

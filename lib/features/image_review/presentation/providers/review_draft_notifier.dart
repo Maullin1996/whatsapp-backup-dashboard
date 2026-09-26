@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:whatsapp_monitor_viewer/core/errors/failure.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/estado_sync.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/image_review_record.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/helpers/validate_image_review_form.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/models/image_review_target.dart';
@@ -17,7 +18,9 @@ class ReviewDraftNotifier extends Notifier<ReviewDraftState> {
 
   @override
   ReviewDraftState build() {
-    ref.watch(reviewerEmailProvider); // se reinicia al cambiar de sesión
+    // El borrador (solo en memoria) se reinicia al cambiar de usuario. Lo ya
+    // guardado NO se pierde: vive en el almacenamiento local de cada uid.
+    ref.watch(reviewerUidProvider);
     return ReviewDraftState.empty();
   }
 
@@ -146,11 +149,16 @@ class ReviewDraftNotifier extends Notifier<ReviewDraftState> {
       chatJid: target.chatJid,
       shift: target.shift,
       rol: key.rol,
+      storagePath: target.storagePath,
+      fechaJornada: target.fechaJornada,
       form: form,
       registradoEn: DateTime.now(),
       registradoPor: email,
-      // Lo decide presentation, no el repositorio.
+      // Lo deciden presentation, no el repositorio: re-guardar un registro
+      // existente lo marca editado, y (nuevo o re-guardado, aunque estuviera
+      // sincronizado) siempre queda pendiente: habrá que volver a subirlo.
       editado: previous != null,
+      estadoSync: EstadoSync.pendiente,
     );
 
     final saved = await repository.save(record);

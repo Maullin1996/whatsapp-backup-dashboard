@@ -83,7 +83,8 @@ no dé esa autorización explícita en la conversación:
    agregada de sumas (`image-review-domain`, regla 3), que corre del
    lado del servidor/resumen después de subir.
 3. **El guardado local debe sobrevivir cerrar/recargar la app**, con un
-   mecanismo tipo **SQLite (`sqflite`/`drift`) o `Hive`** — el usuario
+   mecanismo tipo **SQLite (`sqflite`/`drift`) o `Hive`** (**decidido:
+   `hive_ce`**, ver "Decisión de almacenamiento" más abajo) — el usuario
    confirmó que cualquiera de las dos está bien, priorizando la más
    óptima para el volumen esperado: **hasta ~200 imágenes por jornada**
    (o sea, hasta ~200 registros locales pendientes en el peor caso,
@@ -131,28 +132,97 @@ no dé esa autorización explícita en la conversación:
    `image-review-roles` para el detalle de dónde vive ese botón en
    `image_detail_page`.
 
-## ⚠️ Antes de implementar: elegir entre SQLite y Hive contra el código real
+## Decisión de almacenamiento: `hive_ce` (+ `hive_ce_flutter`)
 
-El usuario ya acotó las opciones a **SQLite (`sqflite`/`drift`) o
-Hive** — no hace falta evaluar otras alternativas. **Ya se confirmó
-que hoy no existe ninguna capa de persistencia estructurada en el
-proyecto** — lo único que hay es el cache de imágenes de
-`extended_image` (cachea la imagen en sí, no datos estructurados) y la
-persistencia de sesión de Firebase Auth (`FirebaseAuth.instance.setPersistence(Persistence.LOCAL)`
-en `main.dart`, que es solo para la sesión de login, no sirve para
-guardar formularios). Se empieza de cero — la decisión entre las dos
-opciones es libre, a definir en Claude Code según lo que resulte más
-cómodo de integrar con Riverpod/Clean Architecture del proyecto:
+**Elegido: `hive_ce` 2.20 + `hive_ce_flutter` 2.3** (Hive guarda en
+IndexedDB en web y en archivos en nativo). Verificado en pub.dev al
+decidir (sep-2026):
 
-1. Elegir entre `sqflite`/`drift` y `Hive` pensando en el volumen
-   (~200 registros por jornada, consultas por jornada/grupo/rol para
-   listar pendientes) — y en cualquier caso, envolverlo en un nuevo
-   `LocalDatasource` en la capa `data/` del feature, devolviendo
-   `Either<Failure, T>` igual que los demás datasources (ver
-   `PROJECT_DOCUMENTATION.md`, sección Manejo de errores) — nunca la
-   librería de storage llamada directo desde un Notifier.
-2. Actualizar esta skill con la decisión tomada, para que quede
-   documentada y no se repita la pregunta en la próxima sesión.
+| Opción | Por qué no / sí |
+|---|---|
+| `hive` (original) | Última versión jun-2022, SDK `<3.0.0`: incompatible con Dart 3 |
+| `hive_ce` | Fork comunitario activo (IO Design Team), web + wasm-ready, resuelve sin conflictos con nuestro `pubspec`, **sin archivos extra** (no toca `web/sw.js`, `CACHE_NAME` ni `urlsToCache`) → **elegida** |
+| `drift` | En web necesita `sqlite3.wasm` + worker + codegen y cambios en el service worker: demasiado para ~200 registros por jornada |
+| `sqflite` | No soporta web, y la app es sobre todo PWA |
+
+Riesgos aceptados: (1) es un fork comunitario de un solo publicador — si
+se abandona, migrar cuesta poco porque solo `ReviewLocalDatasource` toca
+la librería; (2) sin SQL — se filtra con claves bien diseñadas (abajo);
+(3) el navegador puede desalojar IndexedDB si no es almacenamiento
+persistente (Safari sin instalar la PWA es el caso más agresivo): pedir
+`navigator.storage.persist()` queda para un paso aparte, no está hecho.
+
+### ⚠️ Limitación conocida: una sola pestaña por navegador
+
+Hive no coordina escrituras entre pestañas. **Se asume una sola pestaña
+de la app por navegador.** Con varias, cada pestaña tiene su propia caché
+del box y **no ve lo que guardó la otra hasta recargar**; dos pestañas
+guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
+
+## Reglas del registro local (implementadas)
+
+1. **Solo se persisten registros GUARDADOS** (botón "Guardar" con el
+   formulario válido). Los borradores a medio llenar viven solo en
+   memoria: si se recarga la página sin guardar, el borrador se pierde
+   (aceptado).
+2. **Qué guarda el registro** (`ImageReviewRecord`, ver
+   `image-review-domain`): además de la forma del formulario, `rol`,
+   `storagePath` (referencia; **nunca** la imagen ni una URL completa),
+   `fechaJornada` (`yyyy-MM-dd`, día de la jornada = fecha del mensaje en
+   hora local, calculada con `fechaJornadaDe(messageTimestamp)`; **no** es
+   `Message.messageDate`, que a pesar del nombre guarda la hora "HH:mm",
+   ni `registradoEn`), `registradoPor`, `editado` y `estadoSync`.
+3. **`estadoSync` (`EstadoSync { pendiente, sincronizado }`)**: un registro
+   nuevo nace `pendiente`. **Re-guardar (editar) un registro, aunque
+   estuviera `sincronizado`, lo devuelve a `pendiente` y pone
+   `editado = true`** (habrá que volver a subirlo). Lo decide presentation
+   (`ReviewDraftNotifier.save`), no el repositorio. **Hoy nada pasa a
+   `sincronizado`**: no hay subida; el campo solo está preparado.
+4. **Separación por usuario, con el `uid`** (`AuthenticatedUser.id`), no el
+   email: `reviewerUidProvider`. Todas las claves llevan el uid, así que
+   otro usuario en el mismo navegador ve y guarda solo lo suyo. **Cerrar
+   sesión NO borra nada del almacenamiento**: los pendientes de ese usuario
+   siguen ahí cuando vuelva a entrar. Al cambiar de usuario,
+   `imageReviewRepositoryProvider` apunta al almacenamiento del nuevo uid;
+   los **borradores en memoria sí se reinician**. Sin sesión el repositorio
+   es uno vacío (lecturas vacías, guardar → no autorizado) que no toca los
+   datos.
+5. **Un registro por imagen y por rol** (clave `(messageId, rol)`), igual
+   que antes: guardar un rol nunca toca el otro.
+6. **Claves** (un solo `LazyBox<String>`, cada valor es el JSON del
+   `ImageReviewRecordModel`; cada componente va con `Uri.encodeComponent`):
+   - registro: `r|uid|rol|messageId`
+   - índice de pendientes: `p|uid|rol|chatJid|fechaJornada|shift|messageId`
+     (valor vacío), que existe **solo mientras el registro está
+     pendiente**. `getPending` recorre las claves con ese prefijo, sin
+     leer el resto. Registro e índice se escriben juntos (`putAll`) al
+     dejarlo pendiente; al pasar a sincronizado primero se escribe el
+     registro y luego se quita el índice (un corte a mitad deja un índice
+     viejo que se ignora, nunca un pendiente invisible).
+7. **Esquema versionado**: cada registro guarda `v` (hoy 1,
+   `ImageReviewRecordModel.currentSchemaVersion`); `migrate` es el punto
+   donde se encadenan las migraciones futuras. Una versión más nueva que
+   la soportada, o un registro ilegible, falla con un `Failure.storage`
+   que **identifica el messageId** (en `getByMessageId` y `getPending`);
+   no se saltan registros en silencio.
+8. **Arquitectura**: `ReviewLocalDatasource` (`data/datasources/`) es lo
+   único que toca `hive_ce`, devuelve `Either<Failure, T>` y nunca se llama
+   desde un Notifier. Las entidades de domain no llevan anotaciones de la
+   librería (el modelo propio de `data/` se encarga de la serialización).
+   `LocalImageReviewRepository(datasource, uid)` reemplaza a
+   `InMemoryImageReviewRepository` **solo** en
+   `imageReviewRepositoryProvider`; el de memoria se mantiene para tests.
+9. **Apertura**: `ReviewLocalDatasource.open()` se llama una vez en
+   `main.dart` (antes de `runApp`) y se inyecta con un override de
+   `reviewLocalStorageProvider`, para que el repositorio siga siendo
+   síncrono. Si falla no tumba la app: el repositorio pasa a uno "no
+   disponible" (todo `Left(Failure.storage)`) y el panel muestra el error.
+   `savedRecordProvider` desactiva el reintento automático de Riverpod 3
+   (`retry: null`): un error de almacenamiento no es transitorio y con
+   reintentos el panel quedaría "cargando" en vez de mostrarlo.
+10. **Consulta de pendientes** (paso 2, solo repositorio, sin UI):
+    `getPending(chatJid, fechaJornada, shift, rol)` del usuario actual;
+    no devuelve sincronizados; ordenados por `registradoEn`.
 
 ## Forma de trabajo dentro de esta skill
 
@@ -160,10 +230,11 @@ Siguiendo la convención del proyecto ("nunca tirar todo de un solo
 golpe"), esta parte del feature se implementa por capas, probando cada
 una antes de seguir:
 
-1. **Guardado local de un solo registro** (una imagen, un formulario) —
-   probar que sobrevive un reload de página antes de seguir.
-2. **Listado de pendientes por jornada** — cuántos registros locales
-   hay sin subir para una jornada dada (esto ya no requiere "detectar
+1. ✅ **Guardado local de un solo registro** (una imagen, un formulario) —
+   hecho: sobrevive a recargar y a cerrar/reabrir la pestaña (probado
+   cerrando y reabriendo el almacenamiento en tests).
+2. ✅ **Listado de pendientes por jornada** — hecho, solo en el
+   repositorio (`getPending`), sin UI (esto ya no requiere "detectar
    si está completa", solo listar lo que hay).
 3. **Subida individual** de un registro pendiente a Firestore.
 4. **Subida por jornada** ("subir esta jornada") con manejo de
@@ -174,5 +245,8 @@ una antes de seguir:
 
 ## Zona gris / a confirmar antes de implementar
 
-- **`sqflite`/`drift` vs. `Hive`**: cuál de las dos — decisión libre, a
-  tomar en Claude Code (ver sección de arriba).
+- **`navigator.storage.persist()`**: pedir almacenamiento persistente al
+  navegador (para que no desaloje IndexedDB) no está implementado; va en
+  un paso aparte.
+- **Varias pestañas**: hoy es una limitación documentada (arriba), sin
+  bloqueo ni aviso.

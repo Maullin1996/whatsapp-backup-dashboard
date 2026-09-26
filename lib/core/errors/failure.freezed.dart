@@ -86,12 +86,13 @@ extension FailurePatterns on Failure {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( FirestoreFailure value)?  firestore,TResult Function( UnauthorizedFailure value)?  unauthorized,TResult Function( UnknownFailure value)?  unknown,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( FirestoreFailure value)?  firestore,TResult Function( UnauthorizedFailure value)?  unauthorized,TResult Function( StorageFailure value)?  storage,TResult Function( UnknownFailure value)?  unknown,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case FirestoreFailure() when firestore != null:
 return firestore(_that);case UnauthorizedFailure() when unauthorized != null:
-return unauthorized(_that);case UnknownFailure() when unknown != null:
+return unauthorized(_that);case StorageFailure() when storage != null:
+return storage(_that);case UnknownFailure() when unknown != null:
 return unknown(_that);case _:
   return orElse();
 
@@ -110,12 +111,13 @@ return unknown(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( FirestoreFailure value)  firestore,required TResult Function( UnauthorizedFailure value)  unauthorized,required TResult Function( UnknownFailure value)  unknown,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( FirestoreFailure value)  firestore,required TResult Function( UnauthorizedFailure value)  unauthorized,required TResult Function( StorageFailure value)  storage,required TResult Function( UnknownFailure value)  unknown,}){
 final _that = this;
 switch (_that) {
 case FirestoreFailure():
 return firestore(_that);case UnauthorizedFailure():
-return unauthorized(_that);case UnknownFailure():
+return unauthorized(_that);case StorageFailure():
+return storage(_that);case UnknownFailure():
 return unknown(_that);case _:
   throw StateError('Unexpected subclass');
 
@@ -133,12 +135,13 @@ return unknown(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( FirestoreFailure value)?  firestore,TResult? Function( UnauthorizedFailure value)?  unauthorized,TResult? Function( UnknownFailure value)?  unknown,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( FirestoreFailure value)?  firestore,TResult? Function( UnauthorizedFailure value)?  unauthorized,TResult? Function( StorageFailure value)?  storage,TResult? Function( UnknownFailure value)?  unknown,}){
 final _that = this;
 switch (_that) {
 case FirestoreFailure() when firestore != null:
 return firestore(_that);case UnauthorizedFailure() when unauthorized != null:
-return unauthorized(_that);case UnknownFailure() when unknown != null:
+return unauthorized(_that);case StorageFailure() when storage != null:
+return storage(_that);case UnknownFailure() when unknown != null:
 return unknown(_that);case _:
   return null;
 
@@ -156,11 +159,12 @@ return unknown(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String message)?  firestore,TResult Function( String message)?  unauthorized,TResult Function( String message)?  unknown,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String message)?  firestore,TResult Function( String message)?  unauthorized,TResult Function( String message)?  storage,TResult Function( String message)?  unknown,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case FirestoreFailure() when firestore != null:
 return firestore(_that.message);case UnauthorizedFailure() when unauthorized != null:
-return unauthorized(_that.message);case UnknownFailure() when unknown != null:
+return unauthorized(_that.message);case StorageFailure() when storage != null:
+return storage(_that.message);case UnknownFailure() when unknown != null:
 return unknown(_that.message);case _:
   return orElse();
 
@@ -179,11 +183,12 @@ return unknown(_that.message);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String message)  firestore,required TResult Function( String message)  unauthorized,required TResult Function( String message)  unknown,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String message)  firestore,required TResult Function( String message)  unauthorized,required TResult Function( String message)  storage,required TResult Function( String message)  unknown,}) {final _that = this;
 switch (_that) {
 case FirestoreFailure():
 return firestore(_that.message);case UnauthorizedFailure():
-return unauthorized(_that.message);case UnknownFailure():
+return unauthorized(_that.message);case StorageFailure():
+return storage(_that.message);case UnknownFailure():
 return unknown(_that.message);case _:
   throw StateError('Unexpected subclass');
 
@@ -201,11 +206,12 @@ return unknown(_that.message);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String message)?  firestore,TResult? Function( String message)?  unauthorized,TResult? Function( String message)?  unknown,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String message)?  firestore,TResult? Function( String message)?  unauthorized,TResult? Function( String message)?  storage,TResult? Function( String message)?  unknown,}) {final _that = this;
 switch (_that) {
 case FirestoreFailure() when firestore != null:
 return firestore(_that.message);case UnauthorizedFailure() when unauthorized != null:
-return unauthorized(_that.message);case UnknownFailure() when unknown != null:
+return unauthorized(_that.message);case StorageFailure() when storage != null:
+return storage(_that.message);case UnknownFailure() when unknown != null:
 return unknown(_that.message);case _:
   return null;
 
@@ -338,6 +344,72 @@ class _$UnauthorizedFailureCopyWithImpl<$Res>
 /// with the given fields replaced by the non-null parameter values.
 @override @pragma('vm:prefer-inline') $Res call({Object? message = null,}) {
   return _then(UnauthorizedFailure(
+message: null == message ? _self.message : message // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class StorageFailure implements Failure {
+  const StorageFailure({required this.message});
+  
+
+@override final  String message;
+
+/// Create a copy of Failure
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$StorageFailureCopyWith<StorageFailure> get copyWith => _$StorageFailureCopyWithImpl<StorageFailure>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is StorageFailure&&(identical(other.message, message) || other.message == message));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,message);
+
+@override
+String toString() {
+  return 'Failure.storage(message: $message)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $StorageFailureCopyWith<$Res> implements $FailureCopyWith<$Res> {
+  factory $StorageFailureCopyWith(StorageFailure value, $Res Function(StorageFailure) _then) = _$StorageFailureCopyWithImpl;
+@override @useResult
+$Res call({
+ String message
+});
+
+
+
+
+}
+/// @nodoc
+class _$StorageFailureCopyWithImpl<$Res>
+    implements $StorageFailureCopyWith<$Res> {
+  _$StorageFailureCopyWithImpl(this._self, this._then);
+
+  final StorageFailure _self;
+  final $Res Function(StorageFailure) _then;
+
+/// Create a copy of Failure
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? message = null,}) {
+  return _then(StorageFailure(
 message: null == message ? _self.message : message // ignore: cast_nullable_to_non_nullable
 as String,
   ));

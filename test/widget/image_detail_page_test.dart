@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:whatsapp_monitor_viewer/core/theme/app_theme.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/data/repositories/in_memory_image_review_repository.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/comprobante.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/image_review_form.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/image_review_record.dart';
@@ -43,6 +44,7 @@ ImageViewItem _itemFor(String id) => ImageViewItem(
   messageTimestamp: 1000,
   localTime: '10:00',
   shift: 'Jornada Mañana',
+  fechaJornada: '2026-01-15',
 );
 
 /// Índice 0 = el más nuevo (como en la app).
@@ -88,6 +90,10 @@ Future<void> _openViewer(
     ProviderScope(
       overrides: [
         reviewerEmailProvider.overrideWithValue('revisor@test.com'),
+        reviewerUidProvider.overrideWithValue('uid-test'),
+        imageReviewRepositoryProvider.overrideWithValue(
+          InMemoryImageReviewRepository(),
+        ),
         currentReviewRoleProvider.overrideWithValue(role),
         chatImageItemsProvider.overrideWith((ref) => ref.watch(_itemsProvider)),
         imageUrlProvider.overrideWith((ref, path) => 'http://localhost/$path'),
@@ -133,6 +139,8 @@ Future<void> _saveRecordFor(
           chatJid: 'chat@g.us',
           shift: 'Jornada Mañana',
           rol: rol,
+          storagePath: 'img_$messageId.png',
+          fechaJornada: '2026-01-15',
           form: ImageReviewForm(
             comprobantes: [
               Comprobante(

@@ -6,6 +6,7 @@ String mapFailureToMessage(Object error) {
     return error.when(
       firestore: (message) => message,
       unauthorized: (message) => message,
+      storage: (message) => message,
       unknown: (message) => message,
     );
   }

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:whatsapp_monitor_viewer/core/theme/app_theme.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/data/repositories/in_memory_image_review_repository.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/estado_sync.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/image_review_record.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/models/image_review_target.dart';
@@ -12,12 +14,20 @@ const _target = ImageReviewTarget(
   messageId: 'm1',
   chatJid: 'chat@g.us',
   shift: 'Jornada Mañana',
+  storagePath: 'img_m1.png',
+  fechaJornada: '2026-01-15',
 );
 
 const _email = 'revisor@test.com';
 
 Widget _app({required Widget child}) => ProviderScope(
-  overrides: [reviewerEmailProvider.overrideWithValue(_email)],
+  overrides: [
+    reviewerEmailProvider.overrideWithValue(_email),
+    reviewerUidProvider.overrideWithValue('uid-test'),
+    imageReviewRepositoryProvider.overrideWithValue(
+      InMemoryImageReviewRepository(),
+    ),
+  ],
   child: MaterialApp(
     theme: AppTheme.light,
     home: Scaffold(
@@ -254,6 +264,9 @@ void main() {
       expect(record.chatJid, 'chat@g.us');
       expect(record.shift, 'Jornada Mañana');
       expect(record.registradoPor, _email);
+      expect(record.storagePath, 'img_m1.png');
+      expect(record.fechaJornada, '2026-01-15');
+      expect(record.estadoSync, EstadoSync.pendiente);
       expect(record.editado, isFalse);
       expect(record.form.comprobantes.single.codigo, 'A1');
       expect(record.form.comprobantes.single.total, 9000);
@@ -365,7 +378,13 @@ void main() {
     addTearDown(visible.dispose);
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [reviewerEmailProvider.overrideWithValue(_email)],
+        overrides: [
+          reviewerEmailProvider.overrideWithValue(_email),
+          reviewerUidProvider.overrideWithValue('uid-test'),
+          imageReviewRepositoryProvider.overrideWithValue(
+            InMemoryImageReviewRepository(),
+          ),
+        ],
         child: MaterialApp(
           theme: AppTheme.light,
           home: Scaffold(

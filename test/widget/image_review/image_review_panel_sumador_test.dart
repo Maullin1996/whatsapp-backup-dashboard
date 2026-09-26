@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:whatsapp_monitor_viewer/core/theme/app_theme.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/data/repositories/in_memory_image_review_repository.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/image_review_record.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/models/image_review_target.dart';
@@ -14,6 +15,8 @@ const _target = ImageReviewTarget(
   messageId: 'm1',
   chatJid: 'chat@g.us',
   shift: 'Jornada Mañana',
+  storagePath: 'img_m1.png',
+  fechaJornada: '2026-01-15',
   localTime: '10:03',
   shiftImageIndex: 4,
 );
@@ -44,6 +47,10 @@ Future<ProviderContainer> _pumpPanel(
     ProviderScope(
       overrides: [
         reviewerEmailProvider.overrideWithValue(_email),
+        reviewerUidProvider.overrideWithValue('uid-test'),
+        imageReviewRepositoryProvider.overrideWithValue(
+          InMemoryImageReviewRepository(),
+        ),
         currentReviewRoleProvider.overrideWith(
           (ref) => ref.watch(_roleProvider),
         ),

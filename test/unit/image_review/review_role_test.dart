@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:whatsapp_monitor_viewer/core/errors/image_review_failure.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/data/repositories/in_memory_image_review_repository.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/models/image_review_target.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/image_review_providers.dart';
@@ -10,6 +11,8 @@ const _target = ImageReviewTarget(
   messageId: 'm1',
   chatJid: 'chat@g.us',
   shift: 'Jornada Mañana',
+  storagePath: 'img_m1.png',
+  fechaJornada: '2026-01-15',
 );
 
 ({String messageId, ReviewRole rol}) _key(ReviewRole rol, [String id = 'm1']) =>
@@ -67,7 +70,13 @@ void main() {
 
     setUp(() {
       container = ProviderContainer(
-        overrides: [reviewerEmailProvider.overrideWithValue('a@x.com')],
+        overrides: [
+          reviewerEmailProvider.overrideWithValue('a@x.com'),
+          reviewerUidProvider.overrideWithValue('uid-test'),
+          imageReviewRepositoryProvider.overrideWithValue(
+            InMemoryImageReviewRepository(),
+          ),
+        ],
       );
       addTearDown(container.dispose);
     });
