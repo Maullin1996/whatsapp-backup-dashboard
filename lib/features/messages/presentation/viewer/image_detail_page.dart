@@ -181,7 +181,8 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage>
       if (items.isEmpty) return false;
       id = items[_index.clamp(0, items.length - 1)].messageId;
     }
-    return !ref.read(canAdvanceProvider(id));
+    final rol = ref.read(currentReviewRoleProvider);
+    return !ref.read(canAdvanceProvider((messageId: id, rol: rol)));
   }
 
   void _showBlockedNotice() {
@@ -316,11 +317,15 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage>
 
     final width = MediaQuery.sizeOf(context).width;
     final showPanel = width >= AppBreakpoints.reviewForm;
+    // El registro y el bloqueo son del rol activo: lo guardado por el otro rol
+    // no cuenta.
+    final rol = ref.watch(currentReviewRoleProvider);
+    final reviewKey = (messageId: item.messageId, rol: rol);
     final navigationBlocked =
-        showPanel && !ref.watch(canAdvanceProvider(item.messageId));
+        showPanel && !ref.watch(canAdvanceProvider(reviewKey));
 
     // Tras guardar (o re-guardar) el foco vuelve al visor.
-    ref.listen(savedRecordProvider(item.messageId), (previous, next) {
+    ref.listen(savedRecordProvider(reviewKey), (previous, next) {
       if (showPanel && next.value != null && next.value != previous?.value) {
         _viewerFocus.requestFocus();
       }
@@ -445,10 +450,10 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage>
                   const VerticalDivider(width: 1),
                   SizedBox(
                     width: AppSizes.reviewPanelWidth(width),
-                    // La key evita reutilizar el estado (y los controllers de
-                    // texto) de la imagen anterior al cambiar de imagen.
+                    // La key (imagen + rol) evita reutilizar el estado (y los
+                    // controllers de texto) de la imagen o el rol anteriores.
                     child: ImageReviewPanel(
-                      key: ValueKey(item.messageId),
+                      key: ValueKey('${item.messageId}-${rol.name}'),
                       target: ImageReviewTarget(
                         messageId: item.messageId,
                         chatJid: item.chatJid,

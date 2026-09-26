@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:whatsapp_monitor_viewer/core/theme/app_theme.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/models/image_review_target.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/image_review_providers.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/widgets/image_review_panel.dart';
@@ -84,7 +85,10 @@ void main() {
       await _pumpPanel(tester);
 
       expect(find.text('Registro de la imagen'), findsOneWidget);
-      expect(find.text('Jornada Mañana · 10:03 · Imagen #4'), findsOneWidget);
+      expect(
+        find.text('Revisor · Jornada Mañana · 10:03 · Imagen #4'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('chip de estado: Sin guardar → Guardado → Editando → Editado', (
@@ -190,9 +194,15 @@ void main() {
       tester,
     ) async {
       final container = await _pumpPanel(tester, height: 600);
-      final notifier = container.read(reviewDraftProvider('m1').notifier)
-        ..addComprobante()
-        ..addComprobante();
+      final notifier =
+          container.read(
+              reviewDraftProvider((
+                messageId: 'm1',
+                rol: ReviewRole.revisor,
+              )).notifier,
+            )
+            ..addComprobante()
+            ..addComprobante();
       await tester.pumpAndSettle();
       expect(notifier, isNotNull);
 
@@ -338,7 +348,13 @@ void main() {
 
       expect(_text(tester, 'total-0'), '9.000');
       expect(
-        container.read(reviewDraftProvider('m1')).comprobantes.single.total,
+        container
+            .read(
+              reviewDraftProvider((messageId: 'm1', rol: ReviewRole.revisor)),
+            )
+            .comprobantes
+            .single
+            .total,
         '9000',
       );
     });
@@ -352,7 +368,13 @@ void main() {
 
         expect(_text(tester, 'total-0'), '9.000');
         expect(
-          container.read(reviewDraftProvider('m1')).comprobantes.single.total,
+          container
+              .read(
+                reviewDraftProvider((messageId: 'm1', rol: ReviewRole.revisor)),
+              )
+              .comprobantes
+              .single
+              .total,
           '9000',
         );
       });

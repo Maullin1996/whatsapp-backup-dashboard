@@ -198,9 +198,13 @@ void main() {
       expect(_text(tester, 'total-0'), '1.234');
       // El borrador guarda solo dígitos.
       expect(
-        ProviderScope.containerOf(
-          tester.element(find.byType(ImageReviewPanel)),
-        ).read(reviewDraftProvider('m1')).comprobantes.single.total,
+        ProviderScope.containerOf(tester.element(find.byType(ImageReviewPanel)))
+            .read(
+              reviewDraftProvider((messageId: 'm1', rol: ReviewRole.revisor)),
+            )
+            .comprobantes
+            .single
+            .total,
         '1234',
       );
     });
@@ -254,7 +258,12 @@ void main() {
       expect(record.form.comprobantes.single.codigo, 'A1');
       expect(record.form.comprobantes.single.total, 9000);
       expect(record.form.anotaciones, 'ilegible');
-      expect(container.read(canAdvanceProvider('m1')), isTrue);
+      expect(
+        container.read(
+          canAdvanceProvider((messageId: 'm1', rol: ReviewRole.revisor)),
+        ),
+        isTrue,
+      );
     });
   });
 

@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/image_review_record.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/helpers/format_pesos.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/widgets/review_section_card.dart';
 
 /// Cuerpo de solo lectura de un registro guardado: las mismas tarjetas y el
 /// mismo orden que el formulario (código, números, total), con texto estático.
+/// El registro del Sumador no tiene números, así que no muestra ese bloque.
 class ReviewReadOnlyView extends StatelessWidget {
   final ImageReviewRecord record;
 
@@ -35,20 +37,22 @@ class ReviewReadOnlyView extends StatelessWidget {
                       style: AppTypography.tabular,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.md),
-                  _ReadField(
-                    label: 'Números · ${comprobantes[i].numeros.length}',
-                    child: Wrap(
-                      spacing: AppSpacing.sm,
-                      runSpacing: AppSpacing.xs,
-                      children: [
-                        for (final numero in comprobantes[i].numeros)
-                          Chip(
-                            label: Text(numero, style: AppTypography.tabular),
-                          ),
-                      ],
+                  if (record.rol == ReviewRole.revisor) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    _ReadField(
+                      label: 'Números · ${comprobantes[i].numeros.length}',
+                      child: Wrap(
+                        spacing: AppSpacing.sm,
+                        runSpacing: AppSpacing.xs,
+                        children: [
+                          for (final numero in comprobantes[i].numeros)
+                            Chip(
+                              label: Text(numero, style: AppTypography.tabular),
+                            ),
+                        ],
+                      ),
                     ),
-                  ),
+                  ],
                   const SizedBox(height: AppSpacing.md),
                   _ReadField(
                     label: 'Total',

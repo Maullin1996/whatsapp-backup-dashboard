@@ -1,20 +1,19 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:whatsapp_monitor_viewer/core/errors/failure.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/image_review_record.dart';
-import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/helpers/validate_image_review_form.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/models/image_review_target.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/presentation/models/review_key.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/image_review_providers.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/review_draft_state.dart';
 
-/// TEMPORAL (S1): hasta que la presentación indexe por (messageId, rol) y lea
-/// el rol activo (S2), todo se registra como Revisor.
-const _rolTemporal = ReviewRole.revisor;
-
 class ReviewDraftNotifier extends Notifier<ReviewDraftState> {
-  ReviewDraftNotifier(this.messageId);
+  ReviewDraftNotifier(this.key);
 
-  final String messageId;
+  /// Imagen y rol de este borrador.
+  final ReviewKey key;
+
+  String get messageId => key.messageId;
 
   @override
   ReviewDraftState build() {
@@ -119,7 +118,7 @@ class ReviewDraftNotifier extends Notifier<ReviewDraftState> {
       comprobantes: [for (final c in state.comprobantes) _commitPending(c)],
     );
 
-    final validation = validateImageReviewForm(state.toForm(), _rolTemporal);
+    final validation = validateImageReviewForm(state.toForm(), key.rol);
     final form = validation.fold((failure) {
       state = state.copyWith(showErrors: true, saveError: failure);
       return null;
@@ -138,7 +137,7 @@ class ReviewDraftNotifier extends Notifier<ReviewDraftState> {
     state = state.copyWith(isSaving: true, saveError: null);
     final repository = ref.read(imageReviewRepositoryProvider);
 
-    final existing = await repository.getByMessageId(messageId, _rolTemporal);
+    final existing = await repository.getByMessageId(messageId, key.rol);
     if (!ref.mounted) return;
     final previous = existing.fold((_) => null, (record) => record);
 
@@ -146,7 +145,7 @@ class ReviewDraftNotifier extends Notifier<ReviewDraftState> {
       messageId: messageId,
       chatJid: target.chatJid,
       shift: target.shift,
-      rol: _rolTemporal,
+      rol: key.rol,
       form: form,
       registradoEn: DateTime.now(),
       registradoPor: email,
@@ -160,7 +159,7 @@ class ReviewDraftNotifier extends Notifier<ReviewDraftState> {
     saved.fold(
       (failure) => state = state.copyWith(isSaving: false, saveError: failure),
       (_) {
-        ref.invalidate(savedRecordProvider(messageId));
+        ref.invalidate(savedRecordProvider(key));
         state = state.copyWith(
           isSaving: false,
           isEditing: false,

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/helpers/thousands_input_formatter.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/presentation/models/review_key.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/image_review_providers.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/review_draft_notifier.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/review_draft_state.dart';
@@ -10,9 +12,11 @@ import 'package:whatsapp_monitor_viewer/features/image_review/presentation/widge
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/widgets/review_section_card.dart';
 
 /// Tarjeta editable de un comprobante, en una columna y en el orden del
-/// ticket: código, números y total.
+/// ticket: código, números y total. El Sumador no anota números: su tarjeta
+/// solo tiene código y total.
 class ComprobanteCard extends ConsumerStatefulWidget {
-  final String messageId;
+  /// Imagen y rol del borrador al que pertenece.
+  final ReviewKey reviewKey;
 
   /// Posición 1-based que ve el usuario (círculo de la cabecera).
   final int number;
@@ -26,7 +30,7 @@ class ComprobanteCard extends ConsumerStatefulWidget {
 
   const ComprobanteCard({
     super.key,
-    required this.messageId,
+    required this.reviewKey,
     required this.number,
     required this.draft,
     required this.showErrors,
@@ -46,7 +50,7 @@ class _ComprobanteCardState extends ConsumerState<ComprobanteCard> {
   late final FocusNode _numeroFocus = FocusNode(onKeyEvent: _onNumeroKey);
 
   ReviewDraftNotifier get _notifier =>
-      ref.read(reviewDraftProvider(widget.messageId).notifier);
+      ref.read(reviewDraftProvider(widget.reviewKey).notifier);
 
   @override
   void initState() {
@@ -157,6 +161,7 @@ class _ComprobanteCardState extends ConsumerState<ComprobanteCard> {
   Widget build(BuildContext context) {
     final id = widget.draft.id;
     final numeros = widget.draft.numeros;
+    final showNumeros = widget.reviewKey.rol == ReviewRole.revisor;
 
     return ReviewSectionCard(
       child: Column(
@@ -187,48 +192,50 @@ class _ComprobanteCardState extends ConsumerState<ComprobanteCard> {
             ),
             onChanged: (value) => _notifier.setCodigo(id, value),
           ),
-          const SizedBox(height: AppSpacing.md),
-          TextField(
-            key: ValueKey('numero-$id'),
-            controller: _numero,
-            focusNode: _numeroFocus,
-            textInputAction: TextInputAction.done,
-            style: AppTypography.tabular,
-            decoration: InputDecoration(
-              labelText: numeros.isEmpty
-                  ? 'Números'
-                  : 'Números · ${numeros.length}',
-              errorText: _numerosError,
-              // Tab va de Números a Total; se agrega con Enter.
-              suffixIcon: ExcludeFocus(
-                child: IconButton(
-                  key: ValueKey('agregar-numero-$id'),
-                  tooltip: 'Agregar número',
-                  onPressed: _addNumero,
-                  icon: const Icon(Icons.add_rounded),
+          if (showNumeros) ...[
+            const SizedBox(height: AppSpacing.md),
+            TextField(
+              key: ValueKey('numero-$id'),
+              controller: _numero,
+              focusNode: _numeroFocus,
+              textInputAction: TextInputAction.done,
+              style: AppTypography.tabular,
+              decoration: InputDecoration(
+                labelText: numeros.isEmpty
+                    ? 'Números'
+                    : 'Números · ${numeros.length}',
+                errorText: _numerosError,
+                // Tab va de Números a Total; se agrega con Enter.
+                suffixIcon: ExcludeFocus(
+                  child: IconButton(
+                    key: ValueKey('agregar-numero-$id'),
+                    tooltip: 'Agregar número',
+                    onPressed: _addNumero,
+                    icon: const Icon(Icons.add_rounded),
+                  ),
                 ),
               ),
+              onChanged: (value) => _notifier.setNumeroPendiente(id, value),
+              onSubmitted: (_) => _addNumero(),
             ),
-            onChanged: (value) => _notifier.setNumeroPendiente(id, value),
-            onSubmitted: (_) => _addNumero(),
-          ),
-          if (numeros.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.sm),
-            ExcludeFocus(
-              child: Wrap(
-                spacing: AppSpacing.sm,
-                runSpacing: AppSpacing.xs,
-                children: [
-                  for (var i = 0; i < numeros.length; i++)
-                    InputChip(
-                      key: ValueKey('chip-$id-$i'),
-                      label: Text(numeros[i], style: AppTypography.tabular),
-                      deleteButtonTooltipMessage: 'Quitar número',
-                      onDeleted: () => _notifier.removeNumero(id, i),
-                    ),
-                ],
+            if (numeros.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.sm),
+              ExcludeFocus(
+                child: Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.xs,
+                  children: [
+                    for (var i = 0; i < numeros.length; i++)
+                      InputChip(
+                        key: ValueKey('chip-$id-$i'),
+                        label: Text(numeros[i], style: AppTypography.tabular),
+                        deleteButtonTooltipMessage: 'Quitar número',
+                        onDeleted: () => _notifier.removeNumero(id, i),
+                      ),
+                  ],
+                ),
               ),
-            ),
+            ],
           ],
           const SizedBox(height: AppSpacing.md),
           TextField(

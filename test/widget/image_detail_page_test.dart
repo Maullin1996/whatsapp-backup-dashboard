@@ -78,6 +78,7 @@ Future<void> _openViewer(
   WidgetTester tester, {
   required double width,
   int initialIndex = 1,
+  ReviewRole role = ReviewRole.revisor,
 }) async {
   tester.view.physicalSize = Size(width, 900);
   tester.view.devicePixelRatio = 1;
@@ -87,6 +88,7 @@ Future<void> _openViewer(
     ProviderScope(
       overrides: [
         reviewerEmailProvider.overrideWithValue('revisor@test.com'),
+        currentReviewRoleProvider.overrideWithValue(role),
         chatImageItemsProvider.overrideWith((ref) => ref.watch(_itemsProvider)),
         imageUrlProvider.overrideWith((ref, path) => 'http://localhost/$path'),
         messagesProvider.overrideWith(_CountingMessagesNotifier.new),
@@ -117,7 +119,11 @@ Future<void> _openViewer(
 ProviderContainer _container(WidgetTester tester) =>
     ProviderScope.containerOf(tester.element(find.byType(ImageDetailPage)));
 
-Future<void> _saveRecordFor(WidgetTester tester, String messageId) async {
+Future<void> _saveRecordFor(
+  WidgetTester tester,
+  String messageId, {
+  ReviewRole rol = ReviewRole.revisor,
+}) async {
   final container = _container(tester);
   await container
       .read(imageReviewRepositoryProvider)
@@ -126,17 +132,21 @@ Future<void> _saveRecordFor(WidgetTester tester, String messageId) async {
           messageId: messageId,
           chatJid: 'chat@g.us',
           shift: 'Jornada Mañana',
-          rol: ReviewRole.revisor,
-          form: const ImageReviewForm(
+          rol: rol,
+          form: ImageReviewForm(
             comprobantes: [
-              Comprobante(codigo: 'A1', numeros: ['0123'], total: 9000),
+              Comprobante(
+                codigo: 'A1',
+                numeros: rol == ReviewRole.revisor ? const ['0123'] : const [],
+                total: 9000,
+              ),
             ],
           ),
           registradoEn: DateTime(2026),
           registradoPor: 'revisor@test.com',
         ),
       );
-  container.invalidate(savedRecordProvider(messageId));
+  container.invalidate(savedRecordProvider((messageId: messageId, rol: rol)));
   await _settle(tester);
 }
 
@@ -411,9 +421,13 @@ void main() {
       expect(_pos(3), findsOneWidget);
       expect(find.text(_blockedMessage), findsNothing);
       expect(
-        _container(
-          tester,
-        ).read(reviewDraftProvider('m1')).comprobantes.single.total,
+        _container(tester)
+            .read(
+              reviewDraftProvider((messageId: 'm1', rol: ReviewRole.revisor)),
+            )
+            .comprobantes
+            .single
+            .total,
         '12000',
       );
     });
@@ -554,9 +568,13 @@ void main() {
       expect(isTextFieldFocused(), isTrue);
       expect(FocusManager.instance.primaryFocus, same(focusBefore));
       expect(
-        _container(
-          tester,
-        ).read(reviewDraftProvider('n1')).comprobantes.single.codigo,
+        _container(tester)
+            .read(
+              reviewDraftProvider((messageId: 'n1', rol: ReviewRole.revisor)),
+            )
+            .comprobantes
+            .single
+            .codigo,
         isEmpty,
       );
       expect(_CountingMessagesNotifier.loadMoreCalls, 0);
@@ -565,15 +583,23 @@ void main() {
       await tester.enterText(find.byKey(const ValueKey('codigo-0')), 'AAAB');
       await tester.pump();
       expect(
-        _container(
-          tester,
-        ).read(reviewDraftProvider('m1')).comprobantes.single.codigo,
+        _container(tester)
+            .read(
+              reviewDraftProvider((messageId: 'm1', rol: ReviewRole.revisor)),
+            )
+            .comprobantes
+            .single
+            .codigo,
         'AAAB',
       );
       expect(
-        _container(
-          tester,
-        ).read(reviewDraftProvider('n1')).comprobantes.single.codigo,
+        _container(tester)
+            .read(
+              reviewDraftProvider((messageId: 'n1', rol: ReviewRole.revisor)),
+            )
+            .comprobantes
+            .single
+            .codigo,
         isEmpty,
       );
     });
@@ -665,6 +691,77 @@ void main() {
       _expectViewing(tester, 'm0');
       expect(_pos(1, 1), findsOneWidget);
       expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('el bloqueo de navegación es del rol activo', () {
+    for (final (role, other) in [
+      (ReviewRole.revisor, ReviewRole.sumador),
+      (ReviewRole.sumador, ReviewRole.revisor),
+    ]) {
+      testWidgets('${role.name}: lo guardado por el ${other.name} no lo '
+          'desbloquea', (tester) async {
+        await _openViewer(tester, width: 1200, role: role);
+        await _saveRecordFor(tester, 'm1', rol: other);
+
+        await _key(tester, LogicalKeyboardKey.arrowRight);
+
+        expect(_pos(2), findsOneWidget);
+        expect(find.text(_blockedMessage), findsOneWidget);
+        // Nadie observa el registro del otro rol: se espera su Future.
+        await _container(
+          tester,
+        ).read(savedRecordProvider((messageId: 'm1', rol: other)).future);
+        expect(
+          _container(
+            tester,
+          ).read(canAdvanceProvider((messageId: 'm1', rol: other))),
+          isTrue,
+        );
+        expect(
+          _container(
+            tester,
+          ).read(canAdvanceProvider((messageId: 'm1', rol: role))),
+          isFalse,
+        );
+        for (final icon in [Icons.chevron_left, Icons.chevron_right]) {
+          expect(tester.widget<NavButton>(_chevron(icon)).enabled, isFalse);
+        }
+      });
+
+      testWidgets('${role.name}: lo guardado por su propio rol sí libera la '
+          'navegación', (tester) async {
+        await _openViewer(tester, width: 1200, role: role);
+        await _saveRecordFor(tester, 'm1', rol: role);
+
+        await _key(tester, LogicalKeyboardKey.arrowRight);
+
+        expect(_pos(1), findsOneWidget);
+        expect(find.text(_blockedMessage), findsNothing);
+      });
+    }
+
+    testWidgets('como Sumador el panel no tiene el campo de números', (
+      tester,
+    ) async {
+      await _openViewer(tester, width: 1200, role: ReviewRole.sumador);
+
+      expect(find.byType(ImageReviewPanel), findsOneWidget);
+      expect(find.byKey(const ValueKey('codigo-0')), findsOneWidget);
+      expect(find.byKey(const ValueKey('total-0')), findsOneWidget);
+      expect(find.byKey(const ValueKey('numero-0')), findsNothing);
+      expect(find.textContaining('Sumador · '), findsOneWidget);
+    });
+
+    testWidgets('< 840 px: sin panel ni bloqueo, también como Sumador', (
+      tester,
+    ) async {
+      await _openViewer(tester, width: 700, role: ReviewRole.sumador);
+
+      expect(find.byType(ImageReviewPanel), findsNothing);
+      await _key(tester, LogicalKeyboardKey.arrowRight);
+      expect(_pos(1), findsOneWidget);
+      expect(find.text(_blockedMessage), findsNothing);
     });
   });
 

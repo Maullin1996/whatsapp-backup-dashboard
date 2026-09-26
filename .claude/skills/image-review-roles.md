@@ -207,4 +207,11 @@ grupos/jornadas. Además:
 
 - **Validar `reviewForm = 840` en dispositivos reales** (tablet
   vertical/horizontal, laptop): el valor está adoptado y funcionando,
-  pero no es una decisión cerrada (ver sección de dispositivo arriba).
+  pero no es una decisión cerrada (ver sección de dispositivo arriba).- **Rol activo TEMPORAL (`currentReviewRoleProvider`)**: mientras no
+  existan los roles reales (custom claims `revisor`/`sumador`), el rol con
+  el que se abre el formulario sale de
+  `--dart-define=REVIEW_ROLE=revisor|sumador` (sin el parámetro, o con un
+  valor inválido, es Revisor). Es el ÚNICO punto que decide el rol activo:
+  al conectar los claims solo cambia ese provider. Borrador, registro
+  guardado y bloqueo de navegación se indexan por (`messageId`, rol)
+  (`ReviewKey`), así que cada rol ve solo lo suyo de la imagen actual.
