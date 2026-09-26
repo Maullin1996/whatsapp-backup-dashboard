@@ -7,7 +7,7 @@ const _kTransparentImageBase64 =
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';
 
 void setUpMockAssets() {
-  TestWidgetsFlutterBinding.ensureInitialized();
+  final binding = TestWidgetsFlutterBinding.ensureInitialized();
 
   final imageBytes = base64Decode(_kTransparentImageBase64);
   final imageData = ByteData.view(Uint8List.fromList(imageBytes).buffer);
@@ -21,13 +21,12 @@ void setUpMockAssets() {
     <String, List<String>>{},
   );
 
-  ServicesBinding.instance.defaultBinaryMessenger.setMockMessageHandler(
-    'flutter/assets',
-    (message) async {
-      final key = const StringCodec().decodeMessage(message);
-      if (key == 'AssetManifest.json') return manifestJsonData;
-      if (key == 'AssetManifest.bin') return manifestBinData;
-      return imageData;
-    },
-  );
+  binding.defaultBinaryMessenger.setMockMessageHandler('flutter/assets', (
+    message,
+  ) async {
+    final key = const StringCodec().decodeMessage(message);
+    if (key == 'AssetManifest.json') return manifestJsonData;
+    if (key == 'AssetManifest.bin') return manifestBinData;
+    return imageData;
+  });
 }
