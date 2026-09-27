@@ -28,6 +28,9 @@ flutter test
 
 # Run a single test file
 flutter test test/unit/shifts_test.dart
+
+# Tests live in test/unit/ (shifts, format_day_label, map_failure_to_message, to_domain)
+# and test/widget/ (message_bubble, message_list, custom_message_group, format_time)
 ```
 
 **Firebase Functions (from `functions/` directory):**
@@ -49,6 +52,8 @@ domain/         → Entities (Freezed), Repository interfaces, Helper functions
 data/           → Repository implementations, DataSources (Firestore), Models
 ```
 
+Shared code lives in `lib/core/` (`errors/`, `responsive/`, `theme/`, `time/`, `loading/`, `shared/widget/`) and `lib/helpers/` (`format_time.dart`, `map_failure_to_message.dart`).
+
 App-level wiring lives in `lib/app/`:
 - `router.dart` — GoRouter with auth guards (redirects to login if unauthenticated, to `/chats` if admin tries unauthorized route)
 - `providers.dart` — Riverpod providers that inject `FirebaseAuth` and `FirebaseFirestore`
@@ -67,7 +72,9 @@ App-level wiring lives in `lib/app/`:
 | `messages` | Paginated message list (50/page), image viewer with pinch-to-zoom, day separators, shift labels |
 | `admin` | SuperAdmin/Admin panel: create/delete users, assign groups, toggle roles |
 | `summary` | `/summary` (`SummaryPage`): entry point for the per-shift summary/reconciliation — currently a placeholder empty state; opened from the "Resumen" item of the chat-list menu, visible to any signed-in user until the real revisor/sumador claims exist |
-| `home` | Responsive layout shell (split-view desktop, animated drawer on mobile) |
+| `home` | Responsive layout shell (split-view desktop, animated drawer on mobile); `custom_message_group.dart` renders each group tile |
+
+**In planning, not yet implemented** — image review feature (Revisor/Sumador roles, capture form in the image viewer, offline-first sync, Firebase-sourced shifts and winning numbers). See "Project Skills" below before touching any of this.
 
 ---
 
@@ -97,13 +104,43 @@ Errors are modeled as sealed Freezed unions in `lib/core/errors/failures.dart` �
 
 Role enforcement uses Firebase custom claims (`admin`, `superAdmin`) set server-side by Cloud Functions — never set client-side.
 
+**Planned**: two new boolean custom claims, `revisor` and `sumador` (mutually exclusive with each other, independent from `admin`/`superAdmin`), plus a bridge Cloud Function to a *separate* Firebase project for shifts and winning numbers. Not implemented yet — see `image-review-roles` and `image-review-firebase-integration` skills.
+
+---
+
+## Web / PWA
+
+The app is also deployed as a PWA on Firebase Hosting (`build/web`, SPA rewrite to `/index.html`, see `firebase.json`).
+- `web/sw.js` is a hand-written service worker; cache name is `CACHE_NAME` (currently `whatsapp-monitor-v2`) and `urlsToCache` lists precached files. Bump `CACHE_NAME` and keep `urlsToCache` in sync when changing web assets, or clients keep stale caches.
+- Icons/favicon live in `web/icons/` and `web/favicon.png` (regenerated via `generate_icons.py`); `web/manifest.json` defines the PWA.
+- Build/deploy: `flutter build web` then `firebase deploy --only hosting`.
+- `lib/firebase_options.dart` is gitignored (generate with `flutterfire configure`). Local `*.pem` files in the repo root are local HTTPS dev certs — never commit them.
+
 ---
 
 ## Key Conventions
 
 - **Freezed everywhere** — all domain entities and error types use `@freezed`. Run build_runner after changing them.
 - **Spanish locale** — UI strings are in Spanish. Keep new UI text in Spanish.
-- **Shifts** — `lib/core/time/shifts.dart` defines 6 work shifts per day used to classify messages. The `Shift` enum and its time-range logic are tested in `test/unit/shifts_test.dart`.
+- **Shifts** — `lib/core/time/shifts.dart` defines 6 work shifts per day used to classify messages. The `Shift` enum and its time-range logic are tested in `test/unit/shifts_test.dart`. **Planned**: shifts will eventually come from an external Firebase project instead of this fixed enum, and the valid set of shifts differs on Sundays (fewer shifts) — see `image-review-firebase-integration`. Do not assume the enum stays fixed-size when touching shift logic.
 - **Image URLs** — constructed client-side from `storagePath` using Firebase Storage public URL pattern; images are not stored as full URLs in Firestore.
-- **Responsive breakpoint** — 700px width separates mobile (drawer navigation) from desktop (side-by-side panel) layout.
+- **Responsive system** — `lib/core/responsive/` provides `AppBreakpoints.mobile` (600px) and the `ResponsiveLayout(mobile:, desktop:)` widget (uses `MediaQuery.sizeOf`). Use these for any new responsive UI (used by login, admin page/dialogs, image detail page, message bubble). Known inconsistency: `home_page.dart` still uses its own hardcoded `_mobileBreakpoint = 700` with `LayoutBuilder` — migrate it to `AppBreakpoints` rather than adding new hardcoded breakpoints. **Planned**: the image review capture form needs a tablet-vs-phone distinction that `AppBreakpoints.mobile` likely can't provide — a new named breakpoint will probably be added there (see `image-review-roles`), not a local hardcoded value.
+- **Performance** — `ChatList` and `MessageList`/`MessageBubble` were deliberately optimized for rendering (recent `perf:` commits); avoid rebuild-heavy changes there and keep widgets `const`/granular.
 - **Pagination** — messages load 50 at a time; scroll to top triggers `loadMore()` on the `MessagesNotifier`.
+
+---
+
+## Project Skills (`.claude/skills/`)
+
+Beyond generic Dart/Flutter/Firebase best practices (covered by installed plugins), this repo has project-specific skills. Read the relevant one(s) before working on the area they cover — they're the source of truth over assumptions from this file or from general Flutter knowledge:
+
+| Skill | Covers |
+|---|---|
+| `ui-design` | Design system conventions (colors, spacing, typography, responsive patterns, loading/empty/error states) for any screen or widget in this app |
+| `image-review-workflow` | **Start here** for any image-review task — maps to the other four skills below, suggested implementation roadmap, and a consolidated list of open questions blocking parts of the feature |
+| `image-review-domain` | Vocabulary and business rules for the image review feature (comprobantes, números, totales, Revisor/Sumador reconciliation, shifts, the existing `Message` model) |
+| `image-review-roles` | Revisor/Sumador roles: how they're activated (superAdmin only, from `AdminPage`), mutual exclusivity, tablet/PC-only restriction, mandatory-form navigation guard |
+| `image-review-offline-sync` | Local-first storage for capture forms, per-shift completion detection, per-shift manual upload |
+| `image-review-firebase-integration` | Bridge Cloud Function to an external Firebase project (shifts, winning numbers), match-and-redirect flow, currently mocked/local pending the real connection |
+
+The image-review feature is still in the planning stage as of this writing — the five skills above capture the agreed design and the open questions, but no code exists yet. Read `image-review-workflow` first to know what to build next and in what order.
