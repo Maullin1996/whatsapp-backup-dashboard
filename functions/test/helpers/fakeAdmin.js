@@ -102,6 +102,7 @@ function rejectedWith(code) {
 module.exports = {
   authFake,
   docSet,
+  docRef,
   groupQuery,
   db,
   target,

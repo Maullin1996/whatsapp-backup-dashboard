@@ -6,11 +6,7 @@ const { db, allUsers, reset, rejectedWith } = require("./helpers/fakeAdmin");
 const { listUsers } = require("../index.js");
 
 const ADMIN = { uid: "caller", token: { admin: true } };
-const ASSIGNMENT = {
-  role: "revisor",
-  chatJid: "120363000000000001@g.us",
-  shift: "afternoon1",
-};
+const SHIFTS = [{ chatJid: "120363000000000001@g.us", shift: "afternoon1" }];
 
 function call(auth = ADMIN) {
   return listUsers.run({ auth, data: {}, rawRequest: {} });
@@ -30,25 +26,28 @@ function authUser(uid, customClaims, extra = {}) {
 describe("listUsers", () => {
   beforeEach(() => reset());
 
-  test("incluye reviewAssignment con valor", async () => {
-    allUsers([authUser("u1", { reviewAssignment: ASSIGNMENT })]);
+  test("incluye reviewRole y reviewShifts con valores", async () => {
+    allUsers([authUser("u1", { reviewRole: "revisor" })]);
+    db.userDocs.u1 = { reviewShifts: SHIFTS };
 
     const { users } = await call();
 
-    assert.deepEqual(users[0].reviewAssignment, ASSIGNMENT);
+    assert.equal(users[0].reviewRole, "revisor");
+    assert.deepEqual(users[0].reviewShifts, SHIFTS);
   });
 
-  test("reviewAssignment es null sin asignación o sin claims", async () => {
+  test("reviewRole es null y reviewShifts es [] sin datos o sin claims", async () => {
     allUsers([
       authUser("sin-claims", undefined),
       authUser("solo-admin", { admin: true }),
-      authUser("nulo", { reviewAssignment: null }),
+      authUser("nulo", { reviewRole: null }),
     ]);
 
     const { users } = await call();
 
     for (const user of users) {
-      assert.equal(user.reviewAssignment, null, user.uid);
+      assert.equal(user.reviewRole, null, user.uid);
+      assert.deepEqual(user.reviewShifts, [], user.uid);
     }
   });
 
@@ -57,11 +56,11 @@ describe("listUsers", () => {
       authUser("u1", {
         admin: true,
         superAdmin: true,
-        reviewAssignment: ASSIGNMENT,
+        reviewRole: "revisor",
       }),
       authUser("u2", undefined, { disabled: true, displayName: undefined }),
     ]);
-    db.userDocs.u1 = { allowedGroups: ["g1"] };
+    db.userDocs.u1 = { allowedGroups: ["g1"], reviewShifts: SHIFTS };
 
     const { users } = await call();
 
@@ -72,7 +71,8 @@ describe("listUsers", () => {
       disabled: false,
       isAdmin: true,
       isSuperAdmin: true,
-      reviewAssignment: ASSIGNMENT,
+      reviewRole: "revisor",
+      reviewShifts: SHIFTS,
       allowedGroups: ["g1"],
     });
     assert.deepEqual(users[1], {
@@ -82,7 +82,8 @@ describe("listUsers", () => {
       disabled: true,
       isAdmin: false,
       isSuperAdmin: false,
-      reviewAssignment: null,
+      reviewRole: null,
+      reviewShifts: [],
       allowedGroups: [],
     });
   });
