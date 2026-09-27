@@ -38,9 +38,23 @@ El repo ya tiene un patrón completo en `lib/features/admin/` y
   como `AuthenticatedUser.isAdmin` / `.isSuperAdmin`.
 - Se asignan desde `AdminPage` → botón "Hacer admin/Quitar admin" →
   Cloud Function `setUserRole`. Ese botón **solo es visible para quien
-  ya es `superAdmin`**, y **nunca aplica sobre otro `superAdmin`**.
-- Todas las mutaciones de `AdminNotifier` son optimistas (actualizan el
-  estado local antes de llamar la Cloud Function, revierten si falla).
+  ya es `superAdmin`**, y **nunca aplica sobre otro `superAdmin`**: la
+  función también lo impone en el servidor (verifica que quien llama sea
+  superAdmin y rechaza con `permission-denied` si el usuario objetivo ya
+  es superAdmin), porque ocultar el botón no protege una llamada directa.
+- `setUserRole` **lee los claims actuales del objetivo, los fusiona
+  cambiando solo `admin` y los escribe** (`setCustomUserClaims` reemplaza
+  el objeto completo). La versión original escribía solo `{ admin }` y
+  borraba cualquier otro claim (bug corregido).
+- Las mutaciones de `AdminNotifier` **no son todas optimistas ni se
+  deshacen igual**: `toggleUserStatus` actualiza el estado local antes y,
+  si falla, **revierte en local**; `setUserRole`, `updateUserGroups` y
+  `deleteUser` actualizan antes y, si falla, **recargan la lista del
+  servidor** (`loadUsers`); `createUser` solo agrega el usuario tras el
+  éxito y `updatePassword` no toca la lista. Toda actualización optimista
+  debe usar `AppUser.copyWith`: reconstruir el usuario a mano perdía
+  `isAdmin`/`isSuperAdmin` (bug corregido) y dejaba ver "Hacer admin" en
+  la tarjeta de un superAdmin.
 
 ## Reglas nuevas para Revisor y Sumador
 
@@ -64,9 +78,14 @@ El repo ya tiene un patrón completo en `lib/features/admin/` y
    activables.
 3. **Nunca se activan desde el cliente sin pasar por Cloud Function**:
    se necesita una Cloud Function nueva (o extender `setUserRole` para
-   aceptar el nombre del rol como parámetro) — seguir el patrón exacto
-   de `setUserRole`, incluyendo la actualización optimista en
-   `AdminNotifier` y el revert si falla. La Cloud Function es también
+   aceptar el nombre del rol como parámetro) — seguir el patrón
+   **corregido** de `setUserRole` (**leer** los claims actuales con
+   `getUser`, **fusionar** cambiando solo el claim propio, **escribir**;
+   nunca `setCustomUserClaims` con un objeto parcial: el patrón original
+   tenía ese bug de merge y borraba los demás claims), con la
+   verificación server-side de quien llama y, en `AdminNotifier`, la
+   actualización optimista con `AppUser.copyWith` (y recargar del
+   servidor si falla, como `setUserRole`). La Cloud Function es también
    el lugar correcto para aplicar la exclusión mutua (regla 1): al
    setear `revisor=true` debe apagar `sumador` (y viceversa) de forma
    atómica en el mismo custom claim, no confiar solo en que el cliente

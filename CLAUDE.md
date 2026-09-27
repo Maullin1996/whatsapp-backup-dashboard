@@ -97,7 +97,7 @@ Errors are modeled as sealed Freezed unions in `lib/core/errors/failures.dart` �
 **Firestore Collections:**
 - `group_stats` — Chat group metadata (`chatJid`, `groupName`, `lastMessageAt`, `totalImages`)
 - `whatsapp_messages` — Messages (`chatJid`, `senderName`, `messageTimestamp`, `hasMedia`, `storagePath`, `isEdited`, `messageDate`)
-- `users` — User documents (`uid`, `email`, `allowedGroups[]`, `isAdmin`, `isSuperAdmin`, `disabled`)
+- `users` — User documents (`uid`, `email`, `displayName`, `allowedGroups[]`, `disabled`, `createdAt`, and `isAdmin` as a mirror written by `setUserRole`; the source of truth for roles is the custom claims). `isSuperAdmin` is NOT stored here: it only exists as a custom claim (set with `functions/set-admin.js`)
 - `edit_attempts` — Audit trail for edited WhatsApp messages
 
 **Cloud Functions** (`functions/index.js`) handle all privileged user-management operations: `createUser`, `setUserRole`, `updateUserPassword`, `deleteUser`, `listUsers`, `toggleUserStatus`, `updateUserGroups`, `listGroups`. All callable from Flutter via `FirebaseFunctions.instance.httpsCallable(name)`.
