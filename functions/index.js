@@ -65,8 +65,15 @@ exports.createUser = onCall(async (request) => {
 });
 
 // ─── Promover / degradar usuario ──────────────────────────────────────────────
-// Solo superAdmin puede cambiar roles
+// Solo superAdmin puede cambiar roles. Nunca se toca a otro superAdmin ni se
+// pierden claims ajenos: se LEEN los claims actuales del usuario objetivo, se
+// FUSIONAN cambiando solo `admin` y se escriben. (`setCustomUserClaims`
+// reemplaza el objeto completo, así que escribir solo `{ admin }` borraría
+// cualquier otro claim.) Cualquier función futura que toque claims debe seguir
+// este mismo patrón: leer, fusionar, escribir.
 exports.setUserRole = onCall(async (request) => {
+  // Verificado en el servidor con el token de quien llama: ocultar el botón en
+  // la app no protege una llamada directa a la función.
   assertSuperAdmin(request);
 
   const { uid, role } = request.data; // role: 'admin' | 'user'
@@ -77,8 +84,29 @@ exports.setUserRole = onCall(async (request) => {
 
   const isAdmin = role === "admin";
 
-  // Setear claims — superAdmin nunca se toca desde aquí
-  await admin.auth().setCustomUserClaims(uid, { admin: isAdmin });
+  // Los claims del objetivo salen de Auth, nunca de lo que mande el cliente.
+  let target;
+  try {
+    target = await admin.auth().getUser(uid);
+  } catch (e) {
+    if (e.code === "auth/user-not-found")
+      throw new HttpsError("not-found", "El usuario no existe.");
+    console.error("❌ Error en setUserRole:", e.code, e.message);
+    throw new HttpsError("internal", e.message ?? "Error interno del servidor.");
+  }
+  const currentClaims = target.customClaims ?? {};
+
+  // superAdmin no se toca desde aquí (tampoco a uno mismo), pida lo que pida
+  // el cliente.
+  if (currentClaims.superAdmin === true) {
+    throw new HttpsError(
+      "permission-denied",
+      "No se puede cambiar el rol de un superusuario."
+    );
+  }
+
+  // Fusionar: solo cambia `admin`; el resto de claims se conserva.
+  await admin.auth().setCustomUserClaims(uid, { ...currentClaims, admin: isAdmin });
 
   // Reflejar en Firestore para que listUsers lo muestre
   await firestore.collection("users").doc(uid).set(

@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:whatsapp_monitor_viewer/features/admin/domain/entities/app_user.dart';
 import 'package:whatsapp_monitor_viewer/features/admin/domain/repositories/admin_repository.dart';
 import 'package:whatsapp_monitor_viewer/features/admin/presentation/providers/admin_providers.dart';
 import 'package:whatsapp_monitor_viewer/features/admin/presentation/providers/admin_state.dart';
@@ -115,16 +114,10 @@ class AdminNotifier extends Notifier<AdminState> {
     required bool disabled,
   }) async {
     // Actualizar localmente ANTES de llamar a la función para respuesta inmediata
-    final updatedUsers = state.users.map((u) {
-      if (u.uid != uid) return u;
-      return AppUser(
-        uid: u.uid,
-        email: u.email,
-        displayName: u.displayName,
-        disabled: disabled,
-        allowedGroups: u.allowedGroups,
-      );
-    }).toList();
+    final updatedUsers = [
+      for (final u in state.users)
+        if (u.uid == uid) u.copyWith(disabled: disabled) else u,
+    ];
 
     state = state.copyWith(
       users: updatedUsers,
@@ -140,16 +133,11 @@ class AdminNotifier extends Notifier<AdminState> {
     result.fold(
       (failure) {
         // Si falla, revertir el cambio local
-        final revertedUsers = state.users.map((u) {
-          if (u.uid != uid) return u;
-          return AppUser(
-            uid: u.uid,
-            email: u.email,
-            displayName: u.displayName,
-            disabled: !disabled, // revertir
-            allowedGroups: u.allowedGroups,
-          );
-        }).toList();
+        // revertir (conservando el resto de campos, incluidos los roles)
+        final revertedUsers = [
+          for (final u in state.users)
+            if (u.uid == uid) u.copyWith(disabled: !disabled) else u,
+        ];
         state = state.copyWith(
           isSubmitting: false,
           users: revertedUsers,
@@ -170,16 +158,10 @@ class AdminNotifier extends Notifier<AdminState> {
     required List<String> allowedGroups,
   }) async {
     // Actualizar localmente ANTES para respuesta inmediata
-    final updatedUsers = state.users.map((u) {
-      if (u.uid != uid) return u;
-      return AppUser(
-        uid: u.uid,
-        email: u.email,
-        displayName: u.displayName,
-        disabled: u.disabled,
-        allowedGroups: allowedGroups,
-      );
-    }).toList();
+    final updatedUsers = [
+      for (final u in state.users)
+        if (u.uid == uid) u.copyWith(allowedGroups: allowedGroups) else u,
+    ];
 
     state = state.copyWith(
       users: updatedUsers,
@@ -210,18 +192,10 @@ class AdminNotifier extends Notifier<AdminState> {
     required String role, // 'admin' | 'user'
   }) async {
     // Actualizar localmente para respuesta inmediata
-    final updatedUsers = state.users.map((u) {
-      if (u.uid != uid) return u;
-      return AppUser(
-        uid: u.uid,
-        email: u.email,
-        displayName: u.displayName,
-        disabled: u.disabled,
-        allowedGroups: u.allowedGroups,
-        isAdmin: role == 'admin',
-        isSuperAdmin: u.isSuperAdmin,
-      );
-    }).toList();
+    final updatedUsers = [
+      for (final u in state.users)
+        if (u.uid == uid) u.copyWith(isAdmin: role == 'admin') else u,
+    ];
 
     state = state.copyWith(
       users: updatedUsers,
