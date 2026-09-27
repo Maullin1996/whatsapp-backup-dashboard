@@ -66,6 +66,7 @@ App-level wiring lives in `lib/app/`:
 | `chats` | Real-time group list with search; backed by `group_stats` Firestore collection |
 | `messages` | Paginated message list (50/page), image viewer with pinch-to-zoom, day separators, shift labels |
 | `admin` | SuperAdmin/Admin panel: create/delete users, assign groups, toggle roles |
+| `summary` | `/summary` (`SummaryPage`): entry point for the per-shift summary/reconciliation — currently a placeholder empty state; opened from the "Resumen" item of the chat-list menu, visible to any signed-in user until the real revisor/sumador claims exist |
 | `home` | Responsive layout shell (split-view desktop, animated drawer on mobile) |
 
 ---

@@ -138,6 +138,7 @@ Se invocan desde Flutter con `FirebaseFunctions.instance.httpsCallable(name)`.
 | `/home` | `HomePage` | Requiere sesión iniciada; si no, redirige a `/login`. |
 | `/home/viewer/:initialIndex` | `ImageDetailPage` | Requiere sesión iniciada. `initialIndex` = índice inicial dentro de las imágenes del chat activo. |
 | `/admin` | `AdminPage` | Requiere sesión iniciada **y** `isAdmin == true`; si no es admin, redirige a `/home`. |
+| `/summary` | `SummaryPage` | Requiere solo sesión iniciada, sin `isAdmin` ni rol de revisor/sumador (a propósito: los claims reales aún no existen; se acotará cuando existan). Hoy es un placeholder sin datos; se abre desde el menú "Resumen" de `ChatList`. |
 
 El router también escucha `authSessionProvider` y se refresca automáticamente cuando cambia el estado de sesión (login/logout), sin necesidad de navegación manual.
 
