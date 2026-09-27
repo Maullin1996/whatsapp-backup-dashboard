@@ -25,6 +25,7 @@ Se usa principalmente como **PWA web** (desplegada en Firebase Hosting), aunque 
 - **dartz** (`Either<Failure, T>`) para manejo de errores sin excepciones en la capa de datos/dominio.
 - **extended_image** para carga/caché de imágenes de red y el visor con zoom/gestos.
 - **shimmer** para los skeletons de carga.
+- **hive_ce** / **hive_ce_flutter** — persistencia local del feature de revisión de imágenes (formularios y registros de Revisor/Sumador pendientes de subir, por jornada). Ver `.claude/skills/image-review-offline-sync.md`.
 - Locale único: **español** (`es`), hardcodeado en `app.dart`.
 
 ---
@@ -90,7 +91,7 @@ La guía completa de convenciones de UI (patrones de diálogos, estados carga/va
 
 | Colección | Campos clave | Uso |
 |---|---|---|
-| `users` | `uid`, `email`, `allowedGroups[]`, `isAdmin`, `isSuperAdmin`, `disabled` | Perfil + permisos de cada usuario de la app. `allowedGroups` determina qué chats puede ver. |
+| `users` | `uid`, `email`, `allowedGroups[]`, `isAdmin`, `disabled` | Perfil + permisos de cada usuario de la app. `allowedGroups` determina qué chats puede ver. `isAdmin` es un espejo escrito por `setUserRole` (la fuente de verdad son los custom claims). `isSuperAdmin` **NO** se guarda acá — solo existe como custom claim (ver más abajo). |
 | `group_stats` | `chatJid`, `groupName`, `lastMessageAt`, `totalImages` | Metadata de cada grupo de WhatsApp monitoreado (una fila por grupo). Fuente de la lista de chats. |
 | `whatsapp_messages` | `chatJid`, `senderName`, `messageTimestamp`, `caption`, `hasMedia`, `storagePath`, `isEdited`, `messageDate`, `localTime`, `shiftImageIndex` | Cada mensaje del grupo (texto y/o imagen/video/audio). |
 | `edit_attempts` | (por `messageId`) | Auditoría de intentos de edición de un mensaje de WhatsApp; se usa para marcar mensajes como "Editado" en la UI. |
@@ -100,6 +101,8 @@ La guía completa de convenciones de UI (patrones de diálogos, estados carga/va
 **Paginación de mensajes**: cursor-based con `startAfterDocument` sobre `whatsapp_messages`, ordenado por `messageTimestamp desc` + `documentId desc` como desempate. Tamaño de página: 50. El filtro de fecha (`DateFilter`) acota el rango con `where messageTimestamp >= from AND < to`.
 
 **Tiempo real**: mientras el filtro de fecha activo incluya "hoy", se abre un listener (`snapshots()`) que escucha solo documentos añadidos con `messageTimestamp` mayor al último conocido, y los mensajes nuevos se agrupan (batching con `Timer` de 200 ms) antes de insertarlos al principio de la lista — evita animar/reordenar en cada mensaje individual si llegan varios juntos.
+
+**Sin reglas versionadas en el repo**: no hay `firestore.rules` ni `storage.rules` en el proyecto, así que no se puede confirmar desde el código qué permisos tiene realmente el cliente sobre cada colección o archivo — lo que aísla el acceso hoy son las Cloud Functions (para escritura de datos privilegiados) y lo que el propio cliente decide consultar, no una regla de seguridad declarativa auditable.
 
 ### Cloud Storage
 
@@ -120,6 +123,8 @@ Todas las operaciones privilegiadas de gestión de usuarios pasan por Cloud Func
 | `toggleUserStatus` | Habilita/deshabilita el acceso de un usuario. |
 | `updateUserGroups` | Actualiza `allowedGroups[]` de un usuario. |
 | `listGroups` | Lista los grupos disponibles (`group_stats`) para asignar. |
+| `setReviewRole` | Activa/cambia/desactiva el rol Revisor o Sumador de un usuario (claim simple `reviewRole`). Solo superAdmin. Si el rol cambia de verdad, limpia `reviewShifts` del usuario. |
+| `updateReviewShifts` | Reemplaza la lista completa de (grupo, jornada) que cubre un Revisor/Sumador (`users/{uid}.reviewShifts`), con validación de unicidad por (rol, grupo, jornada). Solo superAdmin; exige que el usuario ya tenga `reviewRole`. **Ambas implementadas y probadas (backend), sin desplegar a producción todavía; la UI de `AdminPage` para usarlas está pendiente de reescribir** — ver `.claude/skills/image-review-roles.md`. |
 
 Se invocan desde Flutter con `FirebaseFunctions.instance.httpsCallable(name)`.
 
@@ -127,6 +132,7 @@ Se invocan desde Flutter con `FirebaseFunctions.instance.httpsCallable(name)`.
 
 - `admin` y `superAdmin` son **custom claims** de Firebase Auth (no campos editables desde el cliente). Se leen en `mapToDomain` (`idTokenResult.claims`) al iniciar sesión.
 - `AuthenticatedUser.isAdmin` / `.isSuperAdmin` gobiernan qué puede ver/hacer el usuario en la UI (acceso a `/admin`, botón para promover a admin, etc. — ver sección Admin).
+- **`reviewRole`** (Revisor/Sumador del feature de revisión de imágenes): un **custom claim simple**, un string (`'revisor' | 'sumador' | ausente`), no un objeto — escrito por `setReviewRole` con el mismo patrón leer-fusionar-escribir que `setUserRole`. La exclusión mutua entre Revisor y Sumador es inherente (un solo valor posible). El **grupo y la jornada** que cada Revisor/Sumador cubre ya NO viven en el claim: es una **lista** en Firestore (`users/{uid}.reviewShifts: [{chatJid, shift}]`), escrita por `updateReviewShifts` — reemplazó al modelo anterior de "una sola asignación" (`reviewAssignment`) porque las cuentas reales cubren varios grupos a la vez, algunos repetidos entre personas del mismo rol en jornadas distintas. **Estado real: implementado en el backend (con tests), sin desplegar a producción; la UI de `AdminPage` para asignarlo está pendiente de reescribir para este modelo, y `AuthenticatedUser` todavía no lee ninguno de los dos.** El rol activo con el que hoy se prueba el formulario de captura sigue viniendo de un `--dart-define` de desarrollo, no de este claim. Detalle completo en `.claude/skills/image-review-roles.md`.
 
 ---
 
@@ -250,6 +256,7 @@ El router también escucha `authSessionProvider` y se refresca automáticamente 
   - **Cambiar contraseña** → `ChangePasswordDialog`.
   - **Asignar grupos** → `AssignGroupsDialog`.
   - **Hacer admin / Quitar admin** (solo visible para quien es `superAdmin`, y no aplica sobre otro `superAdmin`) → confirma en un diálogo y llama `setUserRole`.
+  - **Asignar revisión** (solo visible para quien es `superAdmin`; a diferencia de "Hacer admin", SÍ aplica sobre otro `superAdmin` — Revisor/Sumador es independiente de admin/superAdmin) → **⚠️ pendiente de reescribir**: el código actual (`ReviewAssignmentDialog`, `setReviewAssignment`) apunta al modelo viejo de "una sola asignación", que ya no existe en el backend (reemplazado por `setReviewRole` + `updateReviewShifts`, ver sección 5). La UI para el modelo nuevo (rol simple + lista de grupo/jornada) es la próxima tarea.
   - **Eliminar** (no aplica sobre un `superAdmin`) → confirma en un diálogo destructivo y llama `deleteUser`.
 - Feedback de acciones vía `SnackBar` (verde éxito / rojo error), disparado por `ref.listen` sobre `adminProvider` + `clearMessages()`.
 
@@ -257,10 +264,29 @@ El router también escucha `authSessionProvider` y se refresca automáticamente 
 - `CreateUserDialog` — nombre + contraseña (el email se genera como `<nombre>@gmail.com`, ver `_submit()` en el propio diálogo — convención específica de este proyecto, no un email real ingresado por el admin).
 - `ChangePasswordDialog` — nueva contraseña para un usuario existente.
 - `AssignGroupsDialog` — checklist de grupos (`group_stats`) para marcar cuáles puede ver el usuario.
+- `ReviewAssignmentDialog` — **obsoleto**: rol + grupo + jornada en un solo diálogo, para el modelo de "una sola asignación" ya reemplazado en el backend. Queda en el repo sin uso real hasta que se rediseñe la UI de asignación (grupo/jornada ahora es una lista, ver sección 5).
 
 **Piezas clave:**
-- `AdminNotifier` (`NotifierProvider<AdminState>`) — cachea `users` y `groups`, expone `isLoadingUsers/Groups`, `isSubmitting`, `error`, `successMessage`. Todas las mutaciones (`toggleUserStatus`, `updateUserGroups`, `setUserRole`) actualizan el estado local **optimistamente** antes de llamar a la Cloud Function correspondiente, y revierten (o recargan desde el servidor) si falla.
-- `AdminRepository`/`AdminDatasourceImpl` — wrapper de las Cloud Functions (`createUser`, `deleteUser`, `listUsers`, `listGroups`, `toggleUserStatus`, `updateUserGroups`, `setUserRole`, `updatePassword`).
+- `AdminNotifier` (`NotifierProvider<AdminState>`) — cachea `users` y `groups`, expone `isLoadingUsers/Groups`, `isSubmitting`, `error`, `successMessage`. Las mutaciones `toggleUserStatus`, `updateUserGroups` y `setUserRole` actualizan el estado local **optimistamente** antes de llamar a la Cloud Function correspondiente; solo `toggleUserStatus` revierte el cambio local si falla, las otras dos recargan desde el servidor (`loadUsers()`) en vez de revertir a mano. El método `setReviewAssignment` del notifier (no optimista, devuelve el `Either<AdminFailure, Unit>` a quien lo llama) también apunta al modelo viejo — pendiente de reemplazar por los métodos que usen `setReviewRole`/`updateReviewShifts`.
+- `AdminRepository`/`AdminDatasourceImpl` — wrapper de las Cloud Functions (`createUser`, `deleteUser`, `listUsers`, `listGroups`, `toggleUserStatus`, `updateUserGroups`, `setUserRole`, `updatePassword`); el método `setReviewAssignment` sigue ahí llamando a una Cloud Function que ya no existe en `functions/index.js` — pendiente de reemplazar junto con la UI.
+
+---
+
+### 7.5 Revisión de imágenes (`lib/features/image_review/`)
+
+**Qué hace:** formularios de captura para los roles Revisor y Sumador (comprobantes, números, totales de cada imagen), pensados para verificarse mutuamente por jornada. **En desarrollo activo, por capas** — no todo lo descrito abajo está conectado a Firebase todavía. Para el estado paso a paso, las reglas de negocio y las decisiones de diseño, ver `.claude/skills/image-review-workflow.md` (punto de entrada) y las demás skills `image-review-*`; acá solo el resumen de qué existe hoy.
+
+- **Formulario de captura**: vive dentro de `ImageDetailPage` (visor de imágenes de la sección 7.3), como panel lateral exclusivo de pantallas anchas (`AppBreakpoints.reviewForm`). Bloquea la navegación entre imágenes hasta guardar el registro de la actual.
+- **Persistencia local**: con `hive_ce`, separada por usuario y por rol; sobrevive a recargar la app.
+- **Subida**: un indicador por jornada con registros pendientes, subida manual por lote — hoy **SIMULADA** (imprime en consola lo que se enviaría, sin tocar Firestore).
+- **Rol activo**: hoy sale de `--dart-define=REVIEW_ROLE=revisor|sumador` (`currentReviewRoleProvider`, nullable — sin el flag no hay rol activo, que es el default). Todavía no está conectado al custom claim `reviewRole` (ver sección 5).
+- **Asignación de grupo + jornada**: `setReviewRole` (claim `reviewRole`) y `updateReviewShifts` (lista `reviewShifts` en Firestore, con validación de unicidad por rol+grupo+jornada) ya existen y están probadas en el backend, pero sin desplegar a producción; la UI en `AdminPage` (sección 7.4) todavía apunta al modelo viejo y está pendiente de reescribir.
+
+### 7.6 Resumen (`lib/features/summary/`)
+
+**Qué hace:** pantalla de reconciliación por jornada y grupo (compara lo registrado por Revisor y Sumador), en la ruta `/summary` (ver sección 6).
+
+**Estado real: solo UI, con datos INVENTADOS.** `MockSummaryRepository` genera escenarios deterministas por fecha (mismo día → mismos datos, para que la UI no cambie al reconstruirse) — no hay ninguna lectura real de Firestore ni de los registros del feature de revisión de imágenes todavía. Ver `.claude/skills/image-review-domain.md` para las reglas de reconciliación que esta pantalla deberá implementar.
 
 ---
 
@@ -268,6 +294,7 @@ El router también escucha `authSessionProvider` y se refresca automáticamente 
 
 - **Nunca lanzar excepciones desde `data`/`domain`** — siempre `Either<Failure, T>`.
 - **Nunca setear custom claims (`admin`/`superAdmin`) desde el cliente** — todo pasa por Cloud Functions.
+- **Nunca reemplazar el objeto completo de custom claims de un usuario** (`admin.auth().setCustomUserClaims`) **sin leer antes los claims existentes** con `getUser()` y fusionar — hacerlo sin merge borra silenciosamente cualquier otro claim que el usuario tuviera (bug real, corregido en `functions/index.js`, `setUserRole`; el mismo patrón se repite en `setReviewRole`).
 - **Nunca guardar URLs completas de Storage en Firestore** — solo `storagePath`; la URL se construye en el cliente.
 - **Todo texto de UI en español**, incluyendo tooltips, vacíos y errores (los errores salen de `mapFailureToMessage`/`failure.message`, no se inventan strings sueltos).
 - **Un solo sistema de breakpoints** (`AppBreakpoints`) — si una pantalla nueva necesita un umbral propio (como `homeSplit`), se agrega ahí con su razón documentada, no como constante local.
@@ -289,9 +316,17 @@ flutter build web && firebase deploy --only hosting
 npm run serve   # emulador local
 npm run deploy
 npm run logs
+npm test        # node:test + mocks del Admin SDK, sin dependencias nuevas
 ```
 
 ## 10. Deuda técnica / notas conocidas
 
 - `flutter test` falla en `message_bubble_test.dart` y `message_list_test.dart` por un problema de compatibilidad de `package:web` con el runner de tests en la VM de Dart (no afecta `flutter build web`, que compila limpio — confirmado). Causa: `message_bubble.dart` importa `package:web/web.dart` sin condicionar por plataforma, y esa librería solo funciona en targets web reales (dart2js/dartdevc/wasm), no en la VM. Si algún día se compila esta app para Android/iOS/Windows/macOS/Linux (las carpetas de esas plataformas existen en el repo), ese mismo import probablemente rompería la compilación ahí — pendiente de envolver con un import condicional o `kIsWeb`.
 - Swipe-hacia-abajo-para-cerrar en el visor de imágenes: no implementado (ver sección 7.3).
+- No hay `firestore.rules` ni `storage.rules` versionadas en el repo (ver sección 5).
+- No hay configuración de emuladores de Firebase: ni bloque `emulators` en `firebase.json`, ni cableado en Flutter para apuntar a un emulador local. Probar Cloud Functions hoy significa mocks del Admin SDK (`functions/test/`) o pruebas cuidadosas contra producción con cuentas de prueba.
+- `firebase-functions` está desactualizada en producción (`7.2.5`); la actualización a `7.4.0` ya está commiteada en `functions/package.json` pero no desplegada — pendiente de juntarse con el próximo deploy real de `functions/` (el de `setReviewRole`/`updateReviewShifts`).
+- La lista `reviewShifts` guarda la jornada por el identificador del enum Dart (p. ej. `afternoon1`), mientras los registros del feature de revisión de imágenes guardan la etiqueta en español (p. ej. "Jornada Tarde 1 (10:55 – 13:58)") — hará falta un mapeo entre ambos al implementar el filtrado por asignación (ver `.claude/skills/image-review-roles.md`).
+- `updateReviewShifts` valida la unicidad de (rol, grupo, jornada) leyendo `listUsers(1000)` + `getAll` batcheado de Firestore, sin transacción entre el chequeo y la escritura — riesgo aceptado para una acción manual y poco frecuente (dos superAdmins asignando al mismo tiempo podrían duplicar la tupla), no resuelto con infraestructura nueva.
+- La UI de `AdminPage` para asignar Revisor/Sumador (`ReviewAssignmentDialog`, `AdminNotifier.setReviewAssignment`, `AdminRepository.setReviewAssignment`) todavía apunta al modelo viejo de "una sola asignación" y llama a una Cloud Function que ya no existe — código muerto hasta la próxima tarea (rediseño de la UI para el modelo de lista, ver sección 7.4).
+- `pubspec.yaml` declara `cached_network_image` y `json_serializable` como dependencias, pero no se encontró ningún uso de ninguna de las dos en `lib/` (ni `CachedNetworkImage`, ni `@JsonSerializable`/archivos `.g.dart` generados) — posibles dependencias sin usar, a confirmar antes de quitarlas.

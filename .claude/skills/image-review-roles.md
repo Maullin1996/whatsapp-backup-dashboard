@@ -70,12 +70,17 @@ El repo ya tiene un patrón completo en `lib/features/admin/` y
    `admin`/`superAdmin`**: un usuario puede ser `admin` + `revisor`, o
    `superAdmin` + `sumador`, etc. — la exclusión es únicamente entre
    `revisor` y `sumador` entre sí.
-2. **Activación exclusiva desde `AdminPage`, exclusiva del superAdmin**:
-   igual que "Hacer admin/Quitar admin", los switches/botones para
-   `revisor` y `sumador` en `_UserCard` solo son visibles/interactuables
-   si `AuthenticatedUser.isSuperAdmin == true` para quien está mirando
-   el panel. Un `admin` normal (no super) no puede activarlos ni verlos
-   activables.
+2. **Activación exclusiva desde `AdminPage`, exclusiva del superAdmin —
+   backend ✅ HECHO, UI ⚠️ PENDIENTE de reescribir**: en `_UserCard`, el
+   punto de entrada (rol + horarios) solo debe ser visible si
+   `AuthenticatedUser.isSuperAdmin == true` para quien está mirando el
+   panel. Un `admin` normal (no super) no debe verlo. La UI actual en el
+   repo (`ReviewAssignmentDialog`, un solo diálogo con rol+grupo+jornada
+   combinados) quedó **obsoleta**: el modelo real es un claim de rol
+   simple más una **lista** de (grupo, jornada) por cuenta, no una tupla
+   única — ver "Asignación de grupo + jornada" más abajo, que es la
+   fuente de verdad de la forma final. La UI para este modelo nuevo es
+   la próxima tarea.
 3. **Nunca se activan desde el cliente sin pasar por Cloud Function**:
    se necesita una Cloud Function nueva (o extender `setUserRole` para
    aceptar el nombre del rol como parámetro) — seguir el patrón
@@ -183,78 +188,122 @@ El repo ya tiene un patrón completo en `lib/features/admin/` y
   como una decisión operativa de quien administra (el superAdmin), no
   como una regla que el código deba imponer automáticamente por ahora.
 
-## Asignación de grupo + jornada — CONFIRMADA (ya no es "futuro")
+## Asignación de grupo + jornada — CONFIRMADA (modelo de LISTA)
 
 El usuario confirmó explícitamente esto: **cada Revisor y cada Sumador
-tiene asignado un grupo específico y una jornada específica** a
+tiene asignados uno o más grupos, cada uno con su propia jornada** a
 revisar — el rol no aplica de forma genérica a todos los
-grupos/jornadas. Además:
+grupos/jornadas. **Este modelo reemplaza uno anterior** que asumía una
+sola asignación (grupo + jornada) por persona; se descartó por datos
+reales: las cuentas de Revisor/Sumador en producción cubren VARIOS
+grupos cada una (ejemplo real: 8 grupos en una sola cuenta), algunos
+grupos se repiten entre distintas personas del mismo rol (cada una
+cubriendo jornadas distintas de ese grupo), y Revisor/Sumador de un
+mismo grupo **no** necesitan cubrir las mismas jornadas entre sí. Nada
+de la versión anterior llegó a desplegarse, así que el reemplazo es
+limpio (sin migración de datos).
 
 - **Unicidad**: dos personas con el mismo rol (dos Revisores, o dos
-  Sumadores) **nunca pueden tener asignados el mismo grupo y la misma
-  jornada a la vez**. Un Revisor y un Sumador **sí** pueden (de hecho,
-  deben) compartir grupo+jornada — son ellos dos quienes se
-  verifican mutuamente sobre esa misma combinación.
-- **Implicaciones en el modelo**: `AuthenticatedUser` no puede
-  quedarse solo con los booleanos `isRevisor`/`isSumador` (regla 4 de
-  la sección anterior) — necesita además el **grupo y la jornada
-  asignados**. Esto probablemente no cabe en un custom claim booleano
-  simple; lo más natural es un custom claim más rico (objeto, no
-  booleano) o un documento en Firestore (`users/{uid}` ya tiene
-  `allowedGroups[]` — podría extenderse con algo como
-  `revisorAssignment: {grupo, jornada}` / `sumadorAssignment: {grupo,
-  jornada}`, a definir en implementación).
-- **Cloud Function de asignación — ✅ HECHA (solo backend, sin UI
-  todavía)**: `setReviewAssignment(uid, assignment)` en `functions/index.js`
-  (solo superAdmin; NO se tocó `setUserRole`, `AdminPage` ni
-  `AuthenticatedUser`).
-  - **Forma final del claim**: UN solo claim combinado,
-    `reviewAssignment: { role: 'revisor' | 'sumador', chatJid, shift }`
-    — no dos claims booleanos ni dos campos separados. Un usuario tiene a
-    lo sumo una asignación, así que la exclusión mutua Revisor/Sumador es
-    inherente (no puede haber dos encendidos a la vez). `shift` es el
-    **nombre del valor de `enum Shift`** en Dart (`morning`, `afternoon1`,
-    `afternoon2`, `night1`, `night2`, `holiday`), no la etiqueta en
-    español; `outOfShift` NO es asignable. La lista está espejada a mano
-    en `ASSIGNABLE_SHIFTS` y debe mantenerse sincronizada con
-    `lib/core/time/shifts.dart` hasta que las jornadas vengan del Firebase
-    externo (`image-review-firebase-integration`).
+  Sumadores) **nunca pueden cubrir el mismo grupo y la misma jornada a
+  la vez**. Un Revisor y un Sumador **sí** pueden (de hecho, deben)
+  compartir grupo+jornada — son ellos dos quienes se verifican
+  mutuamente sobre esa misma combinación. La unicidad es por la
+  **tupla** `(rol, chatJid, shift)`, evaluada contra las entradas de
+  TODAS las personas de ese rol, no por persona.
+- **Modelo, en dos partes** (ya no un solo claim combinado):
+  - El **rol** (`revisor` | `sumador` | ausente) es un **custom claim
+    simple**, `reviewRole` — un string, no un objeto: al mover
+    grupo+jornada a Firestore (ver abajo), lo único que le queda al
+    claim es "esta cuenta es Revisor/Sumador/ninguno", que ya es un
+    valor único por cuenta (la exclusión mutua Revisor/Sumador de la
+    regla 1 sigue siendo inherente: solo puede haber un valor).
+  - La **lista de (grupo, jornada)** que esa cuenta cubre bajo su rol
+    vive en **Firestore**, `users/{uid}.reviewShifts: [{chatJid,
+    shift}]` — NO en el claim: un array de varias tuplas por persona
+    (hasta ~8 grupos reales, con margen) arriesgaba acercarse al
+    límite de 1000 bytes de los custom claims si se hubiera quedado ahí.
+    `shift` es el **nombre del valor de `enum Shift`** en Dart
+    (`morning`, `afternoon1`, `afternoon2`, `night1`, `night2`,
+    `holiday`), no la etiqueta en español; `outOfShift` NO es
+    asignable. La lista de jornadas asignables está espejada a mano en
+    `ASSIGNABLE_SHIFTS` (`functions/index.js`) y debe mantenerse
+    sincronizada con `lib/core/time/shifts.dart` hasta que las jornadas
+    vengan del Firebase externo (`image-review-firebase-integration`).
     Ojo: los registros de `image_review` guardan `shift` como la
-    **etiqueta** (`shiftNames`), así que al comparar una asignación con un
-    registro/mensaje habrá que traducir enum ↔ etiqueta.
-  - **Payload**: `{ uid, assignment: null | { role, chatJid, shift } }`;
-    `null` desactiva (se BORRA la clave `reviewAssignment` de los claims en
-    vez de escribir `null`: una sola representación de "sin asignación" y
-    ni un byte del límite de 1000); `undefined` no vale como `null`.
-    Valida role, chatJid no vacío, shift asignable y que el grupo exista
-    (una consulta a `group_stats` por el CAMPO `chatJid`, como el resto del
-    proyecto; no por id de documento).
-  - **Patrón**: igual que `setUserRole` (leer con `getUser`, fusionar,
-    escribir; conserva `admin`/`superAdmin`/lo demás). A diferencia de él,
-    NO hay guarda contra un superAdmin como objetivo: sí se le puede
-    asignar Revisor/Sumador (intencional, con test).
-  - **Unicidad** por `(role, chatJid, shift)`: se itera
-    `auth().listUsers(1000)` y se rechaza (`already-exists`) si OTRO uid
-    tiene la misma tupla; Revisor y Sumador sí comparten `(chatJid,
-    shift)`; reasignar lo mismo al mismo uid es idempotente. **Por qué
-    iterar `listUsers` y no un espejo en Firestore**: el repo no tiene
-    `firestore.rules`, así que un espejo `users/{uid}` podría ser editado
-    por el cliente y no sería fuente de verdad confiable; los claims de
-    Auth sí son solo-servidor. Límites aceptados: hereda el tope de 1000
-    usuarios (sin paginar) y no hay transacción entre el chequeo y la
-    escritura (dos llamadas simultáneas podrían duplicar la tupla).
-  - `listUsers` ahora devuelve `reviewAssignment` (o `null`) para que la UI
-    de `AdminPage` lo pinte sin otra ida al backend. Los custom claims
-    completos comparten 1000 bytes (admin, superAdmin, reviewAssignment);
-    hoy sobra de lejos.
-  - Pendiente (siguiente capa): UI en `AdminPage`, `AuthenticatedUser`
-    con la asignación y conectar `currentReviewRoleProvider` a los claims.
-  - Deploy: NO desplegado (requiere autorización explícita aparte).
+    **etiqueta** (`shiftNames`), así que al comparar una asignación con
+    un registro/mensaje habrá que traducir enum ↔ etiqueta.
+- **Cloud Functions — backend ✅ HECHO y probado, sin desplegar
+  todavía** (reemplazan a la extinta `setReviewAssignment`, que
+  guardaba un solo `{role, chatJid, shift}` combinado):
+  - **`setReviewRole(uid, role)`** — `role: 'revisor' | 'sumador' |
+    null`. Solo superAdmin. Mismo patrón que `setUserRole` (leer con
+    `getUser`, fusionar cambiando solo `reviewRole`, escribir; conserva
+    `admin`/`superAdmin`/lo demás). A diferencia de `setUserRole`, SIN
+    guarda contra un objetivo superAdmin: un superAdmin SÍ puede tener
+    rol de revisión (intencional, con test, igual que antes). `null`
+    desactiva — se BORRA la clave `reviewRole` de los claims en vez de
+    escribir `null` (una sola representación de "sin rol", ni un byte
+    del límite de 1000). **Si el rol cambia de verdad** (no una
+    reasignación del mismo valor), limpia `reviewShifts` a `[]` en
+    Firestore en la misma llamada: las jornadas que cubría bajo el rol
+    anterior no tienen sentido bajo el nuevo. Riesgo aceptado y ya
+    conocido en el proyecto: esta limpieza no es atómica con la
+    escritura del claim (Auth y Firestore son sistemas separados), no
+    se resuelve con infraestructura nueva.
+  - **`updateReviewShifts(uid, shifts)`** — `shifts: [{chatJid,
+    shift}]`, sin `role` por entrada (se deriva del `reviewRole` actual
+    del uid objetivo, leído de Auth). Solo superAdmin. Rechaza con
+    `failed-precondition` si el objetivo no tiene `reviewRole` asignado
+    (sin rol no hay bajo qué unicidad evaluar). Valida cada entrada:
+    `chatJid` existe en `group_stats` (consulta por el CAMPO `chatJid`,
+    como el resto del proyecto, una por entrada) y `shift` está en
+    `ASSIGNABLE_SHIFTS`. **Reemplaza la lista completa** en
+    `users/{uid}.reviewShifts` (patrón de `updateUserGroups`: reemplazo
+    total, no merge parcial — una entrada vieja que no viene en el
+    payload nuevo desaparece). Si hay conflicto de unicidad, **rechaza
+    toda la operación** (todo-o-nada) y el error (`already-exists`)
+    trae en `details.conflicts` **todas** las tuplas en conflicto, no
+    solo la primera, para que el cliente las marque de una vez sin
+    reintentos en serie.
+    - **Algoritmo de unicidad** (evita una segunda pasada completa de
+      `listUsers` o escanear toda la colección `users`): 1) un solo
+      `auth().listUsers(1000)` trae los claims de todos, incluido
+      `reviewRole` (gratis); 2) se filtra a los uids con `reviewRole`
+      (típicamente un subconjunto chico), excluyendo el propio uid; 3)
+      un solo `firestore.getAll(...)` en lotes de 30 sobre ESOS uids
+      trae sus `reviewShifts` (mismo patrón de lotes que ya usa
+      `listUsers`); 4) se arma el set de tuplas ocupadas `(rol del
+      otro, chatJid, shift)` y se compara contra el payload. Límites
+      aceptados (igual que el resto del archivo): hereda el tope de
+      1000 usuarios de `listUsers` (sin paginar) y no hay transacción
+      entre el chequeo y la escritura.
+- **`listUsers`** devuelve `reviewRole` (`'revisor' | 'sumador' |
+  null`) y `reviewShifts` (`[]` si no hay datos) en la misma respuesta
+  de cada usuario — mismo lote de `getAll` que ya usaba para
+  `allowedGroups`, sin pasada extra.
+- Los custom claims completos comparten 1000 bytes (`admin`,
+  `superAdmin`, `reviewRole`); con `reviewRole` como string simple
+  sobra de lejos.
+- **UI en `AdminPage` — ⚠️ PENDIENTE de reescribir (próxima tarea, en
+  un prompt aparte)**: el código actual en el repo
+  (`ReviewAssignmentDialog`, `AdminNotifier`/`AdminRepository/
+  AdminDatasourceImpl.setReviewAssignment`, `AdminFailure.reviewAssignmentConflict()`,
+  la entidad `ReviewAssignment`, el campo `AppUser.reviewAssignment`)
+  sigue apuntando al modelo viejo de una sola asignación y llama a una
+  Cloud Function que **ya no existe** — es código muerto hasta que se
+  rediseñe para el modelo de lista (rol simple + un mecanismo de
+  "horarios" por grupo, forma exacta todavía sin definir).
+- Pendiente (siguiente capa, después de la UI): `AuthenticatedUser`
+  leyendo `reviewRole`/`reviewShifts` y conectar
+  `currentReviewRoleProvider` (y el filtrado de `ChatList`) a los
+  claims/datos reales.
+- Deploy: NO desplegado (requiere autorización explícita aparte).
 - **Filtrado de qué ve cada uno**: un Revisor/Sumador probablemente solo
-  debería ver/trabajar en el grupo y jornada que tiene asignados —
+  debería ver/trabajar en los grupos y jornadas que tiene asignados —
   parecido al filtrado por `allowedGroups` que ya existe para usuarios
   normales (`ChatsFirestoreDatasource`), pero acotado además por
-  jornada dentro del chat. El detalle exacto de cómo se refleja esto en
+  jornada dentro de cada chat, y ahora sobre una lista en vez de una
+  sola combinación. El detalle exacto de cómo se refleja esto en
   `HomePage`/`ChatList`/`image_detail_page` queda para cuando se
   implemente esta pieza (ver `image-review-workflow`).
 - **Por qué esto refuerza el diseño de cierre de jornada**
