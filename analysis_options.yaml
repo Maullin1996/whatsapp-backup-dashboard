@@ -28,9 +28,20 @@ linter:
 # https://dart.dev/guides/language/analysis-options
 
 analyzer:
-  plugins:
-    - dart_code_linter
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
 
+# INACTIVO: `dart_code_linter` no es dependencia del proyecto (no está en
+# pubspec.yaml), así que estas reglas nunca se ejecutaban y la sintaxis
+# `analyzer: plugins:` está deprecada. Para activarlas hay que agregar
+# `dart_code_linter` como dev_dependency y declararlo con el sistema nuevo de
+# plugins del analizador (clave `plugins:` de primer nivel).
 dart_code_linter:
   rules:
     - avoid-dynamic
