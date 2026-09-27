@@ -326,14 +326,31 @@ limpio (sin migración de datos).
   `currentReviewRoleProvider` (y el filtrado de `ChatList`) a los
   claims/datos reales.
 - Deploy: NO desplegado (requiere autorización explícita aparte).
-- **Filtrado de qué ve cada uno**: un Revisor/Sumador probablemente solo
-  debería ver/trabajar en los grupos y jornadas que tiene asignados —
-  parecido al filtrado por `allowedGroups` que ya existe para usuarios
-  normales (`ChatsFirestoreDatasource`), pero acotado además por
-  jornada dentro de cada chat, y ahora sobre una lista en vez de una
-  sola combinación. El detalle exacto de cómo se refleja esto en
-  `HomePage`/`ChatList`/`image_detail_page` queda para cuando se
-  implemente esta pieza (ver `image-review-workflow`).
+- **No es un filtrado de qué chats se ven**: `allowedGroups` sigue
+  intacto, sin ningún cambio — un Revisor/Sumador sigue viendo la
+  misma lista de chats que vería igual sin rol. Lo que `reviewShifts`
+  condiciona es otra cosa: si se muestra el **formulario de captura**
+  dentro de una imagen puntual. Se agrega una TERCERA condición a la
+  que ya existe (`ancho >= AppBreakpoints.reviewForm && rol != null`,
+  ver "Rol activo TEMPORAL" más abajo): que esa imagen puntual
+  pertenezca a un `(chatJid, shift)` presente en el `reviewShifts`
+  ACTUAL de esa persona para su rol. Sin esa tercera condición, la
+  persona ve la imagen exactamente igual que un usuario sin rol —
+  navega libre, sin bloqueo de navegación, sin formulario.
+  - **Regla nueva, explícita y confirmada**: si a alguien le quitan una
+    jornada de su `reviewShifts`, pierde el derecho al formulario ahí
+    **aunque ya tuviera un registro guardado** — el botón "Editar"
+    tampoco debe aparecer para esa imagen. Es una regla de código, no
+    una decisión operativa: distinta (y más estricta) que el punto
+    pendiente ya existente sobre "qué pasa si le quitan el ROL
+    COMPLETO con registros locales sin subir" (sección "Identificación
+    del autor del registro", arriba — esa sigue sin resolver, a
+    criterio del superAdmin). Acá, con el rol todavía activo pero esa
+    jornada puntual removida, el acceso se pierde igual, sin
+    excepción para lo ya guardado.
+  - El detalle exacto de cómo se implementa en `image_detail_page.dart`
+    (dónde vive hoy la condición, qué hay que tocar) queda para cuando
+    se implemente esta pieza (ver `image-review-workflow`).
 - **Por qué esto refuerza el diseño de cierre de jornada**
   (`image-review-domain`, sección "Cierre de jornada"): como cada
   jornada+grupo tiene un único responsable por rol, no hay ambigüedad
