@@ -35,6 +35,8 @@ Future<ProviderContainer> _pumpPanel(
       overrides: [
         reviewerEmailProvider.overrideWithValue('revisor@test.com'),
         reviewerUidProvider.overrideWithValue('uid-test'),
+        // Sin rol el panel no se construye: estos tests son del Revisor.
+        currentReviewRoleProvider.overrideWithValue(ReviewRole.revisor),
         imageReviewRepositoryProvider.overrideWithValue(
           InMemoryImageReviewRepository(),
         ),
@@ -434,6 +436,8 @@ void main() {
           overrides: [
             reviewerEmailProvider.overrideWithValue('revisor@test.com'),
             reviewerUidProvider.overrideWithValue('uid-test'),
+            // Sin rol el panel no se construye: estos tests son del Revisor.
+            currentReviewRoleProvider.overrideWithValue(ReviewRole.revisor),
             imageReviewRepositoryProvider.overrideWithValue(
               const UnavailableImageReviewRepository(failure),
             ),

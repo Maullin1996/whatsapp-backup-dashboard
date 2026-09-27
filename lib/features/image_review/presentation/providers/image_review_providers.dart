@@ -74,14 +74,12 @@ final reviewLocalStorageProvider =
 
 /// Valor de `--dart-define=REVIEW_ROLE=...` (TEMPORAL, ver
 /// [currentReviewRoleProvider]).
-const String _reviewRoleDefine = String.fromEnvironment(
-  'REVIEW_ROLE',
-  defaultValue: 'revisor',
-);
+const String _reviewRoleDefine = String.fromEnvironment('REVIEW_ROLE');
 
 /// Convierte el valor de `REVIEW_ROLE` en un rol. Cualquier valor que no sea
-/// `revisor` ni `sumador` cae en Revisor y lo avisa con `debugPrint`.
-ReviewRole parseReviewRole(String value) {
+/// `revisor` ni `sumador` (incluido no pasarlo) es "sin rol" (null) y lo avisa
+/// con `debugPrint`.
+ReviewRole? parseReviewRole(String value) {
   switch (value) {
     case 'revisor':
       return ReviewRole.revisor;
@@ -89,22 +87,25 @@ ReviewRole parseReviewRole(String value) {
       return ReviewRole.sumador;
     default:
       debugPrint(
-        'REVIEW_ROLE inválido ("$value"): se usa "revisor". '
+        'REVIEW_ROLE no especificado o inválido: sin rol activo. '
         'Valores permitidos: revisor, sumador.',
       );
-      return ReviewRole.revisor;
+      return null;
   }
 }
 
-/// Rol con el que trabaja el usuario actual. Es el ÚNICO punto que decide el
-/// rol activo: nada más en el feature lee el rol de otro lado.
+/// Rol con el que trabaja el usuario actual, o null si no tiene ninguno (el
+/// caso más común: sin rol no hay panel, ni bloqueo de navegación, ni
+/// pendientes). Es el ÚNICO punto que decide el rol activo: nada más en el
+/// feature lee el rol de otro lado.
 ///
 /// TEMPORAL: hasta tener roles reales, sale del parámetro de compilación
-/// `REVIEW_ROLE` (`flutter run --dart-define=REVIEW_ROLE=sumador`; sin él
-/// arranca como Revisor). Más adelante se conecta a los custom claims
-/// `revisor`/`sumador` del usuario autenticado (ver `image-review-roles`);
-/// solo cambia este provider. En los tests se elige con un override.
-final currentReviewRoleProvider = Provider<ReviewRole>(
+/// `REVIEW_ROLE` (`flutter run --dart-define=REVIEW_ROLE=sumador`; sin él, o
+/// con un valor inválido, no hay rol). Más adelante se conecta a los custom
+/// claims `revisor`/`sumador` del usuario autenticado (ver
+/// `image-review-roles`); solo cambia este provider. En los tests se elige con
+/// un override (también `overrideWithValue(null)`).
+final currentReviewRoleProvider = Provider<ReviewRole?>(
   (ref) => parseReviewRole(_reviewRoleDefine),
 );
 

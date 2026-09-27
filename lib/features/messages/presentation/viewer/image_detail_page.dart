@@ -162,7 +162,8 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage>
   /// El panel del formulario (y el bloqueo de navegación) solo existen en
   /// pantallas anchas; por debajo el visor es el de siempre.
   bool get _showReviewPanel =>
-      MediaQuery.sizeOf(context).width >= AppBreakpoints.reviewForm;
+      MediaQuery.sizeOf(context).width >= AppBreakpoints.reviewForm &&
+      ref.read(currentReviewRoleProvider) != null;
 
   /// Con el panel visible, la navegación entre imágenes (teclas, chevrons y
   /// swipe, en AMBOS sentidos) se bloquea mientras la imagen actual no tenga
@@ -182,6 +183,8 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage>
       id = items[_index.clamp(0, items.length - 1)].messageId;
     }
     final rol = ref.read(currentReviewRoleProvider);
+    // Sin rol la navegación es libre.
+    if (rol == null) return false;
     return !ref.read(canAdvanceProvider((messageId: id, rol: rol)));
   }
 
@@ -316,20 +319,26 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage>
     final item = items[safeIndex];
 
     final width = MediaQuery.sizeOf(context).width;
-    final showPanel = width >= AppBreakpoints.reviewForm;
     // El registro y el bloqueo son del rol activo: lo guardado por el otro rol
-    // no cuenta.
+    // no cuenta. Sin rol no hay panel, ni clave, ni bloqueo.
     final rol = ref.watch(currentReviewRoleProvider);
-    final reviewKey = (messageId: item.messageId, rol: rol);
+    final showPanel = width >= AppBreakpoints.reviewForm && rol != null;
+    final reviewKey = rol == null
+        ? null
+        : (messageId: item.messageId, rol: rol);
     final navigationBlocked =
-        showPanel && !ref.watch(canAdvanceProvider(reviewKey));
+        reviewKey != null &&
+        showPanel &&
+        !ref.watch(canAdvanceProvider(reviewKey));
 
     // Tras guardar (o re-guardar) el foco vuelve al visor.
-    ref.listen(savedRecordProvider(reviewKey), (previous, next) {
-      if (showPanel && next.value != null && next.value != previous?.value) {
-        _viewerFocus.requestFocus();
-      }
-    });
+    if (reviewKey != null) {
+      ref.listen(savedRecordProvider(reviewKey), (previous, next) {
+        if (showPanel && next.value != null && next.value != previous?.value) {
+          _viewerFocus.requestFocus();
+        }
+      });
+    }
 
     final viewer = Column(
       children: [

@@ -87,7 +87,7 @@ void main() {
 
   ProviderContainer makeContainer(
     ReviewUploader uploader, {
-    ReviewRole rol = ReviewRole.revisor,
+    ReviewRole? rol = ReviewRole.revisor,
   }) {
     final c = ProviderContainer(
       overrides: [
@@ -114,6 +114,23 @@ void main() {
       )).fold((_) => fail('Left'), (r) => r);
 
   setUp(() => repo = InMemoryImageReviewRepository());
+
+  test('sin rol upload() no hace nada: ni sube, ni toca el estado', () async {
+    await repo.save(_record('a'));
+    final uploader = _FakeUploader();
+    final c = makeContainer(uploader, rol: null);
+    final seen = <Map<JornadaRef, UploadProgress>>[];
+    c.listen(reviewUploadProvider, (_, next) => seen.add(next));
+
+    final outcome = await c
+        .read(reviewUploadProvider.notifier)
+        .upload(_jornada);
+
+    expect(outcome, isNull);
+    expect(uploader.uploaded, isEmpty);
+    expect(seen, isEmpty);
+    expect((await stored('a'))!.estadoSync, EstadoSync.pendiente);
+  });
 
   group('SimulatedReviewUploader', () {
     late List<String> printed;

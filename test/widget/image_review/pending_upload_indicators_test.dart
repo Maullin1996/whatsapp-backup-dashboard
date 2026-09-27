@@ -81,7 +81,7 @@ void main() {
 
   Future<void> pumpIndicators(
     WidgetTester tester, {
-    ReviewRole rol = ReviewRole.revisor,
+    ReviewRole? rol = ReviewRole.revisor,
     bool withChat = true,
   }) async {
     await tester.pumpWidget(
@@ -122,6 +122,16 @@ void main() {
   }
 
   group('visibilidad', () {
+    testWidgets('sin rol no muestra nada aunque haya registros pendientes', (
+      tester,
+    ) async {
+      await repo.save(_record('a'));
+      await pumpIndicators(tester, rol: null);
+
+      expect(find.byType(InkWell), findsNothing);
+      expect(find.textContaining('pendiente'), findsNothing);
+    });
+
     testWidgets('sin pendientes no muestra nada', (tester) async {
       await pumpIndicators(tester);
       expect(find.byType(InkWell), findsNothing);

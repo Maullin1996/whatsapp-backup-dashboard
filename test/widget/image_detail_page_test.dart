@@ -80,7 +80,7 @@ Future<void> _openViewer(
   WidgetTester tester, {
   required double width,
   int initialIndex = 1,
-  ReviewRole role = ReviewRole.revisor,
+  ReviewRole? role = ReviewRole.revisor,
 }) async {
   tester.view.physicalSize = Size(width, 900);
   tester.view.devicePixelRatio = 1;
@@ -699,6 +699,39 @@ void main() {
       _expectViewing(tester, 'm0');
       expect(_pos(1, 1), findsOneWidget);
       expect(tester.takeException(), isNull);
+    });
+  });
+
+  group('sin rol (rol == null)', () {
+    testWidgets('pantalla ancha: no hay panel y la navegación es libre', (
+      tester,
+    ) async {
+      await _openViewer(tester, width: 1200, role: null);
+
+      expect(find.byType(ImageReviewPanel), findsNothing);
+      for (final icon in [Icons.chevron_left, Icons.chevron_right]) {
+        expect(tester.widget<NavButton>(_chevron(icon)).enabled, isTrue);
+      }
+
+      // Las posiciones van de la más nueva (1) a la más antigua.
+      await _key(tester, LogicalKeyboardKey.arrowRight);
+      expect(_pos(1), findsOneWidget);
+      await _key(tester, LogicalKeyboardKey.arrowLeft);
+      await _key(tester, LogicalKeyboardKey.arrowLeft);
+      expect(_pos(3), findsOneWidget);
+      expect(find.text(_blockedMessage), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('pantalla estrecha: tampoco hay panel ni bloqueo', (
+      tester,
+    ) async {
+      await _openViewer(tester, width: 700, role: null);
+
+      expect(find.byType(ImageReviewPanel), findsNothing);
+      await _key(tester, LogicalKeyboardKey.arrowRight);
+      expect(_pos(1), findsOneWidget);
+      expect(find.text(_blockedMessage), findsNothing);
     });
   });
 

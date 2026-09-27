@@ -24,6 +24,8 @@ Widget _app({required Widget child}) => ProviderScope(
   overrides: [
     reviewerEmailProvider.overrideWithValue(_email),
     reviewerUidProvider.overrideWithValue('uid-test'),
+    // Sin rol el panel no se construye: estos tests son del Revisor.
+    currentReviewRoleProvider.overrideWithValue(ReviewRole.revisor),
     imageReviewRepositoryProvider.overrideWithValue(
       InMemoryImageReviewRepository(),
     ),
@@ -381,6 +383,8 @@ void main() {
         overrides: [
           reviewerEmailProvider.overrideWithValue(_email),
           reviewerUidProvider.overrideWithValue('uid-test'),
+          // Sin rol el panel no se construye: estos tests son del Revisor.
+          currentReviewRoleProvider.overrideWithValue(ReviewRole.revisor),
           imageReviewRepositoryProvider.overrideWithValue(
             InMemoryImageReviewRepository(),
           ),

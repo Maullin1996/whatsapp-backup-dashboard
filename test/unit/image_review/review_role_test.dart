@@ -35,22 +35,27 @@ void main() {
       expect(logs, isEmpty);
     });
 
-    test('un valor inválido cae en revisor y lo avisa con debugPrint', () {
-      for (final value in ['admin', '', 'SUMADOR', ' sumador']) {
-        logs.clear();
-        expect(parseReviewRole(value), ReviewRole.revisor, reason: '"$value"');
-        expect(logs, hasLength(1), reason: '"$value"');
-        expect(logs.single, contains('REVIEW_ROLE'));
-      }
-    });
+    test(
+      'un valor inválido o vacío es "sin rol" y lo avisa con debugPrint',
+      () {
+        for (final value in ['admin', '', 'SUMADOR', ' sumador']) {
+          logs.clear();
+          expect(parseReviewRole(value), isNull, reason: '"$value"');
+          expect(logs, hasLength(1), reason: '"$value"');
+          expect(logs.single, contains('REVIEW_ROLE'));
+          expect(logs.single, contains('sin rol activo'));
+        }
+      },
+    );
 
-    test('sin --dart-define el rol activo por defecto es revisor', () {
+    test('sin --dart-define el rol activo por defecto es null (sin rol)', () {
       // Válido cuando los tests corren sin --dart-define=REVIEW_ROLE=...
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
-      expect(container.read(currentReviewRoleProvider), ReviewRole.revisor);
-      expect(logs, isEmpty);
+      expect(container.read(currentReviewRoleProvider), isNull);
+      expect(logs, hasLength(1));
+      expect(logs.single, contains('sin rol activo'));
     });
 
     test('en los tests el rol se elige con un override', () {
@@ -62,6 +67,15 @@ void main() {
       addTearDown(container.dispose);
 
       expect(container.read(currentReviewRoleProvider), ReviewRole.sumador);
+    });
+
+    test('un override a null explícito representa "sin rol"', () {
+      final container = ProviderContainer(
+        overrides: [currentReviewRoleProvider.overrideWithValue(null)],
+      );
+      addTearDown(container.dispose);
+
+      expect(container.read(currentReviewRoleProvider), isNull);
     });
   });
 

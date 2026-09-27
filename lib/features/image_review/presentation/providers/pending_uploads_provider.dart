@@ -21,7 +21,7 @@ int _shiftOrder(String shift) {
 ///
 /// Se recalcula sola al cambiar chat, rol o usuario; quien guarda o sube
 /// registros debe hacer `ref.invalidate(pendingUploadsProvider)`. Sin chat
-/// activo, la lista es vacía. Un `Failure` del repositorio queda como error
+/// activo o sin rol, la lista es vacía. Un `Failure` del repositorio queda como error
 /// del `AsyncValue`, sin reintento automático (no es transitorio).
 final pendingUploadsProvider = FutureProvider<List<PendingJornada>>((
   ref,
@@ -29,7 +29,8 @@ final pendingUploadsProvider = FutureProvider<List<PendingJornada>>((
   final chatJid = ref.watch(activeChatProvider.select((c) => c?.chatJid));
   final rol = ref.watch(currentReviewRoleProvider);
   final repository = ref.watch(imageReviewRepositoryProvider);
-  if (chatJid == null) return const [];
+  // Sin chat o sin rol no hay pendientes: no se consulta el repositorio.
+  if (chatJid == null || rol == null) return const [];
 
   final result = await repository.getPendingJornadas(
     chatJid: chatJid,
