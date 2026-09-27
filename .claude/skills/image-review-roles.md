@@ -229,8 +229,23 @@ grupos/jornadas. Además:
   pero no es una decisión cerrada (ver sección de dispositivo arriba).- **Rol activo TEMPORAL (`currentReviewRoleProvider`)**: mientras no
   existan los roles reales (custom claims `revisor`/`sumador`), el rol con
   el que se abre el formulario sale de
-  `--dart-define=REVIEW_ROLE=revisor|sumador` (sin el parámetro, o con un
-  valor inválido, es Revisor). Es el ÚNICO punto que decide el rol activo:
-  al conectar los claims solo cambia ese provider. Borrador, registro
-  guardado y bloqueo de navegación se indexan por (`messageId`, rol)
-  (`ReviewKey`), así que cada rol ve solo lo suyo de la imagen actual.
+  `--dart-define=REVIEW_ROLE=revisor|sumador`. Sin el parámetro, o con un
+  valor inválido, el default es **sin rol** (`ReviewRole?` = null; se avisa
+  con `debugPrint`): refleja el caso más común en producción (nadie
+  asignado), no el de desarrollo. Para probar el feature en local hay que
+  pasar el flag a mano (`flutter run --dart-define=REVIEW_ROLE=revisor`).
+  Es el ÚNICO punto que decide el rol activo: al conectar los claims solo
+  cambia ese provider. Borrador, registro guardado y bloqueo de navegación
+  se indexan por (`messageId`, rol) (`ReviewKey`), así que cada rol ve solo
+  lo suyo de la imagen actual.
+- **Conducta con rol == null** (todo lector del provider tiene su rama
+  explícita): el visor no muestra el panel (`showPanel` = ancho >=
+  `AppBreakpoints.reviewForm` **y** rol != null; antes dependía solo del
+  ancho) ni construye `ReviewKey`, y la navegación es libre;
+  `ImageReviewPanel` retorna `SizedBox.shrink()` si aun así se construye;
+  `pendingUploadsProvider` da lista vacía sin consultar el repositorio;
+  `PendingUploadIndicators` no muestra nada; `ReviewUploadNotifier.upload()`
+  no hace nada (retorna null). En los tests se fuerza con
+  `currentReviewRoleProvider.overrideWithValue(null)`; los tests que
+  necesitan el panel deben fijar el rol explícitamente (ya no hay default
+  Revisor).

@@ -253,8 +253,9 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
   rol activo. Reposo: "<Rol> · <jornada corta> · N pendientes" (+ ", dd/MM/yyyy"
   solo si el día no es hoy). Jornada corta = `shortShiftName` (las dos
   "Noche" se distinguen por su hora de inicio). Sin pendientes no ocupa
-  espacio. No hay condición de rol: hoy el rol activo siempre existe y un
-  pendiente solo existe si el usuario guardó algo con ese rol; sin condición
+  espacio. Sin rol activo (`currentReviewRoleProvider` == null, el default)
+  no se muestra nada ni se consulta el repositorio; con rol, un pendiente
+  solo existe si el usuario guardó algo con ese rol; sin condición
   de ancho (también en móvil).
 - **Datos**: `pendingUploadsProvider` (FutureProvider) depende SOLO del chat
   activo, el rol activo y el repositorio (`getPendingJornadas`). Se invalida
