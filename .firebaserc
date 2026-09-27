@@ -1,5 +1,7 @@
 {
   "projects": {
     "default": "whatsapp-pro-3d483"
-  }
+  },
+  "targets": {},
+  "etags": {}
 }

@@ -207,6 +207,28 @@ recomendación de diseño es:
   volver a presionar "subir" — no diseñar esto como un candado de
   "una sola subida por jornada para siempre".
 
+### Reconciliación de dinero vs. imágenes sin registrar: dos señales separadas
+
+- **La reconciliación de sumas (regla 3) sirve EXCLUSIVAMENTE para detectar
+  discrepancias de dinero entre Revisor y Sumador.** No se usa ni se
+  menciona para hablar de imágenes faltantes: una imagen sin registrar no
+  es un descuadre, y presentarla como tal daría la impresión de un posible
+  fraude cuando en realidad solo faltó registrar una imagen.
+- **Para detectar imágenes sin registrar se usa una señal distinta y
+  separada.** Una vez la jornada terminó (hora actual > fin del rango
+  horario de esa jornada en `lib/core/time/shifts.dart`), se compara el
+  `shiftImageIndex` máximo visto en esa jornada contra la cantidad de
+  registros que **ese rol** (Revisor o Sumador, cada uno por separado)
+  efectivamente guardó. **Antes de que la jornada termine esta comparación
+  no es confiable** (`shiftImageIndex` puede seguir creciendo, ver arriba)
+  y **no se muestra**.
+- **Es informativa, no bloquea nada**, y vive en la pantalla de
+  resumen/coincidencias (pasos 5-6 del roadmap de `image-review-workflow`),
+  **nunca en el indicador de subida del paso 4**.
+- **Pendiente de decidir al implementarla**: si "jornada terminada" es
+  estrictamente hora actual > fin de rango, o si se da un margen por
+  mensajes que llegan tarde.
+
 ## Reglas de negocio (no negociables sin confirmación explícita del usuario)
 
 1. **Cardinalidad libre**: una imagen puede tener 1 comprobante o varios;

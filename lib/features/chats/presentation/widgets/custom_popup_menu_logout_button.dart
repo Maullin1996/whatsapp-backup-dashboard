@@ -21,6 +21,10 @@ class CustomPopupMenuLogoutButton extends ConsumerWidget {
     context.push('/admin');
   }
 
+  void _onSummary(BuildContext context) {
+    context.push('/summary');
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authSessionProvider);
@@ -30,12 +34,14 @@ class CustomPopupMenuLogoutButton extends ConsumerWidget {
     );
     return PopupMenuButton<_ChatMenuAction>(
       position: PopupMenuPosition.under,
-      color: Colors.white,
       icon: const Icon(CupertinoIcons.ellipsis_vertical),
       onSelected: (action) {
         switch (action) {
           case _ChatMenuAction.adminPanel:
             _onAdminPanel(context);
+            break;
+          case _ChatMenuAction.summary:
+            _onSummary(context);
             break;
           case _ChatMenuAction.logout:
             _onLogout(context, ref);
@@ -50,15 +56,26 @@ class CustomPopupMenuLogoutButton extends ConsumerWidget {
             child: _HoverMenuItem(
               icon: Icons.admin_panel_settings_rounded,
               text: 'Panel de administración',
-              isAdmin: true,
             ),
           ),
+        // Visible para cualquier usuario autenticado: no hay claims reales de
+        // revisor/sumador todavía (ver la ruta `/summary` en router.dart).
+        const PopupMenuItem<_ChatMenuAction>(
+          value: _ChatMenuAction.summary,
+          padding: EdgeInsets.zero,
+          child: _HoverMenuItem(
+            icon: Icons.fact_check_rounded,
+            text: 'Resumen',
+          ),
+        ),
+        const PopupMenuDivider(),
         const PopupMenuItem<_ChatMenuAction>(
           value: _ChatMenuAction.logout,
           padding: EdgeInsets.zero,
           child: _HoverMenuItem(
             icon: Icons.logout_rounded,
             text: 'Cerrar sesión',
+            isDestructive: true,
           ),
         ),
       ],
@@ -66,14 +83,16 @@ class CustomPopupMenuLogoutButton extends ConsumerWidget {
   }
 }
 
+/// Item del menú con resalte al pasar el mouse. El resalte es del acento verde
+/// de la app, salvo en acciones destructivas ([isDestructive]), que van en rojo.
 class _HoverMenuItem extends StatefulWidget {
   final IconData icon;
   final String text;
-  final bool isAdmin;
+  final bool isDestructive;
   const _HoverMenuItem({
     required this.icon,
     required this.text,
-    this.isAdmin = false,
+    this.isDestructive = false,
   });
 
   @override
@@ -82,8 +101,16 @@ class _HoverMenuItem extends StatefulWidget {
 
 class __HoverMenuItemState extends State<_HoverMenuItem> {
   bool _isHovering = false;
+
   @override
   Widget build(BuildContext context) {
+    final accent = widget.isDestructive
+        ? AppColors.errorMessage
+        : AppColors.primaryGreen;
+    final color = _isHovering
+        ? accent
+        : Theme.of(context).colorScheme.onSurface;
+
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovering = true),
       onExit: (_) => setState(() => _isHovering = false),
@@ -92,16 +119,19 @@ class __HoverMenuItemState extends State<_HoverMenuItem> {
           horizontal: AppSpacing.lg,
           vertical: AppSpacing.md,
         ),
-        color: _isHovering ? Colors.red.withAlpha(30) : Colors.transparent,
+        color: _isHovering
+            ? accent.withValues(alpha: 0.12)
+            : Colors.transparent,
         child: Row(
           children: [
-            Icon(widget.icon, color: _isHovering ? Colors.red : Colors.black),
+            Icon(widget.icon, color: color),
             const SizedBox(width: AppSpacing.sm),
-            Text(
-              widget.text,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: _isHovering ? Colors.red : Colors.black,
+            Flexible(
+              child: Text(
+                widget.text,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontWeight: FontWeight.bold, color: color),
               ),
             ),
           ],
@@ -111,4 +141,4 @@ class __HoverMenuItemState extends State<_HoverMenuItem> {
   }
 }
 
-enum _ChatMenuAction { logout, adminPanel }
+enum _ChatMenuAction { logout, adminPanel, summary }
