@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:whatsapp_monitor_viewer/features/image_review/presentation/helpers/format_pesos.dart';
+import 'package:whatsapp_monitor_viewer/helpers/format_pesos.dart';
 
 void main() {
   test('formatPesos usa punto de miles y el signo de pesos', () {
