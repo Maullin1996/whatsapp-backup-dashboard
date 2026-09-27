@@ -71,16 +71,16 @@ El repo ya tiene un patrón completo en `lib/features/admin/` y
    `superAdmin` + `sumador`, etc. — la exclusión es únicamente entre
    `revisor` y `sumador` entre sí.
 2. **Activación exclusiva desde `AdminPage`, exclusiva del superAdmin —
-   backend ✅ HECHO, UI ⚠️ PENDIENTE de reescribir**: en `_UserCard`, el
-   punto de entrada (rol + horarios) solo debe ser visible si
-   `AuthenticatedUser.isSuperAdmin == true` para quien está mirando el
-   panel. Un `admin` normal (no super) no debe verlo. La UI actual en el
-   repo (`ReviewAssignmentDialog`, un solo diálogo con rol+grupo+jornada
-   combinados) quedó **obsoleta**: el modelo real es un claim de rol
-   simple más una **lista** de (grupo, jornada) por cuenta, no una tupla
-   única — ver "Asignación de grupo + jornada" más abajo, que es la
-   fuente de verdad de la forma final. La UI para este modelo nuevo es
-   la próxima tarea.
+   ✅ HECHA (sin desplegar todavía)**: en `_UserCard`, el punto de
+   entrada del rol ("Rol de revisión" + el texto de estado) solo es
+   visible si `AuthenticatedUser.isSuperAdmin == true` para quien está
+   mirando el panel. Un `admin` normal (no super) no lo ve. **Dos puntos
+   de entrada separados** (no un solo diálogo combinado, a diferencia
+   del extinto `ReviewAssignmentDialog`): el rol en sí desde `_UserCard`
+   (`ReviewRoleDialog`), y los horarios (grupo+jornada) por grupo desde
+   `AssignGroupsDialog` ("Horarios") — ver el detalle completo en
+   "Asignación de grupo + jornada" más abajo, que es la fuente de verdad
+   de la forma final.
 3. **Nunca se activan desde el cliente sin pasar por Cloud Function**:
    se necesita una Cloud Function nueva (o extender `setUserRole` para
    aceptar el nombre del rol como parámetro) — seguir el patrón
@@ -284,15 +284,43 @@ limpio (sin migración de datos).
 - Los custom claims completos comparten 1000 bytes (`admin`,
   `superAdmin`, `reviewRole`); con `reviewRole` como string simple
   sobra de lejos.
-- **UI en `AdminPage` — ⚠️ PENDIENTE de reescribir (próxima tarea, en
-  un prompt aparte)**: el código actual en el repo
-  (`ReviewAssignmentDialog`, `AdminNotifier`/`AdminRepository/
-  AdminDatasourceImpl.setReviewAssignment`, `AdminFailure.reviewAssignmentConflict()`,
-  la entidad `ReviewAssignment`, el campo `AppUser.reviewAssignment`)
-  sigue apuntando al modelo viejo de una sola asignación y llama a una
-  Cloud Function que **ya no existe** — es código muerto hasta que se
-  rediseñe para el modelo de lista (rol simple + un mecanismo de
-  "horarios" por grupo, forma exacta todavía sin definir).
+- **UI en `AdminPage` — ✅ HECHA (sin desplegar todavía), dos puntos de
+  entrada separados**:
+  - **Rol**: en `_UserCard`, un botón "Rol de revisión" (visible SOLO
+    para un superAdmin, SIN condición sobre el rol del objetivo — igual
+    que antes) abre `ReviewRoleDialog`: radios Ninguno/Revisor/Sumador
+    (extraídos en `ReviewRoleRadioGroup`, reutilizable). Si el usuario
+    ya tiene `reviewShifts` no vacío y el valor elegido es distinto del
+    actual, advierte "Esto borrará los N horarios ya asignados a esta
+    persona." antes de confirmar (el servidor los limpia de verdad, ver
+    arriba). Al confirmar, llama `AdminNotifier.setReviewRole` y cierra
+    de inmediato (fire-and-forget, como "Hacer admin/Quitar admin": no
+    espera la respuesta, confía en que es optimista y siempre recarga).
+    El texto de estado junto al botón muestra solo "Revisor"/"Sumador"/
+    "Sin asignar revisión" — sin listar horarios ahí.
+  - **Horarios**: en `AssignGroupsDialog`, cada fila de grupo (ya no
+    `CheckboxListTile`, sino `Checkbox` + texto + botón, para poder
+    agregar un segundo control) tiene un botón "Horarios" que aparece
+    SOLO si el checkbox de ese grupo está marcado Y el usuario tiene
+    `reviewRole` activo. Abre `GroupShiftsDialog` (diálogo anidado,
+    `showDialog` sobre `showDialog`) con las 6 jornadas asignables como
+    checkboxes (`shortShiftName(shiftNames[shift]!)`). Las jornadas ya
+    cubiertas por OTRA persona del MISMO rol llegan deshabilitadas, con
+    su email como subtítulo — calculado del lado del cliente con
+    `AdminState.users` (ya trae `reviewRole`+`reviewShifts` de todos,
+    sin llamada extra), para coordinar entre superAdmins antes de que el
+    servidor rechace por conflicto. La selección por grupo vive en
+    memoria en el diálogo padre, indexada por `chatJid` e independiente
+    de si el checkbox de ese grupo está marcado en ese instante: si se
+    desmarca y se vuelve a marcar antes de Guardar, sus horarios
+    reaparecen tal cual. Al Guardar el diálogo padre, llama
+    `updateUserGroups` y, si hay `reviewRole`, también
+    `updateReviewShifts` con las entradas de los grupos que siguen
+    marcados. Si el servidor igual rechaza por conflicto (carrera entre
+    dos superAdmins), el diálogo NO se cierra, muestra el mensaje de
+    `AdminFailure.reviewShiftConflict` y recarga (`loadUsers()`, ya lo
+    hace `AdminNotifier.updateReviewShifts` en cualquier desenlace) para
+    que el resaltado quede al día en el siguiente intento.
 - Pendiente (siguiente capa, después de la UI): `AuthenticatedUser`
   leyendo `reviewRole`/`reviewShifts` y conectar
   `currentReviewRoleProvider` (y el filtrado de `ChatList`) a los
