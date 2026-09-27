@@ -321,22 +321,28 @@ limpio (sin migración de datos).
     `AdminFailure.reviewShiftConflict` y recarga (`loadUsers()`, ya lo
     hace `AdminNotifier.updateReviewShifts` en cualquier desenlace) para
     que el resaltado quede al día en el siguiente intento.
-- Pendiente (siguiente capa, después de la UI): `AuthenticatedUser`
-  leyendo `reviewRole`/`reviewShifts` y conectar
-  `currentReviewRoleProvider` (y el filtrado de `ChatList`) a los
-  claims/datos reales.
-- Deploy: NO desplegado (requiere autorización explícita aparte).
+- **Hecho**: `AuthenticatedUser` lee `reviewRole` del claim
+  (`mapToDomain`, con el mismo parseo defensivo por valor inesperado
+  que ya existía del lado de admin) y `currentReviewRoleProvider` lo usa
+  como fuente real — ver "Rol activo" más abajo, ya no es temporal.
+  `reviewShifts` se lee aparte (no es parte de `AuthenticatedUser`), en
+  `reviewShiftsProvider`, con el mismo patrón de lectura única que
+  `fetchAllowedGroups` (sin `.snapshots()`). No hay, y nunca hubo,
+  ningún filtrado de `ChatList` involucrado en esto — ver el punto
+  siguiente.
+- Deploy: **ya desplegado a producción** (`setReviewRole` y
+  `updateReviewShifts` confirmadas vivas vía `firebase functions:list`).
 - **No es un filtrado de qué chats se ven**: `allowedGroups` sigue
   intacto, sin ningún cambio — un Revisor/Sumador sigue viendo la
   misma lista de chats que vería igual sin rol. Lo que `reviewShifts`
   condiciona es otra cosa: si se muestra el **formulario de captura**
-  dentro de una imagen puntual. Se agrega una TERCERA condición a la
-  que ya existe (`ancho >= AppBreakpoints.reviewForm && rol != null`,
-  ver "Rol activo TEMPORAL" más abajo): que esa imagen puntual
-  pertenezca a un `(chatJid, shift)` presente en el `reviewShifts`
-  ACTUAL de esa persona para su rol. Sin esa tercera condición, la
-  persona ve la imagen exactamente igual que un usuario sin rol —
-  navega libre, sin bloqueo de navegación, sin formulario.
+  dentro de una imagen puntual. Existe una TERCERA condición, además
+  de `ancho >= AppBreakpoints.reviewForm && rol != null` (ver "Rol
+  activo" más abajo): que esa imagen puntual pertenezca a un
+  `(chatJid, shift)` presente en el `reviewShifts` ACTUAL de esa
+  persona para su rol (`reviewShiftsProvider`). Sin esa tercera
+  condición, la persona ve la imagen exactamente igual que un usuario
+  sin rol — navega libre, sin bloqueo de navegación, sin formulario.
   - **Regla nueva, explícita y confirmada**: si a alguien le quitan una
     jornada de su `reviewShifts`, pierde el derecho al formulario ahí
     **aunque ya tuviera un registro guardado** — el botón "Editar"
@@ -348,39 +354,56 @@ limpio (sin migración de datos).
     criterio del superAdmin). Acá, con el rol todavía activo pero esa
     jornada puntual removida, el acceso se pierde igual, sin
     excepción para lo ya guardado.
-  - El detalle exacto de cómo se implementa en `image_detail_page.dart`
-    (dónde vive hoy la condición, qué hay que tocar) queda para cuando
-    se implemente esta pieza (ver `image-review-workflow`).
+  - **Implementado** en `image_detail_page.dart`: la jornada de la
+    imagen es una etiqueta en español (`ImageViewItem.shift`,
+    p. ej. "Jornada Mañana (06:00 – 10:54)"), traducida al enum con
+    `shiftFromLabel` (`core/time/shifts.dart`, inverso de `shiftNames`)
+    antes de comparar contra `reviewShifts`. Existen dos copias de la
+    condición completa (ancho + rol + asignación), como ya pasaba antes
+    con ancho + rol: `_showReviewPanelFor(item)` (usa `ref.read`, para
+    `_isNavigationBlocked` y para pedir foco tras cambiar de página) y
+    el cálculo inline de `showPanel` en `build()` (usa `ref.watch`) —
+    ambas comparten la lógica de match vía la función de nivel superior
+    `_matchesAssignment`. Mientras `reviewShiftsProvider` está
+    `AsyncLoading` o en error se trata igual que "sin asignación" (sin
+    panel), para no mostrarlo de forma transitoria y ocultarlo después
+    al resolver.
 - **Por qué esto refuerza el diseño de cierre de jornada**
   (`image-review-domain`, sección "Cierre de jornada"): como cada
   jornada+grupo tiene un único responsable por rol, no hay ambigüedad
   sobre quién decide "ya terminé de registrar" — es literalmente la
   única persona con esa asignación.
+- **Rol activo (`currentReviewRoleProvider`)**: la fuente real es el
+  claim `reviewRole` de `AuthenticatedUser` (sesión autenticada) —
+  puede ser `null` (sin rol), y esa YA es la respuesta final, no hay
+  fallback en ese caso. Sin sesión autenticada real
+  (`loading`/`unauthenticated`: desarrollo local antes de conectar
+  login, o tests que no simulan sesión) cae a
+  `--dart-define=REVIEW_ROLE=revisor|sumador` como fallback de
+  desarrollo, para no romper ese flujo de prueba ya existente; sin el
+  parámetro, o con un valor inválido, el fallback también da `null`
+  (se avisa con `debugPrint`). Para probar el feature en local sin
+  sesión hay que pasar el flag a mano (`flutter run
+  --dart-define=REVIEW_ROLE=revisor`). Es el ÚNICO punto que decide el
+  rol activo. Borrador, registro guardado y bloqueo de navegación se
+  indexan por (`messageId`, rol) (`ReviewKey`), así que cada rol ve
+  solo lo suyo de la imagen actual.
+- **Conducta con rol == null** (todo lector del provider tiene su rama
+  explícita): el visor no muestra el panel (`showPanel` = ancho >=
+  `AppBreakpoints.reviewForm` **y** rol != null **y** hay asignación
+  para esa imagen en `reviewShifts`, ver el punto de arriba) ni
+  construye `ReviewKey`, y la navegación es libre; `ImageReviewPanel`
+  retorna `SizedBox.shrink()` si aun así se construye;
+  `pendingUploadsProvider` da lista vacía sin consultar el repositorio;
+  `PendingUploadIndicators` no muestra nada; `ReviewUploadNotifier.upload()`
+  no hace nada (retorna null). En los tests se fuerza con
+  `currentReviewRoleProvider.overrideWithValue(null)`; los tests que
+  necesitan el panel deben fijar el rol Y una asignación que matchee
+  explícitamente (ya no hay default Revisor, ni asignación por
+  defecto).
 
 ## Zona gris / a confirmar antes de implementar
 
 - **Validar `reviewForm = 840` en dispositivos reales** (tablet
   vertical/horizontal, laptop): el valor está adoptado y funcionando,
-  pero no es una decisión cerrada (ver sección de dispositivo arriba).- **Rol activo TEMPORAL (`currentReviewRoleProvider`)**: mientras no
-  existan los roles reales (custom claims `revisor`/`sumador`), el rol con
-  el que se abre el formulario sale de
-  `--dart-define=REVIEW_ROLE=revisor|sumador`. Sin el parámetro, o con un
-  valor inválido, el default es **sin rol** (`ReviewRole?` = null; se avisa
-  con `debugPrint`): refleja el caso más común en producción (nadie
-  asignado), no el de desarrollo. Para probar el feature en local hay que
-  pasar el flag a mano (`flutter run --dart-define=REVIEW_ROLE=revisor`).
-  Es el ÚNICO punto que decide el rol activo: al conectar los claims solo
-  cambia ese provider. Borrador, registro guardado y bloqueo de navegación
-  se indexan por (`messageId`, rol) (`ReviewKey`), así que cada rol ve solo
-  lo suyo de la imagen actual.
-- **Conducta con rol == null** (todo lector del provider tiene su rama
-  explícita): el visor no muestra el panel (`showPanel` = ancho >=
-  `AppBreakpoints.reviewForm` **y** rol != null; antes dependía solo del
-  ancho) ni construye `ReviewKey`, y la navegación es libre;
-  `ImageReviewPanel` retorna `SizedBox.shrink()` si aun así se construye;
-  `pendingUploadsProvider` da lista vacía sin consultar el repositorio;
-  `PendingUploadIndicators` no muestra nada; `ReviewUploadNotifier.upload()`
-  no hace nada (retorna null). En los tests se fuerza con
-  `currentReviewRoleProvider.overrideWithValue(null)`; los tests que
-  necesitan el panel deben fijar el rol explícitamente (ya no hay default
-  Revisor).
+  pero no es una decisión cerrada (ver sección de dispositivo arriba).
