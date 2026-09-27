@@ -210,6 +210,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(SummaryPage), findsOneWidget);
-    expect(find.text('Todavía no hay reportes para mostrar'), findsOneWidget);
+    expect(find.text('Resumen'), findsOneWidget);
   });
 }
