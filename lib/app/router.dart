@@ -7,6 +7,7 @@ import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/aut
 import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_session_state.dart';
 import 'package:whatsapp_monitor_viewer/features/home/presentation/pages/home_page.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/viewer/image_detail_page.dart';
+import 'package:whatsapp_monitor_viewer/features/summary/presentation/pages/summary_page.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final router = GoRouter(
@@ -22,6 +23,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(path: '/admin', builder: (_, _) => const AdminPage()),
+      GoRoute(path: '/summary', builder: (_, _) => const SummaryPage()),
     ],
     redirect: (context, state) {
       final authState = ref.read(authSessionProvider);
@@ -51,6 +53,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (!isLoggedIn) return isGoingToLogin ? null : '/login';
       if (isGoingToLogin) return '/home';
       if (isGoingToAdmin && !isAdmin) return '/home';
+      // `/summary` solo exige sesión iniciada (ya cubierto arriba): a
+      // propósito, sin `isAdmin` ni rol de revisor/sumador, porque esos claims
+      // reales todavía no existen (ver image-review-roles, "Rol activo
+      // TEMPORAL"). Se acotará cuando existan.
 
       return null;
     },
