@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:whatsapp_monitor_viewer/core/responsive/breakpoints.dart';
 import 'package:whatsapp_monitor_viewer/core/responsive/responsive_layout.dart';
 import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
+import 'package:whatsapp_monitor_viewer/core/time/shifts.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_shift.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/models/image_review_target.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/image_review_providers.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/widgets/image_review_panel.dart';
@@ -30,6 +32,24 @@ const String _blockedAdvanceMessage = 'Guarda el formulario para continuar';
 /// Tiempo mínimo entre avisos al intentar avanzar con swipe (el bloqueo se
 /// dispara en cada movimiento del dedo).
 const Duration _blockedNoticeThrottle = Duration(milliseconds: 1500);
+
+/// `item` pertenece a un (chatJid, shift) presente en `shifts`. La jornada de
+/// `item` viene como etiqueta en español (`ImageViewItem.shift`); se traduce
+/// al enum antes de comparar contra `reviewShifts` (que guarda el nombre del
+/// enum). Sin coincidencia de etiqueta (`shiftFromLabel` da `null`) tampoco
+/// matchea nada, que es lo seguro.
+bool _matchesAssignment(List<ReviewShift> shifts, ImageViewItem item) {
+  final shift = shiftFromLabel(item.shift);
+  return shifts.any((s) => s.chatJid == item.chatJid && s.shift == shift);
+}
+
+/// Busca el item de [id] en [items]; `null` si ya no está en la lista.
+ImageViewItem? _itemById(List<ImageViewItem> items, String id) {
+  for (final item in items) {
+    if (item.messageId == id) return item;
+  }
+  return null;
+}
 
 class ImageDetailPage extends ConsumerStatefulWidget {
   final int initialIndex;
@@ -160,10 +180,23 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage>
   }
 
   /// El panel del formulario (y el bloqueo de navegación) solo existen en
-  /// pantallas anchas; por debajo el visor es el de siempre.
-  bool get _showReviewPanel =>
-      MediaQuery.sizeOf(context).width >= AppBreakpoints.reviewForm &&
-      ref.read(currentReviewRoleProvider) != null;
+  /// pantallas anchas, con rol activo, y cuando [item] pertenece a un
+  /// (chatJid, shift) que ese rol tiene en `reviewShiftsProvider`. Mientras
+  /// esa lectura esté cargando o falle se trata como "sin asignación" (sin
+  /// panel), para no mostrar el formulario y ocultarlo después al llegar el
+  /// dato. `null` (sin item resuelto, p. ej. lista vacía) tampoco tiene panel.
+  bool _showReviewPanelFor(ImageViewItem? item) {
+    if (item == null) return false;
+    if (MediaQuery.sizeOf(context).width < AppBreakpoints.reviewForm) {
+      return false;
+    }
+    final rol = ref.read(currentReviewRoleProvider);
+    if (rol == null) return false;
+    final shifts = ref
+        .read(reviewShiftsProvider)
+        .maybeWhen(data: (list) => list, orElse: () => const <ReviewShift>[]);
+    return _matchesAssignment(shifts, item);
+  }
 
   /// Con el panel visible, la navegación entre imágenes (teclas, chevrons y
   /// swipe, en AMBOS sentidos) se bloquea mientras la imagen actual no tenga
@@ -175,13 +208,12 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage>
   ///
   /// [originId]: imagen sobre la que se evalúa (por defecto, la actual).
   bool _isNavigationBlocked({String? originId}) {
-    if (!mounted || !_showReviewPanel) return false;
-    var id = originId;
-    if (id == null) {
-      final items = ref.read(chatImageItemsProvider);
-      if (items.isEmpty) return false;
-      id = items[_index.clamp(0, items.length - 1)].messageId;
-    }
+    if (!mounted) return false;
+    final items = ref.read(chatImageItemsProvider);
+    if (items.isEmpty) return false;
+    final id = originId ?? items[_index.clamp(0, items.length - 1)].messageId;
+    final item = _itemById(items, id);
+    if (!_showReviewPanelFor(item)) return false;
     final rol = ref.read(currentReviewRoleProvider);
     // Sin rol la navegación es libre.
     if (rol == null) return false;
@@ -226,9 +258,10 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage>
     if (_anchoring || index == _index) return;
     setState(() => _index = index);
     final items = ref.read(chatImageItemsProvider);
-    if (index < items.length) _anchorId = items[index].messageId;
+    final newItem = index < items.length ? items[index] : null;
+    if (newItem != null) _anchorId = newItem.messageId;
     // Si el campo enfocado era de la imagen anterior, su foco se perdió.
-    if (_showReviewPanel) _viewerFocus.requestFocus();
+    if (_showReviewPanelFor(newItem)) _viewerFocus.requestFocus();
     if (index >= items.length - 3) {
       ref.read(messagesProvider.notifier).loadMore();
     }
@@ -322,7 +355,18 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage>
     // El registro y el bloqueo son del rol activo: lo guardado por el otro rol
     // no cuenta. Sin rol no hay panel, ni clave, ni bloqueo.
     final rol = ref.watch(currentReviewRoleProvider);
-    final showPanel = width >= AppBreakpoints.reviewForm && rol != null;
+    // "Cargando" o error se tratan igual que "sin asignación": nada de
+    // mostrar el panel y ocultarlo después al resolver reviewShiftsProvider.
+    final hasAssignment =
+        rol != null &&
+        ref
+            .watch(reviewShiftsProvider)
+            .maybeWhen(
+              data: (shifts) => _matchesAssignment(shifts, item),
+              orElse: () => false,
+            );
+    final showPanel =
+        width >= AppBreakpoints.reviewForm && rol != null && hasAssignment;
     final reviewKey = rol == null
         ? null
         : (messageId: item.messageId, rol: rol);
@@ -809,10 +853,7 @@ class _ViewerTopBarMobile extends StatelessWidget {
                 localTime,
                 style: const TextStyle(fontSize: fontSize),
               ),
-              SelectableText(
-                shift,
-                style: const TextStyle(fontSize: fontSize),
-              ),
+              SelectableText(shift, style: const TextStyle(fontSize: fontSize)),
               if (shiftImageIndex != null)
                 SelectableText(
                   '# $shiftImageIndex',
@@ -928,10 +969,7 @@ class _ViewerTopBarDesktop extends StatelessWidget {
                 localTime,
                 style: const TextStyle(fontSize: fontSize),
               ),
-              SelectableText(
-                shift,
-                style: const TextStyle(fontSize: fontSize),
-              ),
+              SelectableText(shift, style: const TextStyle(fontSize: fontSize)),
               if (shiftImageIndex != null)
                 SelectableText(
                   '# $shiftImageIndex',

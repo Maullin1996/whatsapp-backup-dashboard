@@ -18,6 +18,18 @@ const shiftNames = {
   Shift.outOfShift: 'Fuera de las jornadas',
 };
 
+/// Inverso de [shiftNames]: la etiqueta en español (la que trae
+/// `Message.shift` / `ImageReviewTarget.shift`) al valor del enum (el que
+/// guarda `reviewShifts`). `null` si la etiqueta no coincide con ninguna —
+/// no debería pasar salvo un dato corrupto o una etiqueta desactualizada;
+/// quien llame decide qué hacer (tratarlo como "sin coincidencia").
+Shift? shiftFromLabel(String label) {
+  for (final entry in shiftNames.entries) {
+    if (entry.value == label) return entry.key;
+  }
+  return null;
+}
+
 Shift getCurrentShift(DateTime date) {
   final minutes = date.hour * 60 + date.minute;
   final isSunday = date.weekday == DateTime.sunday;
