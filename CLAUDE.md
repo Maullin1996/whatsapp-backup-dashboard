@@ -100,11 +100,11 @@ Errors are modeled as sealed Freezed unions in `lib/core/errors/failures.dart` �
 - `users` — User documents (`uid`, `email`, `displayName`, `allowedGroups[]`, `disabled`, `createdAt`, and `isAdmin` as a mirror written by `setUserRole`; the source of truth for roles is the custom claims). `isSuperAdmin` is NOT stored here: it only exists as a custom claim (set with `functions/set-admin.js`)
 - `edit_attempts` — Audit trail for edited WhatsApp messages
 
-**Cloud Functions** (`functions/index.js`) handle all privileged user-management operations: `createUser`, `setUserRole`, `updateUserPassword`, `deleteUser`, `listUsers`, `toggleUserStatus`, `updateUserGroups`, `listGroups`. All callable from Flutter via `FirebaseFunctions.instance.httpsCallable(name)`.
+**Cloud Functions** (`functions/index.js`) handle all privileged user-management operations: `createUser`, `setUserRole`, `updateUserPassword`, `deleteUser`, `listUsers`, `toggleUserStatus`, `updateUserGroups`, `listGroups`, `setReviewAssignment`. All callable from Flutter via `FirebaseFunctions.instance.httpsCallable(name)`.
 
 Role enforcement uses Firebase custom claims (`admin`, `superAdmin`) set server-side by Cloud Functions — never set client-side.
 
-**Planned**: two new boolean custom claims, `revisor` and `sumador` (mutually exclusive with each other, independent from `admin`/`superAdmin`), plus a bridge Cloud Function to a *separate* Firebase project for shifts and winning numbers. Not implemented yet — see `image-review-roles` and `image-review-firebase-integration` skills.
+**Image review roles**: implemented server-side (backend only, no UI yet) as a single combined custom claim, `reviewAssignment: { role: 'revisor' | 'sumador', chatJid, shift } | absent`, set by `setReviewAssignment` (superAdmin only). A single object instead of two booleans makes the Revisor/Sumador mutual exclusion inherent — a user has at most one assignment. `shift` is a `Shift` enum value name (see `lib/core/time/shifts.dart`), mirrored by hand in `functions/index.js` until shifts come from the external Firebase project (see `image-review-firebase-integration`). Uniqueness (no two users with the same role + chatJid + shift) is enforced by iterating `auth().listUsers()`, not a Firestore mirror — see `image-review-roles` for why. Still pending: `AdminPage` UI, `AuthenticatedUser` reading this claim, and wiring `currentReviewRoleProvider` to it — see `image-review-roles` and `image-review-workflow` skills. The bridge Cloud Function to a *separate* Firebase project for shifts and winning numbers is also not implemented yet — see `image-review-firebase-integration`.
 
 ---
 
