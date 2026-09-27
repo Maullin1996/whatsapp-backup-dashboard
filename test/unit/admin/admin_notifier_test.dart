@@ -1,9 +1,16 @@
+import 'package:dartz/dartz.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:whatsapp_monitor_viewer/core/errors/admin_failure.dart';
+import 'package:whatsapp_monitor_viewer/core/time/shifts.dart';
 import 'package:whatsapp_monitor_viewer/features/admin/domain/entities/app_user.dart';
 import 'package:whatsapp_monitor_viewer/features/admin/presentation/providers/admin_providers.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_shift.dart';
 
 import 'fake_admin_repository.dart';
+
+const _shifts = [ReviewShift(chatJid: 'c1@g.us', shift: Shift.morning)];
 
 const _superAdmin = AppUser(
   uid: 'super',
@@ -150,6 +157,102 @@ void main() {
     });
   });
 
+  group('setReviewRole (optimista, pero SIEMPRE recarga)', () {
+    test('éxito: el rol queda seteado tras recargar', () async {
+      await container
+          .read(adminProvider.notifier)
+          .setReviewRole(uid: 'plain', role: ReviewRole.revisor);
+
+      expect(userOf('plain').reviewRole, ReviewRole.revisor);
+    });
+
+    test('null desactiva el rol', () async {
+      await container
+          .read(adminProvider.notifier)
+          .setReviewRole(uid: 'plain', role: ReviewRole.revisor);
+      expect(userOf('plain').reviewRole, isNotNull);
+
+      await container
+          .read(adminProvider.notifier)
+          .setReviewRole(uid: 'plain', role: null);
+
+      expect(userOf('plain').reviewRole, isNull);
+    });
+
+    test('un fallo también recarga (a diferencia de setUserRole, que solo '
+        'recarga si falla — acá siempre)', () async {
+      repo.failActions = true;
+
+      await container
+          .read(adminProvider.notifier)
+          .setReviewRole(uid: 'plain', role: ReviewRole.revisor);
+
+      // El fake no muta `users` si `failActions` es true: que el estado
+      // siga reflejando `null` confirma que loadUsers() se ejecutó (si no
+      // recargara, quedaría el valor optimista `revisor`).
+      expect(userOf('plain').reviewRole, isNull);
+      expect(container.read(adminProvider).error, isNotNull);
+    });
+  });
+
+  group('updateReviewShifts (no optimista, siempre recarga)', () {
+    test(
+      'éxito recarga el usuario con los horarios desde el servidor',
+      () async {
+        final result = await container
+            .read(adminProvider.notifier)
+            .updateReviewShifts(uid: 'plain', shifts: _shifts);
+
+        expect(result.isRight(), isTrue);
+        expect(userOf('plain').reviewShifts, _shifts);
+      },
+    );
+
+    test('un fallo NO cambia el usuario en el estado local, pero sí '
+        'recarga', () async {
+      repo.failUpdateReviewShiftsWith = const AdminFailure.reviewShiftConflict(
+        _shifts,
+      );
+
+      final result = await container
+          .read(adminProvider.notifier)
+          .updateReviewShifts(uid: 'plain', shifts: _shifts);
+
+      expect(
+        result,
+        const Left<AdminFailure, Unit>(
+          AdminFailure.reviewShiftConflict(_shifts),
+        ),
+      );
+      expect(userOf('plain').reviewShifts, isEmpty, reason: 'no se tocó');
+      expect(container.read(adminProvider).error, isNotNull);
+    });
+
+    test('reemplaza la lista completa (no combina con la anterior)', () async {
+      await container
+          .read(adminProvider.notifier)
+          .updateReviewShifts(uid: 'plain', shifts: _shifts);
+      expect(userOf('plain').reviewShifts, _shifts);
+
+      final result = await container
+          .read(adminProvider.notifier)
+          .updateReviewShifts(uid: 'plain', shifts: const []);
+
+      expect(result.isRight(), isTrue);
+      expect(userOf('plain').reviewShifts, isEmpty);
+    });
+
+    test(
+      'el método devuelve el resultado, no solo lo refleja en error/successMessage',
+      () async {
+        final ok = await container
+            .read(adminProvider.notifier)
+            .updateReviewShifts(uid: 'admin', shifts: _shifts);
+        expect(ok, const Right<AdminFailure, Unit>(unit));
+      },
+    );
+  });
+
   group('AppUser.copyWith', () {
     test('sin argumentos copia todos los campos', () {
       final copy = _superAdmin.copyWith();
@@ -183,6 +286,27 @@ void main() {
 
       expect(copy.isAdmin, isFalse);
       expect(copy.isSuperAdmin, isFalse);
+    });
+
+    test('no pasar reviewRole conserva el valor actual', () {
+      final withRole = _plain.copyWith(reviewRole: ReviewRole.revisor);
+      expect(withRole.copyWith().reviewRole, ReviewRole.revisor);
+      expect(withRole.copyWith(disabled: true).reviewRole, ReviewRole.revisor);
+    });
+
+    test('pasar reviewRole: null SÍ lo limpia (a diferencia del resto de '
+        'los campos, donde null significa "no cambiar")', () {
+      final withRole = _plain.copyWith(reviewRole: ReviewRole.revisor);
+
+      final cleared = withRole.copyWith(reviewRole: null);
+
+      expect(cleared.reviewRole, isNull);
+    });
+
+    test('reviewShifts se reemplaza igual que allowedGroups', () {
+      final copy = _plain.copyWith(reviewShifts: _shifts);
+      expect(copy.reviewShifts, _shifts);
+      expect(copy.copyWith().reviewShifts, _shifts);
     });
   });
 }

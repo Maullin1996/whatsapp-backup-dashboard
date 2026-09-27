@@ -2,9 +2,13 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:dartz/dartz.dart';
 import 'package:whatsapp_monitor_viewer/core/errors/admin_failure.dart';
 import 'package:whatsapp_monitor_viewer/features/admin/data/datasources/admin_datasource.dart';
+import 'package:whatsapp_monitor_viewer/features/admin/data/datasources/admin_datasource_impl.dart'
+    show parseReviewShiftConflicts;
 import 'package:whatsapp_monitor_viewer/features/admin/domain/entities/app_user.dart';
 import 'package:whatsapp_monitor_viewer/features/admin/domain/entities/group.dart';
 import 'package:whatsapp_monitor_viewer/features/admin/domain/repositories/admin_repository.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_shift.dart';
 
 class AdminRepositoryImpl implements AdminRepository {
   final AdminDatasource _datasource;
@@ -123,6 +127,47 @@ class AdminRepositoryImpl implements AdminRepository {
       await _datasource.setUserRole(uid: uid, role: role);
       return const Right(unit);
     } on FirebaseFunctionsException catch (e) {
+      return Left(mapFunctionsException(e));
+    } catch (e) {
+      return Left(AdminFailure.unknown(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<AdminFailure, Unit>> setReviewRole({
+    required String uid,
+    required ReviewRole? role,
+  }) async {
+    try {
+      await _datasource.setReviewRole(uid: uid, role: role);
+      return const Right(unit);
+    } on FirebaseFunctionsException catch (e) {
+      return Left(mapFunctionsException(e));
+    } catch (e) {
+      return Left(AdminFailure.unknown(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<AdminFailure, Unit>> updateReviewShifts({
+    required String uid,
+    required List<ReviewShift> shifts,
+  }) async {
+    try {
+      await _datasource.updateReviewShifts(uid: uid, shifts: shifts);
+      return const Right(unit);
+    } on FirebaseFunctionsException catch (e) {
+      // `already-exists` es propio de esta función (conflicto de unicidad
+      // por grupo+jornada+rol), NO el mismo caso que `emailAlreadyExists` de
+      // `createUser`: se mapea acá, sin tocar `mapFunctionsException` ni el
+      // resto de las llamadas.
+      if (e.code == 'already-exists') {
+        return Left(
+          AdminFailure.reviewShiftConflict(
+            parseReviewShiftConflicts(e.details),
+          ),
+        );
+      }
       return Left(mapFunctionsException(e));
     } catch (e) {
       return Left(AdminFailure.unknown(e.toString()));

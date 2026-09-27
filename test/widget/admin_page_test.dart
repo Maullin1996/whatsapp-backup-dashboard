@@ -118,4 +118,85 @@ void main() {
     expect(find.text('Hacer admin'), findsOneWidget);
     expect(find.text('Quitar admin'), findsNothing);
   });
+
+  group('"Rol de revisión" (setReviewRole)', () {
+    testWidgets('un superAdmin ve el botón en las 3 tarjetas, incluida la '
+        'de otro superAdmin (sin condición sobre el rol del objetivo)', (
+      tester,
+    ) async {
+      await _pumpAdminPage(tester);
+
+      expect(find.text('Rol de revisión'), findsNWidgets(3));
+    });
+
+    testWidgets('en escritorio, con los 5 botones posibles, la fila no '
+        'desborda (regresión: RenderFlex overflowed al agregar el botón de '
+        'rol de revisión)', (tester) async {
+      tester.view.physicalSize = const Size(800, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            adminRepositoryProvider.overrideWithValue(
+              // Solo `_plain` (no superAdmin): su tarjeta es la única, y
+              // ofrece los 5 botones (contraseña, grupos, rol, admin,
+              // eliminar) — el peor caso. `_FakeAuth` ya hace que quien mira
+              // sea superAdmin sin que su uid tenga que estar en la lista.
+              FakeAdminRepository([_plain]),
+            ),
+            authSessionProvider.overrideWith(_FakeAuth.new),
+          ],
+          child: const MaterialApp(home: AdminPage()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      for (final label in [
+        'Cambiar contraseña',
+        'Asignar grupos',
+        'Rol de revisión',
+        'Hacer admin',
+        'Eliminar',
+      ]) {
+        expect(find.text(label), findsOneWidget, reason: label);
+      }
+    });
+
+    testWidgets('un admin que no es superAdmin no ve el botón', (tester) async {
+      tester.view.physicalSize = const Size(400, 2400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            adminRepositoryProvider.overrideWithValue(
+              FakeAdminRepository([_me, _otherSuper, _plain]),
+            ),
+            authSessionProvider.overrideWith(_FakeNonSuperAdminAuth.new),
+          ],
+          child: const MaterialApp(home: AdminPage()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Rol de revisión'), findsNothing);
+    });
+  });
+}
+
+/// Quien mira el panel: un admin normal (no superAdmin).
+class _FakeNonSuperAdminAuth extends AuthSessionNotifier {
+  @override
+  AuthSessionState build() => AuthSessionState.authenticated(
+    AuthenticatedUser(
+      id: 'me',
+      email: 'me@x.com',
+      isAdmin: true,
+      isSuperAdmin: false,
+    ),
+  );
 }

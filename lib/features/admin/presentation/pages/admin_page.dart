@@ -11,7 +11,9 @@ import 'package:whatsapp_monitor_viewer/features/admin/presentation/widgets/assi
 import 'package:whatsapp_monitor_viewer/features/admin/presentation/widgets/change_password_dialog.dart';
 import 'package:whatsapp_monitor_viewer/features/admin/presentation/widgets/create_user_dialog.dart';
 import 'package:whatsapp_monitor_viewer/features/admin/presentation/widgets/loading_widget.dart';
+import 'package:whatsapp_monitor_viewer/features/admin/presentation/widgets/review_role_dialog.dart';
 import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_session_state.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/presentation/models/review_key.dart';
 
 import '../../../auth/presentation/providers/auth_providers.dart';
 
@@ -359,6 +361,15 @@ class _UserCard extends ConsumerWidget {
                       }).toList(),
               ),
             ),
+            // Punto de entrada del rol de revisión: solo lo ve un superAdmin,
+            // SIN condición sobre el rol del objetivo (a diferencia de
+            // "Hacer admin/Quitar admin") — un superAdmin puede tener
+            // también un rol de revisión. Los horarios (grupo+jornada) ya no
+            // se muestran acá: viven en AssignGroupsDialog ("Horarios").
+            if (isSuperAdmin) ...[
+              const SizedBox(height: AppSpacing.xs),
+              _ReviewRoleStatus(user: user),
+            ],
             const SizedBox(height: AppSpacing.xs),
             isMobile
                 ? Column(
@@ -367,6 +378,10 @@ class _UserCard extends ConsumerWidget {
                       _actionButton(context, user),
                       const SizedBox(height: AppSpacing.xs),
                       _groupsButton(context, user),
+                      if (isSuperAdmin) ...[
+                        const SizedBox(height: AppSpacing.xs),
+                        _reviewRoleButton(context, user),
+                      ],
                       if (isSuperAdmin && !user.isSuperAdmin) ...[
                         const SizedBox(height: AppSpacing.xs),
                         _roleButton(context, user, ref),
@@ -377,20 +392,21 @@ class _UserCard extends ConsumerWidget {
                       ],
                     ],
                   )
-                : Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
+                // `Wrap` en vez de `Row`: con 5 botones posibles, una tarjeta
+                // angosta dentro de `adminPanelMaxWidth` puede no tener
+                // espacio para todos en una sola línea — antes desbordaba
+                // (`RenderFlex overflowed`).
+                : Wrap(
+                    alignment: WrapAlignment.start,
+                    spacing: AppSpacing.sm,
+                    runSpacing: AppSpacing.xs,
                     children: [
                       _actionButton(context, user),
-                      const SizedBox(width: AppSpacing.sm),
                       _groupsButton(context, user),
-                      if (isSuperAdmin && !user.isSuperAdmin) ...[
-                        const SizedBox(width: AppSpacing.sm),
+                      if (isSuperAdmin) _reviewRoleButton(context, user),
+                      if (isSuperAdmin && !user.isSuperAdmin)
                         _roleButton(context, user, ref),
-                      ],
-                      if (!user.isSuperAdmin) ...[
-                        const SizedBox(width: AppSpacing.sm),
-                        _deleteButton(context, user, ref),
-                      ],
+                      if (!user.isSuperAdmin) _deleteButton(context, user, ref),
                     ],
                   ),
           ],
@@ -505,6 +521,27 @@ class _UserCard extends ConsumerWidget {
     );
   }
 
+  Widget _reviewRoleButton(BuildContext context, AppUser user) {
+    return TextButton.icon(
+      icon: const Icon(
+        Icons.assignment_ind_rounded,
+        size: 18,
+        color: AppColors.loadingColor,
+      ),
+      label: const Text(
+        'Rol de revisión',
+        style: TextStyle(
+          color: AppColors.loadingColor,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      onPressed: () => showDialog(
+        context: context,
+        builder: (_) => ReviewRoleDialog(user: user),
+      ),
+    );
+  }
+
   Widget _deleteButton(BuildContext context, AppUser user, WidgetRef ref) {
     return TextButton.icon(
       icon: const Icon(Icons.delete_rounded, size: 18, color: Colors.red),
@@ -543,6 +580,34 @@ class _UserCard extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Rol de revisión actual de un usuario, en texto: "Revisor" / "Sumador" /
+/// "Sin asignar revisión". Los horarios (grupo+jornada) ya no se listan
+/// acá: viven dentro de `AssignGroupsDialog` ("Horarios" por grupo).
+class _ReviewRoleStatus extends StatelessWidget {
+  final AppUser user;
+
+  const _ReviewRoleStatus({required this.user});
+
+  @override
+  Widget build(BuildContext context) {
+    final role = user.reviewRole;
+    if (role == null) {
+      return Text(
+        'Sin asignar revisión',
+        style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+      );
+    }
+    return Text(
+      role.label,
+      style: const TextStyle(
+        fontSize: 11,
+        color: AppColors.accentTeal,
+        fontWeight: FontWeight.bold,
       ),
     );
   }

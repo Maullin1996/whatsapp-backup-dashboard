@@ -2,6 +2,8 @@ import 'package:dartz/dartz.dart';
 import 'package:whatsapp_monitor_viewer/core/errors/admin_failure.dart';
 import 'package:whatsapp_monitor_viewer/features/admin/domain/entities/app_user.dart';
 import 'package:whatsapp_monitor_viewer/features/admin/domain/entities/group.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_shift.dart';
 
 abstract class AdminRepository {
   Future<Either<AdminFailure, List<AppUser>>> listUsers();
@@ -28,5 +30,13 @@ abstract class AdminRepository {
     // ← nuevo
     required String uid,
     required String role,
+  });
+  Future<Either<AdminFailure, Unit>> setReviewRole({
+    required String uid,
+    required ReviewRole? role,
+  });
+  Future<Either<AdminFailure, Unit>> updateReviewShifts({
+    required String uid,
+    required List<ReviewShift> shifts,
   });
 }

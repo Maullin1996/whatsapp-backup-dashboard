@@ -55,13 +55,14 @@ extension AdminFailurePatterns on AdminFailure {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( _PermissionDenied value)?  permissionDenied,TResult Function( _InvalidArgument value)?  invalidArgument,TResult Function( _EmailAlreadyExists value)?  emailAlreadyExists,TResult Function( _Unknown value)?  unknown,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( _PermissionDenied value)?  permissionDenied,TResult Function( _InvalidArgument value)?  invalidArgument,TResult Function( _EmailAlreadyExists value)?  emailAlreadyExists,TResult Function( _ReviewShiftConflict value)?  reviewShiftConflict,TResult Function( _Unknown value)?  unknown,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case _PermissionDenied() when permissionDenied != null:
 return permissionDenied(_that);case _InvalidArgument() when invalidArgument != null:
 return invalidArgument(_that);case _EmailAlreadyExists() when emailAlreadyExists != null:
-return emailAlreadyExists(_that);case _Unknown() when unknown != null:
+return emailAlreadyExists(_that);case _ReviewShiftConflict() when reviewShiftConflict != null:
+return reviewShiftConflict(_that);case _Unknown() when unknown != null:
 return unknown(_that);case _:
   return orElse();
 
@@ -80,13 +81,14 @@ return unknown(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( _PermissionDenied value)  permissionDenied,required TResult Function( _InvalidArgument value)  invalidArgument,required TResult Function( _EmailAlreadyExists value)  emailAlreadyExists,required TResult Function( _Unknown value)  unknown,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( _PermissionDenied value)  permissionDenied,required TResult Function( _InvalidArgument value)  invalidArgument,required TResult Function( _EmailAlreadyExists value)  emailAlreadyExists,required TResult Function( _ReviewShiftConflict value)  reviewShiftConflict,required TResult Function( _Unknown value)  unknown,}){
 final _that = this;
 switch (_that) {
 case _PermissionDenied():
 return permissionDenied(_that);case _InvalidArgument():
 return invalidArgument(_that);case _EmailAlreadyExists():
-return emailAlreadyExists(_that);case _Unknown():
+return emailAlreadyExists(_that);case _ReviewShiftConflict():
+return reviewShiftConflict(_that);case _Unknown():
 return unknown(_that);case _:
   throw StateError('Unexpected subclass');
 
@@ -104,13 +106,14 @@ return unknown(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( _PermissionDenied value)?  permissionDenied,TResult? Function( _InvalidArgument value)?  invalidArgument,TResult? Function( _EmailAlreadyExists value)?  emailAlreadyExists,TResult? Function( _Unknown value)?  unknown,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( _PermissionDenied value)?  permissionDenied,TResult? Function( _InvalidArgument value)?  invalidArgument,TResult? Function( _EmailAlreadyExists value)?  emailAlreadyExists,TResult? Function( _ReviewShiftConflict value)?  reviewShiftConflict,TResult? Function( _Unknown value)?  unknown,}){
 final _that = this;
 switch (_that) {
 case _PermissionDenied() when permissionDenied != null:
 return permissionDenied(_that);case _InvalidArgument() when invalidArgument != null:
 return invalidArgument(_that);case _EmailAlreadyExists() when emailAlreadyExists != null:
-return emailAlreadyExists(_that);case _Unknown() when unknown != null:
+return emailAlreadyExists(_that);case _ReviewShiftConflict() when reviewShiftConflict != null:
+return reviewShiftConflict(_that);case _Unknown() when unknown != null:
 return unknown(_that);case _:
   return null;
 
@@ -128,12 +131,13 @@ return unknown(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  permissionDenied,TResult Function()?  invalidArgument,TResult Function()?  emailAlreadyExists,TResult Function( String message)?  unknown,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  permissionDenied,TResult Function()?  invalidArgument,TResult Function()?  emailAlreadyExists,TResult Function( List<ReviewShift> conflicts)?  reviewShiftConflict,TResult Function( String message)?  unknown,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _PermissionDenied() when permissionDenied != null:
 return permissionDenied();case _InvalidArgument() when invalidArgument != null:
 return invalidArgument();case _EmailAlreadyExists() when emailAlreadyExists != null:
-return emailAlreadyExists();case _Unknown() when unknown != null:
+return emailAlreadyExists();case _ReviewShiftConflict() when reviewShiftConflict != null:
+return reviewShiftConflict(_that.conflicts);case _Unknown() when unknown != null:
 return unknown(_that.message);case _:
   return orElse();
 
@@ -152,12 +156,13 @@ return unknown(_that.message);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  permissionDenied,required TResult Function()  invalidArgument,required TResult Function()  emailAlreadyExists,required TResult Function( String message)  unknown,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  permissionDenied,required TResult Function()  invalidArgument,required TResult Function()  emailAlreadyExists,required TResult Function( List<ReviewShift> conflicts)  reviewShiftConflict,required TResult Function( String message)  unknown,}) {final _that = this;
 switch (_that) {
 case _PermissionDenied():
 return permissionDenied();case _InvalidArgument():
 return invalidArgument();case _EmailAlreadyExists():
-return emailAlreadyExists();case _Unknown():
+return emailAlreadyExists();case _ReviewShiftConflict():
+return reviewShiftConflict(_that.conflicts);case _Unknown():
 return unknown(_that.message);case _:
   throw StateError('Unexpected subclass');
 
@@ -175,12 +180,13 @@ return unknown(_that.message);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  permissionDenied,TResult? Function()?  invalidArgument,TResult? Function()?  emailAlreadyExists,TResult? Function( String message)?  unknown,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  permissionDenied,TResult? Function()?  invalidArgument,TResult? Function()?  emailAlreadyExists,TResult? Function( List<ReviewShift> conflicts)?  reviewShiftConflict,TResult? Function( String message)?  unknown,}) {final _that = this;
 switch (_that) {
 case _PermissionDenied() when permissionDenied != null:
 return permissionDenied();case _InvalidArgument() when invalidArgument != null:
 return invalidArgument();case _EmailAlreadyExists() when emailAlreadyExists != null:
-return emailAlreadyExists();case _Unknown() when unknown != null:
+return emailAlreadyExists();case _ReviewShiftConflict() when reviewShiftConflict != null:
+return reviewShiftConflict(_that.conflicts);case _Unknown() when unknown != null:
 return unknown(_that.message);case _:
   return null;
 
@@ -284,6 +290,78 @@ String toString() {
 
 
 
+
+/// @nodoc
+
+
+class _ReviewShiftConflict implements AdminFailure {
+  const _ReviewShiftConflict(final  List<ReviewShift> conflicts): _conflicts = conflicts;
+  
+
+ final  List<ReviewShift> _conflicts;
+ List<ReviewShift> get conflicts {
+  if (_conflicts is EqualUnmodifiableListView) return _conflicts;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_conflicts);
+}
+
+
+/// Create a copy of AdminFailure
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$ReviewShiftConflictCopyWith<_ReviewShiftConflict> get copyWith => __$ReviewShiftConflictCopyWithImpl<_ReviewShiftConflict>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ReviewShiftConflict&&const DeepCollectionEquality().equals(other._conflicts, _conflicts));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_conflicts));
+
+@override
+String toString() {
+  return 'AdminFailure.reviewShiftConflict(conflicts: $conflicts)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$ReviewShiftConflictCopyWith<$Res> implements $AdminFailureCopyWith<$Res> {
+  factory _$ReviewShiftConflictCopyWith(_ReviewShiftConflict value, $Res Function(_ReviewShiftConflict) _then) = __$ReviewShiftConflictCopyWithImpl;
+@useResult
+$Res call({
+ List<ReviewShift> conflicts
+});
+
+
+
+
+}
+/// @nodoc
+class __$ReviewShiftConflictCopyWithImpl<$Res>
+    implements _$ReviewShiftConflictCopyWith<$Res> {
+  __$ReviewShiftConflictCopyWithImpl(this._self, this._then);
+
+  final _ReviewShiftConflict _self;
+  final $Res Function(_ReviewShiftConflict) _then;
+
+/// Create a copy of AdminFailure
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? conflicts = null,}) {
+  return _then(_ReviewShiftConflict(
+null == conflicts ? _self._conflicts : conflicts // ignore: cast_nullable_to_non_nullable
+as List<ReviewShift>,
+  ));
+}
+
+
+}
 
 /// @nodoc
 
