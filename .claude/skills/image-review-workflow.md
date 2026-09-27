@@ -106,10 +106,14 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    registrar (ver `image-review-domain` § "Reconciliación de dinero vs.
    imágenes sin registrar: dos señales separadas") — no un conteo previo
    en el indicador de subida.
-   **Punto de entrada ya hecho** (menú "Resumen" en `ChatList` + ruta
-   `/summary` + `SummaryPage` placeholder, visible para cualquier usuario
-   autenticado hasta que existan los claims reales); la lógica de
-   reconciliación sigue pendiente.
+   **UI ya hecha con datos INVENTADOS** (menú "Resumen" en `ChatList` +
+   ruta `/summary`, visible para cualquier usuario autenticado hasta que
+   existan los claims reales; `SummaryPage` con selector de fecha y
+   tarjetas por grupo y jornada, alimentada por `MockSummaryRepository`,
+   determinista por fecha, en `features/summary/`). **Sigue pendiente
+   conectar datos reales** (reemplazar el mock por un `SummaryRepository`
+   real: subida real a Firestore, paso 7, o el mecanismo de lectura
+   cruzada) y el aviso de imágenes sin registrar.
 6. **Integración Firebase con mocks** (`image-review-firebase-integration`):
    Cloud Function puente simulada, jornadas y números ganadores locales
    — para poder construir y probar la pantalla nueva de coincidencias

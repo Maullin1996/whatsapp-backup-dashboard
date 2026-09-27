@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:whatsapp_monitor_viewer/core/time/shifts.dart';
-import 'package:whatsapp_monitor_viewer/features/image_review/presentation/helpers/jornada_labels.dart';
+import 'package:whatsapp_monitor_viewer/core/time/jornada_labels.dart';
 
 void main() {
   group('shortShiftName', () {

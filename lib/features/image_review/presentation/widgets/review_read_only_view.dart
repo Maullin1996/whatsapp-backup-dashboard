@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/image_review_record.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
-import 'package:whatsapp_monitor_viewer/features/image_review/presentation/helpers/format_pesos.dart';
+import 'package:whatsapp_monitor_viewer/helpers/format_pesos.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/widgets/review_section_card.dart';
 
 /// Cuerpo de solo lectura de un registro guardado: las mismas tarjetas y el
