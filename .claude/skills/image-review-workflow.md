@@ -115,7 +115,10 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    determinista por fecha, en `features/summary/`). **Sigue pendiente
    conectar datos reales** (reemplazar el mock por un `SummaryRepository`
    real: subida real a Firestore, paso 7, o el mecanismo de lectura
-   cruzada) y el aviso de imágenes sin registrar.
+   cruzada). **El Resumen mockeado ya incluye el aviso de imágenes sin
+   registrar** (línea bajo cada rol, con `imagenesEnJornada` inventado en el
+   mock con el formato real de `shift_image_counts`); falta cambiar solo la
+   fuente por un `get` por id a esa colección.
 6. **Integración Firebase con mocks** (`image-review-firebase-integration`):
    Cloud Function puente simulada, jornadas y números ganadores locales
    — para poder construir y probar la pantalla nueva de coincidencias

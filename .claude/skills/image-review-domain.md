@@ -263,7 +263,11 @@ recomendación de diseño es:
 - **Pendientes de decidir / verificar (NO resueltos):**
   - **Zona horaria al construir el id.** Propuesta a confirmar: calcular
     la fecha con UTC-5 fijo y no con `toLocal()`, porque un dispositivo
-    en otra zona construiría un id que no existe.
+    en otra zona construiría un id que no existe. **El helper UTC-5
+    (`bogotaWallClock`, `lib/core/time/bogota_time.dart`) ya quedó
+    implementado como propuesta** y hoy solo lo usa `jornadaTerminada`;
+    `fechaJornadaDe` sigue con `toLocal()`. **Sigue pendiente de
+    confirmar** (no es una decisión tomada).
   - **Fecha de corte.** Mecanismo por definir: constante y calendario
     sin días anteriores, o mostrar esos días sin comparación. La
     comparación arranca en la primera jornada posterior al deploy.

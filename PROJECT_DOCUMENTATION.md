@@ -288,6 +288,10 @@ El router también escucha `authSessionProvider` y se refresca automáticamente 
 
 **Estado real: solo UI, con datos INVENTADOS.** `MockSummaryRepository` genera escenarios deterministas por fecha (mismo día → mismos datos, para que la UI no cambie al reconstruirse) — no hay ninguna lectura real de Firestore ni de los registros del feature de revisión de imágenes todavía. Ver `.claude/skills/image-review-domain.md` para las reglas de reconciliación que esta pantalla deberá implementar.
 
+**Aviso de imágenes sin registrar (también con datos inventados):** bajo cada rol de una jornada ya terminada, una línea informativa ("Faltan N imágenes por registrar") compara `imagenesEnJornada` (formato real de `shift_image_counts`) contra lo que registró ese rol. Es solo informativa y no altera el estado de dinero (cuadra/descuadre/pendiente).
+
+El reloj del Resumen (`clockProvider`) se lee una vez por construcción de la lista: una jornada que termina con la pantalla abierta no muestra el aviso hasta que se reconstruya (por ejemplo, al cambiar la fecha).
+
 ---
 
 ## 8. Convenciones importantes para nuevas features
