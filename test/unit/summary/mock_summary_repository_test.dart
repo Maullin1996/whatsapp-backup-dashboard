@@ -1,8 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:whatsapp_monitor_viewer/core/time/shifts.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/data/mock_summary_repository.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/domain/entities/jornada_estado.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/domain/entities/jornada_summary.dart';
+import 'package:whatsapp_monitor_viewer/features/summary/domain/helpers/imagenes_faltantes.dart';
 
 void main() {
   const repo = MockSummaryRepository(latency: Duration.zero);
@@ -136,4 +138,97 @@ void main() {
       }
     },
   );
+
+  group('contador de imágenes (imagenesEnJornada)', () {
+    // Un "ahora" muy posterior: todas las jornadas están terminadas.
+    final later = DateTime.utc(2100);
+
+    Future<List<JornadaSummary>> days(int count) async => [
+      for (var d = 0; d < count; d++)
+        ...await load(DateTime(2026, 1, 1).add(Duration(days: d))),
+    ];
+
+    test('es determinista y nunca negativo', () async {
+      final list = await days(60);
+
+      expect(list.every((j) => j.imagenesEnJornada >= 0), isTrue);
+      expect(await days(60), list);
+    });
+
+    test('cada fecha trae los casos pedidos, para ver la variedad', () async {
+      for (var d = 0; d < 90; d++) {
+        final date = DateTime(2026, 1, 1).add(Duration(days: d));
+        final list = await load(date);
+
+        int? missing(JornadaSummary j, ReviewRole r) =>
+            imagenesFaltantes(j, r, later);
+
+        bool any(bool Function(JornadaSummary) test) => list.any(test);
+
+        // Dinero cuadra pero faltan imágenes: las dos señales son
+        // independientes.
+        expect(
+          any(
+            (j) =>
+                j.estado is JornadaCuadra &&
+                (missing(j, ReviewRole.revisor) ?? 0) > 0 &&
+                (missing(j, ReviewRole.sumador) ?? 0) > 0,
+          ),
+          isTrue,
+          reason: 'cuadra con faltantes $date',
+        );
+        // A un rol le faltan y al otro (también registrado) no.
+        expect(
+          any((j) {
+            final r = missing(j, ReviewRole.revisor);
+            final s = missing(j, ReviewRole.sumador);
+            return r != null && s != null && (r > 0) != (s > 0);
+          }),
+          isTrue,
+          reason: 'a un solo rol le faltan $date',
+        );
+        // Ambos al día con contador > 0.
+        expect(
+          any(
+            (j) =>
+                j.imagenesEnJornada > 0 &&
+                missing(j, ReviewRole.revisor) == 0 &&
+                missing(j, ReviewRole.sumador) == 0,
+          ),
+          isTrue,
+          reason: 'ambos al día $date',
+        );
+        // Un rol registró MÁS que el contador (sin aviso).
+        expect(
+          any(
+            (j) =>
+                j.imagenesEnJornada > 0 &&
+                [j.revisor, j.sumador].any(
+                  (r) =>
+                      r.registrado && r.cantidadImagenes > j.imagenesEnJornada,
+                ),
+          ),
+          isTrue,
+          reason: 'registró más que el contador $date',
+        );
+        // Contador 0 con registros.
+        expect(
+          any((j) => j.imagenesEnJornada == 0 && j.revisor.registrado),
+          isTrue,
+          reason: 'contador 0 con registros $date',
+        );
+      }
+    });
+
+    test('un rol sin registrar nunca tiene aviso', () async {
+      for (final j in await days(60)) {
+        if (!j.revisor.registrado) {
+          expect(imagenesFaltantes(j, ReviewRole.revisor, later), isNull);
+        }
+        if (!j.sumador.registrado) {
+          expect(imagenesFaltantes(j, ReviewRole.sumador, later), isNull);
+        }
+      }
+    });
+  });
 }

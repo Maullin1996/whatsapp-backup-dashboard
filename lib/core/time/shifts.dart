@@ -1,3 +1,5 @@
+import 'package:whatsapp_monitor_viewer/core/time/bogota_time.dart';
+
 enum Shift {
   morning,
   afternoon1,
@@ -60,4 +62,39 @@ Shift getCurrentShift(DateTime date) {
   }
 
   return Shift.outOfShift;
+}
+
+/// Último minuto INCLUSIVO de cada jornada asignable, en minutos desde la
+/// medianoche. Debe coincidir con los límites de [getCurrentShift] (lo
+/// verifica `shifts_end_test.dart`). [Shift.outOfShift] no tiene fin.
+const shiftLastMinute = <Shift, int>{
+  Shift.morning: 10 * 60 + 54,
+  Shift.afternoon1: 13 * 60 + 58,
+  Shift.afternoon2: 15 * 60 + 23,
+  Shift.night1: 22 * 60 + 24,
+  Shift.night2: 22 * 60 + 30,
+  Shift.holiday: 19 * 60 + 20,
+};
+
+final _fechaJornadaFormat = RegExp(r'^(\d{4})-(\d{2})-(\d{2})$');
+
+/// Si la jornada [shift] del día [fechaJornada] (`yyyy-MM-dd`) ya terminó a la
+/// hora [now]: desde el minuto siguiente a su último minuto inclusivo (la
+/// mañana termina a las 10:55:00), sin margen.
+///
+/// La fecha de la jornada y [now] se comparan en hora de Bogotá
+/// ([bogotaWallClock]), no en la zona del dispositivo. Por eso un día anterior
+/// a hoy siempre terminó y un día futuro nunca. `false` para
+/// [Shift.outOfShift] y para una fecha con formato inválido.
+bool jornadaTerminada(String fechaJornada, Shift shift, DateTime now) {
+  final lastMinute = shiftLastMinute[shift];
+  final match = _fechaJornadaFormat.firstMatch(fechaJornada);
+  if (lastMinute == null || match == null) return false;
+
+  final endOfShift = DateTime.utc(
+    int.parse(match.group(1)!),
+    int.parse(match.group(2)!),
+    int.parse(match.group(3)!),
+  ).add(Duration(minutes: lastMinute + 1));
+  return !bogotaWallClock(now).isBefore(endOfShift);
 }

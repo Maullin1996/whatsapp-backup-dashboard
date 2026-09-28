@@ -53,6 +53,9 @@ class _CardSkeleton extends StatelessWidget {
           _Block(width: 220, height: 12),
           SizedBox(height: AppSpacing.sm),
           _Block(width: 200, height: 12),
+          // Línea del aviso de imágenes sin registrar.
+          SizedBox(height: AppSpacing.sm),
+          _Block(width: 170, height: 12),
         ],
       ),
     );

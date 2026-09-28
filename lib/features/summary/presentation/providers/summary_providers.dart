@@ -18,6 +18,11 @@ final summaryDateProvider = NotifierProvider<SummaryDateNotifier, DateTime>(
   SummaryDateNotifier.new,
 );
 
+/// Reloj del Resumen: devuelve la hora actual. Inyectable para que los tests
+/// fijen "ahora" (el aviso de imágenes sin registrar depende de si la jornada
+/// ya terminó).
+final clockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
+
 /// Único punto donde se instancia el repositorio del resumen. TEMPORAL: datos
 /// inventados (ver [MockSummaryRepository]); se reemplaza por uno real.
 final summaryRepositoryProvider = Provider<SummaryRepository>(

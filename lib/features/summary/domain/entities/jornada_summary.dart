@@ -24,6 +24,14 @@ abstract class JornadaSummary with _$JornadaSummary {
     required String shift,
     required RoleSummary revisor,
     required RoleSummary sumador,
+
+    /// `lastIndex` del contador que publica el bot en `shift_image_counts`
+    /// para este chat, día y jornada. Obligatorio a propósito: quien arma el
+    /// resumen debe pasar 0 si el documento no existe (esa jornada no tuvo
+    /// media), no dejarlo callado. Cuenta también audio, video y sticker, y puede
+    /// tener huecos: solo sirve para el aviso informativo de imágenes sin
+    /// registrar (ver `imagenesFaltantes`), nunca para el estado de dinero.
+    required int imagenesEnJornada,
   }) = _JornadaSummary;
 
   /// Cuadra, descuadre (con la diferencia) o pendiente (con quién falta).

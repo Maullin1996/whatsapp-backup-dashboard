@@ -167,13 +167,15 @@ class _SummaryContent extends ConsumerWidget {
 }
 
 /// Tarjetas de jornada agrupadas por grupo (en el orden en que llegan).
-class _SummaryList extends StatelessWidget {
+class _SummaryList extends ConsumerWidget {
   final List<JornadaSummary> summaries;
 
   const _SummaryList({required this.summaries});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Una sola lectura del reloj para todas las tarjetas de esta construcción.
+    final now = ref.watch(clockProvider)();
     final byGroup = <String, List<JornadaSummary>>{};
     for (final summary in summaries) {
       byGroup.putIfAbsent(summary.chatJid, () => []).add(summary);
@@ -197,7 +199,7 @@ class _SummaryList extends StatelessWidget {
             ),
           ),
           for (final summary in group) ...[
-            JornadaSummaryCard(summary: summary),
+            JornadaSummaryCard(summary: summary, now: now),
             const SizedBox(height: AppSpacing.sm),
           ],
           const SizedBox(height: AppSpacing.md),
