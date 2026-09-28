@@ -105,7 +105,9 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    (reconciliación de sumas) y, por separado, el aviso de imágenes sin
    registrar (ver `image-review-domain` § "Reconciliación de dinero vs.
    imágenes sin registrar: dos señales separadas") — no un conteo previo
-   en el indicador de subida.
+   en el indicador de subida. El detector de imágenes sin registrar usa
+   el contador que publica el bot en `shift_image_counts`, no `count()` ni
+   el máximo de `whatsapp_messages` (ver `image-review-domain.md`).
    **UI ya hecha con datos INVENTADOS** (menú "Resumen" en `ChatList` +
    ruta `/summary`, visible para cualquier usuario autenticado hasta que
    existan los claims reales; `SummaryPage` con selector de fecha y
