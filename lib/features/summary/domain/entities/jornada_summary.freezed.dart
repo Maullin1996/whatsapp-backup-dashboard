@@ -18,7 +18,13 @@ mixin _$JornadaSummary {
  String get groupName;/// Día de la jornada (`yyyy-MM-dd`, el mismo formato que
 /// `ImageReviewRecord.fechaJornada`).
  String get fechaJornada;/// Mismo texto que guarda `ImageReviewRecord.shift`.
- String get shift; RoleSummary get revisor; RoleSummary get sumador;
+ String get shift; RoleSummary get revisor; RoleSummary get sumador;/// `lastIndex` del contador que publica el bot en `shift_image_counts`
+/// para este chat, día y jornada. Obligatorio a propósito: quien arma el
+/// resumen debe pasar 0 si el documento no existe (esa jornada no tuvo
+/// media), no dejarlo callado. Cuenta también audio, video y sticker, y puede
+/// tener huecos: solo sirve para el aviso informativo de imágenes sin
+/// registrar (ver `imagenesFaltantes`), nunca para el estado de dinero.
+ int get imagenesEnJornada;
 /// Create a copy of JornadaSummary
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -29,16 +35,16 @@ $JornadaSummaryCopyWith<JornadaSummary> get copyWith => _$JornadaSummaryCopyWith
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is JornadaSummary&&(identical(other.chatJid, chatJid) || other.chatJid == chatJid)&&(identical(other.groupName, groupName) || other.groupName == groupName)&&(identical(other.fechaJornada, fechaJornada) || other.fechaJornada == fechaJornada)&&(identical(other.shift, shift) || other.shift == shift)&&(identical(other.revisor, revisor) || other.revisor == revisor)&&(identical(other.sumador, sumador) || other.sumador == sumador));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is JornadaSummary&&(identical(other.chatJid, chatJid) || other.chatJid == chatJid)&&(identical(other.groupName, groupName) || other.groupName == groupName)&&(identical(other.fechaJornada, fechaJornada) || other.fechaJornada == fechaJornada)&&(identical(other.shift, shift) || other.shift == shift)&&(identical(other.revisor, revisor) || other.revisor == revisor)&&(identical(other.sumador, sumador) || other.sumador == sumador)&&(identical(other.imagenesEnJornada, imagenesEnJornada) || other.imagenesEnJornada == imagenesEnJornada));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,chatJid,groupName,fechaJornada,shift,revisor,sumador);
+int get hashCode => Object.hash(runtimeType,chatJid,groupName,fechaJornada,shift,revisor,sumador,imagenesEnJornada);
 
 @override
 String toString() {
-  return 'JornadaSummary(chatJid: $chatJid, groupName: $groupName, fechaJornada: $fechaJornada, shift: $shift, revisor: $revisor, sumador: $sumador)';
+  return 'JornadaSummary(chatJid: $chatJid, groupName: $groupName, fechaJornada: $fechaJornada, shift: $shift, revisor: $revisor, sumador: $sumador, imagenesEnJornada: $imagenesEnJornada)';
 }
 
 
@@ -49,7 +55,7 @@ abstract mixin class $JornadaSummaryCopyWith<$Res>  {
   factory $JornadaSummaryCopyWith(JornadaSummary value, $Res Function(JornadaSummary) _then) = _$JornadaSummaryCopyWithImpl;
 @useResult
 $Res call({
- String chatJid, String groupName, String fechaJornada, String shift, RoleSummary revisor, RoleSummary sumador
+ String chatJid, String groupName, String fechaJornada, String shift, RoleSummary revisor, RoleSummary sumador, int imagenesEnJornada
 });
 
 
@@ -66,7 +72,7 @@ class _$JornadaSummaryCopyWithImpl<$Res>
 
 /// Create a copy of JornadaSummary
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? chatJid = null,Object? groupName = null,Object? fechaJornada = null,Object? shift = null,Object? revisor = null,Object? sumador = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? chatJid = null,Object? groupName = null,Object? fechaJornada = null,Object? shift = null,Object? revisor = null,Object? sumador = null,Object? imagenesEnJornada = null,}) {
   return _then(_self.copyWith(
 chatJid: null == chatJid ? _self.chatJid : chatJid // ignore: cast_nullable_to_non_nullable
 as String,groupName: null == groupName ? _self.groupName : groupName // ignore: cast_nullable_to_non_nullable
@@ -74,7 +80,8 @@ as String,fechaJornada: null == fechaJornada ? _self.fechaJornada : fechaJornada
 as String,shift: null == shift ? _self.shift : shift // ignore: cast_nullable_to_non_nullable
 as String,revisor: null == revisor ? _self.revisor : revisor // ignore: cast_nullable_to_non_nullable
 as RoleSummary,sumador: null == sumador ? _self.sumador : sumador // ignore: cast_nullable_to_non_nullable
-as RoleSummary,
+as RoleSummary,imagenesEnJornada: null == imagenesEnJornada ? _self.imagenesEnJornada : imagenesEnJornada // ignore: cast_nullable_to_non_nullable
+as int,
   ));
 }
 /// Create a copy of JornadaSummary
@@ -177,10 +184,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String chatJid,  String groupName,  String fechaJornada,  String shift,  RoleSummary revisor,  RoleSummary sumador)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String chatJid,  String groupName,  String fechaJornada,  String shift,  RoleSummary revisor,  RoleSummary sumador,  int imagenesEnJornada)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _JornadaSummary() when $default != null:
-return $default(_that.chatJid,_that.groupName,_that.fechaJornada,_that.shift,_that.revisor,_that.sumador);case _:
+return $default(_that.chatJid,_that.groupName,_that.fechaJornada,_that.shift,_that.revisor,_that.sumador,_that.imagenesEnJornada);case _:
   return orElse();
 
 }
@@ -198,10 +205,10 @@ return $default(_that.chatJid,_that.groupName,_that.fechaJornada,_that.shift,_th
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String chatJid,  String groupName,  String fechaJornada,  String shift,  RoleSummary revisor,  RoleSummary sumador)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String chatJid,  String groupName,  String fechaJornada,  String shift,  RoleSummary revisor,  RoleSummary sumador,  int imagenesEnJornada)  $default,) {final _that = this;
 switch (_that) {
 case _JornadaSummary():
-return $default(_that.chatJid,_that.groupName,_that.fechaJornada,_that.shift,_that.revisor,_that.sumador);case _:
+return $default(_that.chatJid,_that.groupName,_that.fechaJornada,_that.shift,_that.revisor,_that.sumador,_that.imagenesEnJornada);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -218,10 +225,10 @@ return $default(_that.chatJid,_that.groupName,_that.fechaJornada,_that.shift,_th
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String chatJid,  String groupName,  String fechaJornada,  String shift,  RoleSummary revisor,  RoleSummary sumador)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String chatJid,  String groupName,  String fechaJornada,  String shift,  RoleSummary revisor,  RoleSummary sumador,  int imagenesEnJornada)?  $default,) {final _that = this;
 switch (_that) {
 case _JornadaSummary() when $default != null:
-return $default(_that.chatJid,_that.groupName,_that.fechaJornada,_that.shift,_that.revisor,_that.sumador);case _:
+return $default(_that.chatJid,_that.groupName,_that.fechaJornada,_that.shift,_that.revisor,_that.sumador,_that.imagenesEnJornada);case _:
   return null;
 
 }
@@ -233,7 +240,7 @@ return $default(_that.chatJid,_that.groupName,_that.fechaJornada,_that.shift,_th
 
 
 class _JornadaSummary extends JornadaSummary {
-  const _JornadaSummary({required this.chatJid, required this.groupName, required this.fechaJornada, required this.shift, required this.revisor, required this.sumador}): super._();
+  const _JornadaSummary({required this.chatJid, required this.groupName, required this.fechaJornada, required this.shift, required this.revisor, required this.sumador, required this.imagenesEnJornada}): super._();
   
 
 @override final  String chatJid;
@@ -246,6 +253,13 @@ class _JornadaSummary extends JornadaSummary {
 @override final  String shift;
 @override final  RoleSummary revisor;
 @override final  RoleSummary sumador;
+/// `lastIndex` del contador que publica el bot en `shift_image_counts`
+/// para este chat, día y jornada. Obligatorio a propósito: quien arma el
+/// resumen debe pasar 0 si el documento no existe (esa jornada no tuvo
+/// media), no dejarlo callado. Cuenta también audio, video y sticker, y puede
+/// tener huecos: solo sirve para el aviso informativo de imágenes sin
+/// registrar (ver `imagenesFaltantes`), nunca para el estado de dinero.
+@override final  int imagenesEnJornada;
 
 /// Create a copy of JornadaSummary
 /// with the given fields replaced by the non-null parameter values.
@@ -257,16 +271,16 @@ _$JornadaSummaryCopyWith<_JornadaSummary> get copyWith => __$JornadaSummaryCopyW
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _JornadaSummary&&(identical(other.chatJid, chatJid) || other.chatJid == chatJid)&&(identical(other.groupName, groupName) || other.groupName == groupName)&&(identical(other.fechaJornada, fechaJornada) || other.fechaJornada == fechaJornada)&&(identical(other.shift, shift) || other.shift == shift)&&(identical(other.revisor, revisor) || other.revisor == revisor)&&(identical(other.sumador, sumador) || other.sumador == sumador));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _JornadaSummary&&(identical(other.chatJid, chatJid) || other.chatJid == chatJid)&&(identical(other.groupName, groupName) || other.groupName == groupName)&&(identical(other.fechaJornada, fechaJornada) || other.fechaJornada == fechaJornada)&&(identical(other.shift, shift) || other.shift == shift)&&(identical(other.revisor, revisor) || other.revisor == revisor)&&(identical(other.sumador, sumador) || other.sumador == sumador)&&(identical(other.imagenesEnJornada, imagenesEnJornada) || other.imagenesEnJornada == imagenesEnJornada));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,chatJid,groupName,fechaJornada,shift,revisor,sumador);
+int get hashCode => Object.hash(runtimeType,chatJid,groupName,fechaJornada,shift,revisor,sumador,imagenesEnJornada);
 
 @override
 String toString() {
-  return 'JornadaSummary(chatJid: $chatJid, groupName: $groupName, fechaJornada: $fechaJornada, shift: $shift, revisor: $revisor, sumador: $sumador)';
+  return 'JornadaSummary(chatJid: $chatJid, groupName: $groupName, fechaJornada: $fechaJornada, shift: $shift, revisor: $revisor, sumador: $sumador, imagenesEnJornada: $imagenesEnJornada)';
 }
 
 
@@ -277,7 +291,7 @@ abstract mixin class _$JornadaSummaryCopyWith<$Res> implements $JornadaSummaryCo
   factory _$JornadaSummaryCopyWith(_JornadaSummary value, $Res Function(_JornadaSummary) _then) = __$JornadaSummaryCopyWithImpl;
 @override @useResult
 $Res call({
- String chatJid, String groupName, String fechaJornada, String shift, RoleSummary revisor, RoleSummary sumador
+ String chatJid, String groupName, String fechaJornada, String shift, RoleSummary revisor, RoleSummary sumador, int imagenesEnJornada
 });
 
 
@@ -294,7 +308,7 @@ class __$JornadaSummaryCopyWithImpl<$Res>
 
 /// Create a copy of JornadaSummary
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? chatJid = null,Object? groupName = null,Object? fechaJornada = null,Object? shift = null,Object? revisor = null,Object? sumador = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? chatJid = null,Object? groupName = null,Object? fechaJornada = null,Object? shift = null,Object? revisor = null,Object? sumador = null,Object? imagenesEnJornada = null,}) {
   return _then(_JornadaSummary(
 chatJid: null == chatJid ? _self.chatJid : chatJid // ignore: cast_nullable_to_non_nullable
 as String,groupName: null == groupName ? _self.groupName : groupName // ignore: cast_nullable_to_non_nullable
@@ -302,7 +316,8 @@ as String,fechaJornada: null == fechaJornada ? _self.fechaJornada : fechaJornada
 as String,shift: null == shift ? _self.shift : shift // ignore: cast_nullable_to_non_nullable
 as String,revisor: null == revisor ? _self.revisor : revisor // ignore: cast_nullable_to_non_nullable
 as RoleSummary,sumador: null == sumador ? _self.sumador : sumador // ignore: cast_nullable_to_non_nullable
-as RoleSummary,
+as RoleSummary,imagenesEnJornada: null == imagenesEnJornada ? _self.imagenesEnJornada : imagenesEnJornada // ignore: cast_nullable_to_non_nullable
+as int,
   ));
 }
 

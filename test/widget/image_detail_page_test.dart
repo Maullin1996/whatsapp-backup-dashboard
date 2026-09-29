@@ -1,14 +1,18 @@
+import 'dart:async';
+
 import 'package:extended_image/extended_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:whatsapp_monitor_viewer/core/theme/app_theme.dart';
+import 'package:whatsapp_monitor_viewer/core/time/shifts.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/data/repositories/in_memory_image_review_repository.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/comprobante.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/image_review_form.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/image_review_record.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_shift.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/image_review_providers.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/widgets/image_review_panel.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/domain/entities/image_view_item.dart';
@@ -36,6 +40,11 @@ Future<void> _settle(WidgetTester tester) async {
   }
 }
 
+/// Etiqueta real de `Shift.morning` (no un atajo de prueba): tiene que
+/// coincidir con `shiftNames` para que `shiftFromLabel` la reconozca al
+/// comparar contra `reviewShifts` (la tercera condición del panel).
+final _morningLabel = shiftNames[Shift.morning]!;
+
 ImageViewItem _itemFor(String id) => ImageViewItem(
   messageId: id,
   chatJid: 'chat@g.us',
@@ -43,12 +52,20 @@ ImageViewItem _itemFor(String id) => ImageViewItem(
   senderName: 'Remitente $id',
   messageTimestamp: 1000,
   localTime: '10:00',
-  shift: 'Jornada Mañana',
+  shift: _morningLabel,
   fechaJornada: '2026-01-15',
 );
 
 /// Índice 0 = el más nuevo (como en la app).
 ImageViewItem _item(int i) => _itemFor('m$i');
+
+/// Asignación que cubre exactamente el chat/jornada de todos los items de
+/// prueba (`chat@g.us` / `Jornada Mañana` → `Shift.morning`): el default de
+/// `_openViewer`, para que los tests existentes (que solo les interesa
+/// rol/ancho/registro) no tengan que preocuparse por la tercera condición.
+const _defaultReviewShifts = [
+  ReviewShift(chatJid: 'chat@g.us', shift: Shift.morning),
+];
 
 /// Lista de imágenes del chat, modificable como lo haría el tiempo real.
 class _ItemsNotifier extends Notifier<List<ImageViewItem>> {
@@ -80,7 +97,8 @@ Future<void> _openViewer(
   WidgetTester tester, {
   required double width,
   int initialIndex = 1,
-  ReviewRole role = ReviewRole.revisor,
+  ReviewRole? role = ReviewRole.revisor,
+  List<ReviewShift> reviewShifts = _defaultReviewShifts,
 }) async {
   tester.view.physicalSize = Size(width, 900);
   tester.view.devicePixelRatio = 1;
@@ -95,6 +113,7 @@ Future<void> _openViewer(
           InMemoryImageReviewRepository(),
         ),
         currentReviewRoleProvider.overrideWithValue(role),
+        reviewShiftsProvider.overrideWith((ref) async => reviewShifts),
         chatImageItemsProvider.overrideWith((ref) => ref.watch(_itemsProvider)),
         imageUrlProvider.overrideWith((ref, path) => 'http://localhost/$path'),
         messagesProvider.overrideWith(_CountingMessagesNotifier.new),
@@ -700,6 +719,172 @@ void main() {
       expect(_pos(1, 1), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
+  });
+
+  group('sin rol (rol == null)', () {
+    testWidgets('pantalla ancha: no hay panel y la navegación es libre', (
+      tester,
+    ) async {
+      await _openViewer(tester, width: 1200, role: null);
+
+      expect(find.byType(ImageReviewPanel), findsNothing);
+      for (final icon in [Icons.chevron_left, Icons.chevron_right]) {
+        expect(tester.widget<NavButton>(_chevron(icon)).enabled, isTrue);
+      }
+
+      // Las posiciones van de la más nueva (1) a la más antigua.
+      await _key(tester, LogicalKeyboardKey.arrowRight);
+      expect(_pos(1), findsOneWidget);
+      await _key(tester, LogicalKeyboardKey.arrowLeft);
+      await _key(tester, LogicalKeyboardKey.arrowLeft);
+      expect(_pos(3), findsOneWidget);
+      expect(find.text(_blockedMessage), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('pantalla estrecha: tampoco hay panel ni bloqueo', (
+      tester,
+    ) async {
+      await _openViewer(tester, width: 700, role: null);
+
+      expect(find.byType(ImageReviewPanel), findsNothing);
+      await _key(tester, LogicalKeyboardKey.arrowRight);
+      expect(_pos(1), findsOneWidget);
+      expect(find.text(_blockedMessage), findsNothing);
+    });
+  });
+
+  group('reviewShifts es la tercera condición del panel', () {
+    testWidgets('rol y ancho ok, pero sin ningún reviewShift: sin panel, '
+        'navegación libre', (tester) async {
+      await _openViewer(tester, width: 1200, reviewShifts: const []);
+
+      expect(find.byType(ImageReviewPanel), findsNothing);
+      await _key(tester, LogicalKeyboardKey.arrowRight);
+      expect(_pos(1), findsOneWidget);
+      expect(find.text(_blockedMessage), findsNothing);
+    });
+
+    testWidgets('la asignación es de otro chat: sin panel', (tester) async {
+      await _openViewer(
+        tester,
+        width: 1200,
+        reviewShifts: const [
+          ReviewShift(chatJid: 'otro-chat@g.us', shift: Shift.morning),
+        ],
+      );
+
+      expect(find.byType(ImageReviewPanel), findsNothing);
+    });
+
+    testWidgets(
+      'rol activo pero la jornada de ESTA imagen no está asignada, aunque '
+      'otras jornadas del mismo chat sí: sin panel',
+      (tester) async {
+        await _openViewer(
+          tester,
+          width: 1200,
+          reviewShifts: const [
+            ReviewShift(chatJid: 'chat@g.us', shift: Shift.afternoon1),
+            ReviewShift(chatJid: 'chat@g.us', shift: Shift.night2),
+          ],
+        );
+
+        expect(find.byType(ImageReviewPanel), findsNothing);
+      },
+    );
+
+    testWidgets('sin asignación y encima ancho angosto: tampoco hay panel', (
+      tester,
+    ) async {
+      await _openViewer(tester, width: 700, reviewShifts: const []);
+
+      expect(find.byType(ImageReviewPanel), findsNothing);
+    });
+
+    testWidgets('sin rol, aunque la asignación matchee, sigue sin panel', (
+      tester,
+    ) async {
+      await _openViewer(
+        tester,
+        width: 1200,
+        role: null,
+        reviewShifts: _defaultReviewShifts,
+      );
+
+      expect(find.byType(ImageReviewPanel), findsNothing);
+    });
+
+    testWidgets('la asignación correcta (mismo chatJid y jornada) muestra el '
+        'panel', (tester) async {
+      await _openViewer(
+        tester,
+        width: 1200,
+        reviewShifts: _defaultReviewShifts,
+      );
+
+      expect(find.byType(ImageReviewPanel), findsOneWidget);
+    });
+
+    testWidgets(
+      'mientras reviewShiftsProvider está cargando, no se muestra el panel '
+      'de forma transitoria; al resolver con una asignación que matchea, '
+      'aparece',
+      (tester) async {
+        final completer = Completer<List<ReviewShift>>();
+        tester.view.physicalSize = const Size(1200, 900);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              reviewerEmailProvider.overrideWithValue('revisor@test.com'),
+              reviewerUidProvider.overrideWithValue('uid-test'),
+              imageReviewRepositoryProvider.overrideWithValue(
+                InMemoryImageReviewRepository(),
+              ),
+              currentReviewRoleProvider.overrideWithValue(ReviewRole.revisor),
+              reviewShiftsProvider.overrideWith((ref) => completer.future),
+              chatImageItemsProvider.overrideWith(
+                (ref) => ref.watch(_itemsProvider),
+              ),
+              imageUrlProvider.overrideWith(
+                (ref, path) => 'http://localhost/$path',
+              ),
+              messagesProvider.overrideWith(_CountingMessagesNotifier.new),
+            ],
+            child: MaterialApp(
+              theme: AppTheme.light,
+              home: Builder(
+                builder: (context) => Scaffold(
+                  body: Center(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) =>
+                              const ImageDetailPage(initialIndex: 1),
+                        ),
+                      ),
+                      child: const Text('abrir'),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('abrir'));
+        await _settle(tester);
+
+        expect(find.byType(ImageReviewPanel), findsNothing);
+
+        completer.complete(_defaultReviewShifts);
+        await _settle(tester);
+
+        expect(find.byType(ImageReviewPanel), findsOneWidget);
+      },
+    );
   });
 
   group('el bloqueo de navegación es del rol activo', () {

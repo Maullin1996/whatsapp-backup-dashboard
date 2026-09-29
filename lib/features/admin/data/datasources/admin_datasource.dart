@@ -1,5 +1,7 @@
 import 'package:whatsapp_monitor_viewer/features/admin/domain/entities/app_user.dart';
 import 'package:whatsapp_monitor_viewer/features/admin/domain/entities/group.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_shift.dart';
 
 abstract class AdminDatasource {
   Future<List<AppUser>> listUsers();
@@ -23,4 +25,9 @@ abstract class AdminDatasource {
     required String uid,
     required String role,
   }); // ← nuevo
+  Future<void> setReviewRole({required String uid, required ReviewRole? role});
+  Future<void> updateReviewShifts({
+    required String uid,
+    required List<ReviewShift> shifts,
+  });
 }

@@ -19,6 +19,7 @@ JornadaSummary _summary(RoleSummary revisor, RoleSummary sumador) =>
       shift: 'Jornada Mañana (06:00 – 10:54)',
       revisor: revisor,
       sumador: sumador,
+      imagenesEnJornada: 0,
     );
 
 void main() {

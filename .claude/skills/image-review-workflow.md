@@ -105,7 +105,9 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    (reconciliación de sumas) y, por separado, el aviso de imágenes sin
    registrar (ver `image-review-domain` § "Reconciliación de dinero vs.
    imágenes sin registrar: dos señales separadas") — no un conteo previo
-   en el indicador de subida.
+   en el indicador de subida. El detector de imágenes sin registrar usa
+   el contador que publica el bot en `shift_image_counts`, no `count()` ni
+   el máximo de `whatsapp_messages` (ver `image-review-domain.md`).
    **UI ya hecha con datos INVENTADOS** (menú "Resumen" en `ChatList` +
    ruta `/summary`, visible para cualquier usuario autenticado hasta que
    existan los claims reales; `SummaryPage` con selector de fecha y
@@ -113,12 +115,22 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    determinista por fecha, en `features/summary/`). **Sigue pendiente
    conectar datos reales** (reemplazar el mock por un `SummaryRepository`
    real: subida real a Firestore, paso 7, o el mecanismo de lectura
-   cruzada) y el aviso de imágenes sin registrar.
+   cruzada). **El Resumen mockeado ya incluye el aviso de imágenes sin
+   registrar** (línea bajo cada rol, con `imagenesEnJornada` inventado en el
+   mock con el formato real de `shift_image_counts`); falta cambiar solo la
+   fuente por un `get` por id a esa colección.
 6. **Integración Firebase con mocks** (`image-review-firebase-integration`):
    Cloud Function puente simulada, jornadas y números ganadores locales
    — para poder construir y probar la pantalla nueva de coincidencias
    sin depender del proyecto externo real. El enum `Shift` local se
    mantiene tal cual hasta el siguiente paso.
+   **UI ya hecha con datos INVENTADOS** (página `/matches`, solo para
+   `isAdmin`/`isSuperAdmin` vía `canViewMatches`; entrada "Coincidencias"
+   en el menú de `ChatList`; `MockMatchesRepository` determinista por
+   fecha, en `features/matches/`). **Sigue pendiente conectar datos
+   reales** (paso 7: reemplazar el mock por un `MatchesRepository`
+   real; de dónde lee —y si hay o no lectura directa de Firestore— se
+   define en el paso 7).
 7. **Conexión real a Firebase** (`image-review-firebase-integration`):
    una vez el usuario tenga acceso al proyecto externo, revisar el
    formato real de jornadas/números ganadores y reemplazar los mocks

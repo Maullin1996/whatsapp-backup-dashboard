@@ -34,6 +34,7 @@ JornadaSummary _js({
   String fecha = '2026-03-15',
   required RoleSummary revisor,
   required RoleSummary sumador,
+  int imagenesEnJornada = 0,
 }) => JornadaSummary(
   chatJid: jid,
   groupName: group,
@@ -41,6 +42,7 @@ JornadaSummary _js({
   shift: shift ?? _morning,
   revisor: revisor,
   sumador: sumador,
+  imagenesEnJornada: imagenesEnJornada,
 );
 
 /// Repositorio falso: datos por día (`yyyy-MM-dd`), con la opción de
@@ -71,6 +73,7 @@ Future<ProviderContainer> _pumpPage(
   Size size = const Size(1280, 800),
   GoRouter? router,
   bool settle = true,
+  DateTime? now,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -78,7 +81,10 @@ Future<ProviderContainer> _pumpPage(
 
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [summaryRepositoryProvider.overrideWithValue(repo)],
+      overrides: [
+        summaryRepositoryProvider.overrideWithValue(repo),
+        if (now != null) clockProvider.overrideWithValue(() => now),
+      ],
       child: router == null
           ? const MaterialApp(home: SummaryPage())
           : MaterialApp.router(routerConfig: router),
@@ -256,6 +262,49 @@ void main() {
       expect(colorOf('Descuadre de \$9.000'), Colors.red);
       expect(colorOf('Cuadra'), Colors.green);
       expect(colorOf('Falta Sumador'), const Color(0xFFB7791F));
+    });
+  });
+
+  group('aviso de imágenes sin registrar', () {
+    final repo = _FakeRepo(
+      byDate: {
+        '2026-09-28': [
+          JornadaSummary(
+            chatJid: 'g1',
+            groupName: 'Grupo Norte',
+            fechaJornada: '2026-09-28',
+            shift: _morning,
+            revisor: _role(7, 14, 90000),
+            sumador: _role(10, 20, 90000),
+            imagenesEnJornada: 10,
+          ),
+        ],
+      },
+    );
+    final day = DateTime(2026, 9, 28);
+
+    Future<void> pumpAt(WidgetTester tester, DateTime now) async {
+      final container = await _pumpPage(tester, repo: repo, now: now);
+      await _selectDate(tester, container, day);
+    }
+
+    testWidgets('con el reloj después del fin de la jornada aparece', (
+      tester,
+    ) async {
+      await pumpAt(tester, DateTime.utc(2026, 9, 28, 15, 55));
+
+      expect(find.text('Faltan 3 imágenes por registrar'), findsOneWidget);
+      // El estado de dinero (cuadra) no cambia.
+      expect(find.text('Cuadra'), findsOneWidget);
+    });
+
+    testWidgets('con el reloj antes del fin de la jornada no aparece', (
+      tester,
+    ) async {
+      await pumpAt(tester, DateTime.utc(2026, 9, 28, 15, 54, 59));
+
+      expect(find.textContaining('por registrar'), findsNothing);
+      expect(find.byType(JornadaSummaryCard), findsOneWidget);
     });
   });
 

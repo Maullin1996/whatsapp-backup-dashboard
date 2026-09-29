@@ -12,25 +12,41 @@ import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/aut
 import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_providers.dart';
 import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_session_state.dart';
 import 'package:whatsapp_monitor_viewer/features/chats/presentation/widgets/custom_popup_menu_logout_button.dart';
+import 'package:whatsapp_monitor_viewer/features/matches/presentation/pages/matches_page.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/presentation/pages/summary_page.dart';
 
 class _FakeAuth extends AuthSessionNotifier {
   final bool isAdmin;
-  _FakeAuth({required this.isAdmin});
+  final bool isSuperAdmin;
+  final bool noSession;
+  _FakeAuth({
+    this.isAdmin = false,
+    this.isSuperAdmin = false,
+    this.noSession = false,
+  });
 
   @override
-  AuthSessionState build() => AuthSessionState.authenticated(
-    AuthenticatedUser(
-      id: 'uid',
-      email: 'a@x.com',
-      isAdmin: isAdmin,
-      isSuperAdmin: false,
-    ),
-  );
+  AuthSessionState build() {
+    if (noSession) return const AuthSessionState.unauthenticated();
+    return AuthSessionState.authenticated(
+      AuthenticatedUser(
+        id: 'uid',
+        email: 'a@x.com',
+        isAdmin: isAdmin,
+        isSuperAdmin: isSuperAdmin,
+      ),
+    );
+  }
 }
 
-/// El menú vive en la pantalla `/`; `/summary` es la página real.
-Future<void> pumpMenu(WidgetTester tester, {required bool isAdmin}) async {
+/// El menú vive en la pantalla `/`; `/summary` y `/matches` son las páginas
+/// reales.
+Future<void> pumpMenu(
+  WidgetTester tester, {
+  bool isAdmin = false,
+  bool isSuperAdmin = false,
+  bool noSession = false,
+}) async {
   final router = GoRouter(
     routes: [
       GoRoute(
@@ -40,12 +56,19 @@ Future<void> pumpMenu(WidgetTester tester, {required bool isAdmin}) async {
         ),
       ),
       GoRoute(path: '/summary', builder: (_, _) => const SummaryPage()),
+      GoRoute(path: '/matches', builder: (_, _) => const MatchesPage()),
     ],
   );
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
-        authSessionProvider.overrideWith(() => _FakeAuth(isAdmin: isAdmin)),
+        authSessionProvider.overrideWith(
+          () => _FakeAuth(
+            isAdmin: isAdmin,
+            isSuperAdmin: isSuperAdmin,
+            noSession: noSession,
+          ),
+        ),
       ],
       child: MaterialApp.router(theme: AppTheme.light, routerConfig: router),
     ),
@@ -211,5 +234,47 @@ void main() {
 
     expect(find.byType(SummaryPage), findsOneWidget);
     expect(find.text('Resumen'), findsOneWidget);
+  });
+
+  group('"Coincidencias" (canViewMatches: admin o superAdmin)', () {
+    testWidgets('aparece con isAdmin', (tester) async {
+      await pumpMenu(tester, isAdmin: true);
+      expect(find.text('Coincidencias'), findsOneWidget);
+    });
+
+    testWidgets('aparece con solo isSuperAdmin (sin isAdmin)', (tester) async {
+      await pumpMenu(tester, isSuperAdmin: true);
+      expect(find.text('Coincidencias'), findsOneWidget);
+    });
+
+    testWidgets('NO aparece con un usuario normal', (tester) async {
+      await pumpMenu(tester);
+      expect(find.text('Coincidencias'), findsNothing);
+    });
+
+    testWidgets('NO aparece sin sesión', (tester) async {
+      await pumpMenu(tester, noSession: true);
+      expect(find.text('Coincidencias'), findsNothing);
+    });
+
+    testWidgets('va después de "Resumen" y antes del divisor', (tester) async {
+      await pumpMenu(tester, isAdmin: true);
+
+      final summary = tester.getCenter(find.text('Resumen')).dy;
+      final matches = tester.getCenter(find.text('Coincidencias')).dy;
+      final divider = tester.getCenter(find.byType(PopupMenuDivider)).dy;
+
+      expect(summary, lessThan(matches));
+      expect(matches, lessThan(divider));
+    });
+
+    testWidgets('tocarla navega a /matches', (tester) async {
+      await pumpMenu(tester, isAdmin: true);
+
+      await tester.tap(find.text('Coincidencias'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(MatchesPage), findsOneWidget);
+    });
   });
 }

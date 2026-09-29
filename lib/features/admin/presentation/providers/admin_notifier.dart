@@ -1,8 +1,11 @@
+import 'package:dartz/dartz.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:whatsapp_monitor_viewer/features/admin/domain/entities/app_user.dart';
+import 'package:whatsapp_monitor_viewer/core/errors/admin_failure.dart';
 import 'package:whatsapp_monitor_viewer/features/admin/domain/repositories/admin_repository.dart';
 import 'package:whatsapp_monitor_viewer/features/admin/presentation/providers/admin_providers.dart';
 import 'package:whatsapp_monitor_viewer/features/admin/presentation/providers/admin_state.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_shift.dart';
 
 class AdminNotifier extends Notifier<AdminState> {
   late final AdminRepository _repository;
@@ -115,16 +118,10 @@ class AdminNotifier extends Notifier<AdminState> {
     required bool disabled,
   }) async {
     // Actualizar localmente ANTES de llamar a la función para respuesta inmediata
-    final updatedUsers = state.users.map((u) {
-      if (u.uid != uid) return u;
-      return AppUser(
-        uid: u.uid,
-        email: u.email,
-        displayName: u.displayName,
-        disabled: disabled,
-        allowedGroups: u.allowedGroups,
-      );
-    }).toList();
+    final updatedUsers = [
+      for (final u in state.users)
+        if (u.uid == uid) u.copyWith(disabled: disabled) else u,
+    ];
 
     state = state.copyWith(
       users: updatedUsers,
@@ -140,16 +137,11 @@ class AdminNotifier extends Notifier<AdminState> {
     result.fold(
       (failure) {
         // Si falla, revertir el cambio local
-        final revertedUsers = state.users.map((u) {
-          if (u.uid != uid) return u;
-          return AppUser(
-            uid: u.uid,
-            email: u.email,
-            displayName: u.displayName,
-            disabled: !disabled, // revertir
-            allowedGroups: u.allowedGroups,
-          );
-        }).toList();
+        // revertir (conservando el resto de campos, incluidos los roles)
+        final revertedUsers = [
+          for (final u in state.users)
+            if (u.uid == uid) u.copyWith(disabled: !disabled) else u,
+        ];
         state = state.copyWith(
           isSubmitting: false,
           users: revertedUsers,
@@ -170,16 +162,10 @@ class AdminNotifier extends Notifier<AdminState> {
     required List<String> allowedGroups,
   }) async {
     // Actualizar localmente ANTES para respuesta inmediata
-    final updatedUsers = state.users.map((u) {
-      if (u.uid != uid) return u;
-      return AppUser(
-        uid: u.uid,
-        email: u.email,
-        displayName: u.displayName,
-        disabled: u.disabled,
-        allowedGroups: allowedGroups,
-      );
-    }).toList();
+    final updatedUsers = [
+      for (final u in state.users)
+        if (u.uid == uid) u.copyWith(allowedGroups: allowedGroups) else u,
+    ];
 
     state = state.copyWith(
       users: updatedUsers,
@@ -210,18 +196,10 @@ class AdminNotifier extends Notifier<AdminState> {
     required String role, // 'admin' | 'user'
   }) async {
     // Actualizar localmente para respuesta inmediata
-    final updatedUsers = state.users.map((u) {
-      if (u.uid != uid) return u;
-      return AppUser(
-        uid: u.uid,
-        email: u.email,
-        displayName: u.displayName,
-        disabled: u.disabled,
-        allowedGroups: u.allowedGroups,
-        isAdmin: role == 'admin',
-        isSuperAdmin: u.isSuperAdmin,
-      );
-    }).toList();
+    final updatedUsers = [
+      for (final u in state.users)
+        if (u.uid == uid) u.copyWith(isAdmin: role == 'admin') else u,
+    ];
 
     state = state.copyWith(
       users: updatedUsers,
@@ -243,6 +221,76 @@ class AdminNotifier extends Notifier<AdminState> {
             : 'Permisos de administrador removidos',
       ),
     );
+  }
+
+  /// Optimista para sentirse ágil, pero con una diferencia deliberada del
+  /// patrón de `setUserRole`: cambiar de rol DE VERDAD limpia `reviewShifts`
+  /// en el servidor (ver `setReviewRole` en `functions/index.js`), y el
+  /// valor optimista de `reviewRole` por sí solo no refleja eso — sin
+  /// recargar, la tarjeta mostraría horarios que ya no existen. Por eso
+  /// SIEMPRE se recarga con `loadUsers()` al terminar, tanto en éxito como en
+  /// fallo (a diferencia de `setUserRole`, que solo recarga si falla).
+  Future<void> setReviewRole({
+    required String uid,
+    required ReviewRole? role,
+  }) async {
+    final updatedUsers = [
+      for (final u in state.users)
+        if (u.uid == uid) u.copyWith(reviewRole: role) else u,
+    ];
+
+    state = state.copyWith(
+      users: updatedUsers,
+      isSubmitting: true,
+      error: null,
+    );
+
+    final result = await _repository.setReviewRole(uid: uid, role: role);
+
+    result.fold(
+      (failure) => state = state.copyWith(isSubmitting: false, error: failure),
+      (_) => state = state.copyWith(
+        isSubmitting: false,
+        successMessage: role == null
+            ? 'Rol de revisión removido'
+            : 'Rol de revisión actualizado',
+      ),
+    );
+    await loadUsers();
+  }
+
+  /// A diferencia de `setReviewRole`, NO es optimista: `updateReviewShifts`
+  /// puede fallar por unicidad (otra persona del mismo rol ya cubre ese
+  /// grupo+jornada), y mostrarle al superAdmin horarios que el servidor va a
+  /// rechazar un instante después es peor que esperar el resultado. El
+  /// usuario en el estado local NUNCA se toca a mano; siempre se recarga
+  /// desde el servidor al terminar, tanto en éxito (refleja lo guardado)
+  /// como en fallo (para que el resaltado de conflictos del diálogo quede al
+  /// día en el siguiente intento). Devuelve el resultado además de
+  /// actualizar `error`/`successMessage`, para que el diálogo que llama
+  /// pueda reaccionar directamente (mantenerse abierto y mostrar el error)
+  /// sin depender del snackbar global.
+  Future<Either<AdminFailure, Unit>> updateReviewShifts({
+    required String uid,
+    required List<ReviewShift> shifts,
+  }) async {
+    state = state.copyWith(isSubmitting: true, error: null);
+
+    final result = await _repository.updateReviewShifts(
+      uid: uid,
+      shifts: shifts,
+    );
+
+    result.fold(
+      (failure) => state = state.copyWith(isSubmitting: false, error: failure),
+      (_) => state = state.copyWith(
+        isSubmitting: false,
+        successMessage: 'Horarios actualizados',
+      ),
+    );
+    await loadUsers();
+
+    return result;
   }
 
   void clearMessages() {

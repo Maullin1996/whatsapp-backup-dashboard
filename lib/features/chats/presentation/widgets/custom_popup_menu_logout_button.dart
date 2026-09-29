@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
 import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_providers.dart';
 import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_session_state.dart';
+import 'package:whatsapp_monitor_viewer/features/matches/domain/helpers/can_view_matches.dart';
 
 class CustomPopupMenuLogoutButton extends ConsumerWidget {
   const CustomPopupMenuLogoutButton({super.key});
@@ -25,11 +26,21 @@ class CustomPopupMenuLogoutButton extends ConsumerWidget {
     context.push('/summary');
   }
 
+  void _onMatches(BuildContext context) {
+    context.push('/matches');
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authSessionProvider);
     final isAdmin = authState.maybeWhen(
       authenticated: (user) => user.isAdmin,
+      orElse: () => false,
+    );
+    // Misma función que el guard de /matches en router.dart, para que
+    // nunca diverjan.
+    final canGoToMatches = authState.maybeWhen(
+      authenticated: (user) => canViewMatches(user),
       orElse: () => false,
     );
     return PopupMenuButton<_ChatMenuAction>(
@@ -42,6 +53,9 @@ class CustomPopupMenuLogoutButton extends ConsumerWidget {
             break;
           case _ChatMenuAction.summary:
             _onSummary(context);
+            break;
+          case _ChatMenuAction.matches:
+            _onMatches(context);
             break;
           case _ChatMenuAction.logout:
             _onLogout(context, ref);
@@ -68,6 +82,15 @@ class CustomPopupMenuLogoutButton extends ConsumerWidget {
             text: 'Resumen',
           ),
         ),
+        if (canGoToMatches)
+          const PopupMenuItem<_ChatMenuAction>(
+            value: _ChatMenuAction.matches,
+            padding: EdgeInsets.zero,
+            child: _HoverMenuItem(
+              icon: Icons.emoji_events_rounded,
+              text: 'Coincidencias',
+            ),
+          ),
         const PopupMenuDivider(),
         const PopupMenuItem<_ChatMenuAction>(
           value: _ChatMenuAction.logout,
@@ -141,4 +164,4 @@ class __HoverMenuItemState extends State<_HoverMenuItem> {
   }
 }
 
-enum _ChatMenuAction { logout, adminPanel, summary }
+enum _ChatMenuAction { logout, adminPanel, summary, matches }

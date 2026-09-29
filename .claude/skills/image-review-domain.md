@@ -152,16 +152,18 @@ Consecuencias para el feature de revisión:
 - **Solo se puede registrar un `Message` si `isImage == true`** (tiene
   `storagePath`). Un mensaje de puro texto nunca entra al flujo de
   Revisor/Sumador.
-- **La redirección desde la pantalla de resumen (coincidencia con número
-  ganador) no necesita "navegar" a `image_detail_page` para mostrar
-  contexto** — con `id`, `chatJid`, `senderName`, `storagePath`, `shift`,
-  `localTime` e `isEdited` ya alcanza para construir una vista/tarjeta de
-  contexto (a qué grupo pertenece, cuándo se registró, quién lo envió).
-  La imagen en sí (pedir la URL con `storagePath` vía
-  `imageUrlProvider`) solo se carga **si el usuario hace click** para
-  ver la imagen completa — no se precarga por defecto solo por aparecer
-  en el resumen. Esto es una decisión de rendimiento, no una regla de
-  negocio dura; si en la práctica conviene precargar, se puede ajustar.
+- **La pantalla de coincidencias (con número ganador) no navega a
+  `image_detail_page` para mostrar contexto** — con `id`, `chatJid`,
+  `senderName`, `storagePath`, `shift`, `localTime` e `isEdited` ya
+  alcanza para construir una vista/tarjeta de contexto (a qué grupo
+  pertenece, cuándo se registró, quién lo envió); la UI construida abre
+  un diálogo de detalle propio en vez de navegar (ver
+  `image-review-firebase-integration` para el detalle). La imagen en sí
+  (pedir la URL con `storagePath` vía `imageUrlProvider`) solo se carga
+  **si el usuario hace click** para ver la imagen completa — no se
+  precarga por defecto solo por aparecer en la lista. Esto es una
+  decisión de rendimiento, no una regla de negocio dura; si en la
+  práctica conviene precargar, se puede ajustar.
 - **`shiftImageIndex` como conteo de avance de la jornada — HIPÓTESIS
   DESCARTADA como mecanismo de cierre**: se pensó inicialmente en usar
   el valor más alto de `shiftImageIndex` como "total esperado" para
@@ -215,19 +217,72 @@ recomendación de diseño es:
   es un descuadre, y presentarla como tal daría la impresión de un posible
   fraude cuando en realidad solo faltó registrar una imagen.
 - **Para detectar imágenes sin registrar se usa una señal distinta y
-  separada.** Una vez la jornada terminó (hora actual > fin del rango
-  horario de esa jornada en `lib/core/time/shifts.dart`), se compara el
-  `shiftImageIndex` máximo visto en esa jornada contra la cantidad de
-  registros que **ese rol** (Revisor o Sumador, cada uno por separado)
-  efectivamente guardó. **Antes de que la jornada termine esta comparación
-  no es confiable** (`shiftImageIndex` puede seguir creciendo, ver arriba)
-  y **no se muestra**.
-- **Es informativa, no bloquea nada**, y vive en la pantalla de
-  resumen/coincidencias (pasos 5-6 del roadmap de `image-review-workflow`),
-  **nunca en el indicador de subida del paso 4**.
-- **Pendiente de decidir al implementarla**: si "jornada terminada" es
-  estrictamente hora actual > fin de rango, o si se da un margen por
-  mensajes que llegan tarde.
+  separada: el contador que publica el bot.** El bot publica una copia
+  de su contador `last_index` en la colección de Firestore
+  `shift_image_counts` (publicador independiente, desplegado el
+  2026-09-27 a las 20:34 hora de Bogotá; commit `b816589` del repo del
+  bot). Una vez la jornada terminó (hora actual > fin **exacto** del
+  rango horario de esa jornada en `lib/core/time/shifts.dart`, sin
+  margen), la app compara ese valor contra la cantidad de registros que
+  **ese rol** (Revisor o Sumador, cada uno por separado) efectivamente
+  guardó. **Antes de que la jornada termine esta comparación no es
+  confiable** (el contador puede seguir creciendo, ver arriba) y **no se
+  muestra**.
+- **Se descartó** calcular esto con `count()` sobre `whatsapp_messages`
+  o con el máximo de `shiftImageIndex` leído de esa colección. El
+  índice compuesto `chatJid + hasMedia + messageTimestamp` **no se creó
+  y no hace falta**.
+- **Formato del documento** (fuente: `BOT_DOCUMENTATION.md`, secciones 6
+  y 9; ese archivo está subido al Project de Claude y **no vive en este
+  repo**):
+  - Id: `${chatJid}_${yyyy-MM-dd}_${shiftKey}`. Campos: `chatJid`,
+    `shiftDate`, `shiftKey`, `lastIndex` (entero), `publishedAt`.
+  - `shiftKey` coincide con los nombres del enum `Shift` (`morning`,
+    `afternoon1`, `afternoon2`, `night1`, `night2`, `holiday`); no hay
+    que traducir.
+  - La app lee **por id**: un documento por (chat, fecha, jornada), sin
+    consulta ni índice.
+  - Si una jornada no tuvo media en un chat, **el documento no existe**:
+    la app lo trata como 0.
+  - El bot solo publica hoy y ayer (fecha UTC-5) y no borra nada. Antes
+    del 2026-09-26 no hay documentos.
+  - App y bot usan los mismos rangos horarios, truncan a minutos con
+    límites inclusivos y detectan solo domingos. Diferencia: la app
+    calcula la jornada con `toLocal()`; el bot, con `America/Bogota`, y
+    su `shift_date` usa UTC-5 fijo.
+- **Limitaciones aceptadas** (decisión del usuario): el valor puede
+  tener huecos (falla de escritura en Firestore tras consumir el índice;
+  reproceso por el watchdog) y cuenta también audio, video y sticker,
+  no solo imágenes. El aviso es solo informativo y los usuarios saben
+  que se pierden algunas imágenes. Solo importa lo posterior al deploy
+  que activa la subida real (paso 7 del roadmap). Riesgo aceptado: un
+  valor que llega con retraso (hasta ~60 s de publicación, más
+  reintentos del bot) puede producir un "faltante" que se resuelve solo.
+- **Es informativa, no bloquea nada**, está separada de la reconciliación
+  de dinero, y vive en el **Resumen** (paso 5 del roadmap de
+  `image-review-workflow`, `SummaryPage`) — **nunca en el indicador de
+  subida del paso 4**. La pantalla de **Coincidencias** con números
+  ganadores (paso 6, ver `image-review-firebase-integration`) es una
+  pantalla dedicada y separada del Resumen; este aviso no vive ahí.
+- **Pendientes de decidir / verificar (NO resueltos):**
+  - **Zona horaria al construir el id.** Propuesta a confirmar: calcular
+    la fecha con UTC-5 fijo y no con `toLocal()`, porque un dispositivo
+    en otra zona construiría un id que no existe. **El helper UTC-5
+    (`bogotaWallClock`, `lib/core/time/bogota_time.dart`) ya quedó
+    implementado como propuesta** y hoy solo lo usa `jornadaTerminada`;
+    `fechaJornadaDe` sigue con `toLocal()`. **Sigue pendiente de
+    confirmar** (no es una decisión tomada).
+  - **Fecha de corte.** Mecanismo por definir: constante y calendario
+    sin días anteriores, o mostrar esos días sin comparación. La
+    comparación arranca en la primera jornada posterior al deploy.
+  - **Reglas de Firestore**: no están en el repo. Confirmar en la
+    consola que la app puede leer `shift_image_counts` antes de escribir
+    el datasource.
+  - **Verificar que `toDomain` use la misma conversión que
+    `fechaJornadaDe`** (el comentario del código lo afirma; no está
+    verificado).
+  - **Confirmar en el bot** que un mensaje real se procesa bien con el
+    publicador (primera jornada tras el deploy).
 
 ## Reglas de negocio (no negociables sin confirmación explícita del usuario)
 
@@ -290,7 +345,11 @@ recomendación de diseño es:
    números. Si un número coincide con un número ganador, debe
    quedar visible (en la pantalla que corresponda, ver
    `image-review-firebase-integration`) el número, el grupo al que
-   pertenece, y debe permitir navegar de vuelta a esa imagen exacta.
+   pertenece (nombre y `chatJid`), quién lo envió y la hora — la UI
+   construida lo hace con un "Ver más" que abre un diálogo de detalle
+   propio, **sin navegar al visor**. **PENDIENTE (no decidido)**: si
+   algún día se quiere navegar a la imagen exacta en el visor
+   (exigiría cambiar el chat activo y el filtro de fecha).
 
 ## Zona gris / a confirmar con el usuario antes de implementar
 

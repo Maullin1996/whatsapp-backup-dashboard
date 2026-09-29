@@ -19,6 +19,10 @@ class PendingUploadIndicators extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final chatJid = ref.watch(activeChatProvider.select((c) => c?.chatJid));
+    // Sin rol no se muestra nada, sin depender de que la lista venga vacía.
+    if (ref.watch(currentReviewRoleProvider) == null) {
+      return const SizedBox.shrink();
+    }
     // `value` conserva la lista anterior mientras se recalcula: sin parpadeo.
     final jornadas = ref.watch(pendingUploadsProvider).value;
     if (chatJid == null || jornadas == null || jornadas.isEmpty) {
@@ -132,6 +136,7 @@ class _PendingUploadPill extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final rol = ref.watch(currentReviewRoleProvider);
+    if (rol == null) return const SizedBox.shrink();
     final progress = ref.watch(reviewUploadProvider.select((m) => m[_ref]));
     final uploading = progress != null;
 

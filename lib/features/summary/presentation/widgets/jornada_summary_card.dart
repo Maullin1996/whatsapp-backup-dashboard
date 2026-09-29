@@ -7,12 +7,21 @@ import 'package:whatsapp_monitor_viewer/features/image_review/presentation/model
 import 'package:whatsapp_monitor_viewer/features/summary/domain/entities/jornada_estado.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/domain/entities/jornada_summary.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/domain/entities/role_summary.dart';
+import 'package:whatsapp_monitor_viewer/features/summary/domain/helpers/imagenes_faltantes.dart';
 
 /// Tarjeta de una jornada de un grupo: qué registró cada rol y si cuadra.
+///
+/// [now] decide si la jornada ya terminó, que es cuando aparece, bajo cada
+/// rol, el aviso informativo de imágenes sin registrar.
 class JornadaSummaryCard extends StatelessWidget {
   final JornadaSummary summary;
+  final DateTime now;
 
-  const JornadaSummaryCard({super.key, required this.summary});
+  const JornadaSummaryCard({
+    super.key,
+    required this.summary,
+    required this.now,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -42,8 +51,14 @@ class JornadaSummaryCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           _RoleLine(rol: ReviewRole.revisor, summary: summary.revisor),
+          _MissingImagesLine(
+            missing: imagenesFaltantes(summary, ReviewRole.revisor, now),
+          ),
           const SizedBox(height: AppSpacing.xs),
           _RoleLine(rol: ReviewRole.sumador, summary: summary.sumador),
+          _MissingImagesLine(
+            missing: imagenesFaltantes(summary, ReviewRole.sumador, now),
+          ),
         ],
       ),
     );
@@ -79,6 +94,44 @@ class _RoleLine extends StatelessWidget {
             style: summary.registrado
                 ? null
                 : TextStyle(color: Colors.grey.shade600),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Aviso informativo bajo la fila de un rol: cuántas imágenes de la jornada
+/// no registró. Solo con [missing] > 0. Tono neutro (gris, nunca rojo: el rojo
+/// es del descuadre de dinero) y solo la diferencia, no el total del contador.
+class _MissingImagesLine extends StatelessWidget {
+  final int? missing;
+
+  const _MissingImagesLine({required this.missing});
+
+  @override
+  Widget build(BuildContext context) {
+    final count = missing;
+    if (count == null || count <= 0) return const SizedBox.shrink();
+
+    final color = Colors.grey.shade600;
+    final text = count == 1
+        ? 'Falta 1 imagen por registrar'
+        : 'Faltan $count imágenes por registrar';
+
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.xs),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline_rounded, size: AppSpacing.lg, color: color),
+          const SizedBox(width: AppSpacing.xs),
+          Expanded(
+            child: Text(
+              text,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: color),
+            ),
           ),
         ],
       ),

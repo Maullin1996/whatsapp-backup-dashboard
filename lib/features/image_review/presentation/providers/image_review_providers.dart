@@ -1,16 +1,19 @@
 import 'package:dartz/dartz.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:whatsapp_monitor_viewer/app/providers.dart';
 import 'package:whatsapp_monitor_viewer/core/errors/failure.dart';
 import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_providers.dart';
 import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_session_state.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/data/datasources/review_local_datasource.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/data/datasources/review_shifts_firestore_datasource.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/data/repositories/local_image_review_repository.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/data/repositories/no_session_image_review_repository.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/data/repositories/unavailable_image_review_repository.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/data/sync/simulated_review_uploader.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/image_review_record.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_shift.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/repositories/image_review_repository.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/repositories/review_uploader.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/models/review_key.dart';
@@ -72,16 +75,15 @@ final reviewLocalStorageProvider =
       ),
     );
 
-/// Valor de `--dart-define=REVIEW_ROLE=...` (TEMPORAL, ver
+/// Valor de `--dart-define=REVIEW_ROLE=...`: fallback de DESARROLLO, usado
+/// SOLO cuando no hay una sesión autenticada real (ver
 /// [currentReviewRoleProvider]).
-const String _reviewRoleDefine = String.fromEnvironment(
-  'REVIEW_ROLE',
-  defaultValue: 'revisor',
-);
+const String _reviewRoleDefine = String.fromEnvironment('REVIEW_ROLE');
 
 /// Convierte el valor de `REVIEW_ROLE` en un rol. Cualquier valor que no sea
-/// `revisor` ni `sumador` cae en Revisor y lo avisa con `debugPrint`.
-ReviewRole parseReviewRole(String value) {
+/// `revisor` ni `sumador` (incluido no pasarlo) es "sin rol" (null) y lo avisa
+/// con `debugPrint`.
+ReviewRole? parseReviewRole(String value) {
   switch (value) {
     case 'revisor':
       return ReviewRole.revisor;
@@ -89,24 +91,56 @@ ReviewRole parseReviewRole(String value) {
       return ReviewRole.sumador;
     default:
       debugPrint(
-        'REVIEW_ROLE inválido ("$value"): se usa "revisor". '
+        'REVIEW_ROLE no especificado o inválido: sin rol activo. '
         'Valores permitidos: revisor, sumador.',
       );
-      return ReviewRole.revisor;
+      return null;
   }
 }
 
-/// Rol con el que trabaja el usuario actual. Es el ÚNICO punto que decide el
-/// rol activo: nada más en el feature lee el rol de otro lado.
+/// Rol con el que trabaja el usuario actual, o null si no tiene ninguno (el
+/// caso más común: sin rol no hay panel, ni bloqueo de navegación, ni
+/// pendientes). Es el ÚNICO punto que decide el rol activo: nada más en el
+/// feature lee el rol de otro lado.
 ///
-/// TEMPORAL: hasta tener roles reales, sale del parámetro de compilación
-/// `REVIEW_ROLE` (`flutter run --dart-define=REVIEW_ROLE=sumador`; sin él
-/// arranca como Revisor). Más adelante se conecta a los custom claims
-/// `revisor`/`sumador` del usuario autenticado (ver `image-review-roles`);
-/// solo cambia este provider. En los tests se elige con un override.
-final currentReviewRoleProvider = Provider<ReviewRole>(
-  (ref) => parseReviewRole(_reviewRoleDefine),
+/// Fuente real: el claim `reviewRole` de `AuthenticatedUser` (sesión
+/// autenticada) — puede ser `null` (sin rol), eso YA es la respuesta final,
+/// no cae al fallback. Sin sesión autenticada real (`loading` /
+/// `unauthenticated`: desarrollo local antes de conectar login, o tests que
+/// no simulan sesión) cae a `--dart-define=REVIEW_ROLE=...` para no romper
+/// ese flujo de prueba ya existente. En los tests se elige con un override
+/// (también `overrideWithValue(null)`), que se salta esta lógica por
+/// completo.
+final currentReviewRoleProvider = Provider<ReviewRole?>((ref) {
+  return ref.watch(
+    authSessionProvider.select(
+      (session) => session.maybeWhen(
+        authenticated: (user) => user.reviewRole,
+        orElse: () => parseReviewRole(_reviewRoleDefine),
+      ),
+    ),
+  );
+});
+
+/// Único punto donde se instancia el datasource de `reviewShifts`.
+final reviewShiftsDatasourceProvider = Provider<ReviewShiftsDatasource>(
+  (ref) => ReviewShiftsFirestoreDatasource(ref.read(firestoreProvider)),
 );
+
+/// Grupos y jornadas que cubre el rol activo, leídos UNA VEZ de
+/// `users/{uid}.reviewShifts` (mismo patrón que `fetchAllowedGroups`: sin
+/// `.snapshots()` — una jornada revocada se refleja recién la próxima vez
+/// que se reconstruya este provider, no al instante).
+///
+/// Vacía sin sesión o sin rol activo, sin hacer la lectura (no tiene sentido
+/// pedir `reviewShifts` de alguien sin rol). No es parte de
+/// `AuthenticatedUser`: vive aparte, igual que `allowedGroups`.
+final reviewShiftsProvider = FutureProvider<List<ReviewShift>>((ref) async {
+  final uid = ref.watch(reviewerUidProvider);
+  final rol = ref.watch(currentReviewRoleProvider);
+  if (uid == null || rol == null) return const [];
+  return ref.read(reviewShiftsDatasourceProvider).fetchReviewShifts(uid);
+});
 
 /// Único punto donde se instancia el repositorio. Para cambiar de
 /// almacenamiento se cambia SOLO lo que se devuelve aquí.

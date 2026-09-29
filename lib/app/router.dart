@@ -1,11 +1,12 @@
 //router.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:whatsapp_monitor_viewer/app/auth_redirect.dart';
 import 'package:whatsapp_monitor_viewer/features/admin/presentation/pages/admin_page.dart';
 import 'package:whatsapp_monitor_viewer/features/auth/presentation/pages/login_page.dart';
 import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_providers.dart';
-import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_session_state.dart';
 import 'package:whatsapp_monitor_viewer/features/home/presentation/pages/home_page.dart';
+import 'package:whatsapp_monitor_viewer/features/matches/presentation/pages/matches_page.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/viewer/image_detail_page.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/presentation/pages/summary_page.dart';
 
@@ -24,42 +25,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: '/admin', builder: (_, _) => const AdminPage()),
       GoRoute(path: '/summary', builder: (_, _) => const SummaryPage()),
+      GoRoute(path: '/matches', builder: (_, _) => const MatchesPage()),
     ],
-    redirect: (context, state) {
-      final authState = ref.read(authSessionProvider);
-
-      // ✅ Maneja el estado loading — no redirigir todavía
-      final isLoading = authState.maybeWhen(
-        loading: () => true,
-        orElse: () => false,
-      );
-      if (isLoading) return null;
-
-      final isLoggedIn = authState.maybeWhen(
-        authenticated: (_) => true,
-        orElse: () => false,
-      );
-
-      final isAdmin = authState.maybeWhen(
-        orElse: () => false,
-        authenticated: (user) => user.isAdmin,
-      );
-
-      final location = state.matchedLocation;
-
-      final isGoingToLogin = state.matchedLocation == '/login';
-      final isGoingToAdmin = location == '/admin';
-
-      if (!isLoggedIn) return isGoingToLogin ? null : '/login';
-      if (isGoingToLogin) return '/home';
-      if (isGoingToAdmin && !isAdmin) return '/home';
-      // `/summary` solo exige sesión iniciada (ya cubierto arriba): a
-      // propósito, sin `isAdmin` ni rol de revisor/sumador, porque esos claims
-      // reales todavía no existen (ver image-review-roles, "Rol activo
-      // TEMPORAL"). Se acotará cuando existan.
-
-      return null;
-    },
+    redirect: (context, state) => computeAuthRedirect(
+      authState: ref.read(authSessionProvider),
+      location: state.matchedLocation,
+    ),
   );
 
   // ✅ Escucha cambios y refresca el router directamente

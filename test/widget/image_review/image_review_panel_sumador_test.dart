@@ -115,6 +115,30 @@ Future<ImageReviewRecord?> _saved(ProviderContainer c, ReviewRole rol) async {
 }
 
 void main() {
+  testWidgets('sin rol el panel no construye nada (guarda defensiva)', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          reviewerEmailProvider.overrideWithValue(_email),
+          reviewerUidProvider.overrideWithValue('uid-test'),
+          imageReviewRepositoryProvider.overrideWithValue(
+            InMemoryImageReviewRepository(),
+          ),
+          currentReviewRoleProvider.overrideWithValue(null),
+        ],
+        child: const MaterialApp(
+          home: Scaffold(body: ImageReviewPanel(target: _target)),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TextField), findsNothing);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+  });
+
   group('formulario del Sumador', () {
     testWidgets('solo tiene código y total: sin campo ni chips de números', (
       tester,

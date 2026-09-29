@@ -68,9 +68,12 @@ class ReviewUploadNotifier extends Notifier<Map<JornadaRef, UploadProgress>> {
   bool _alive(JornadaRef jornada) =>
       ref.mounted && ref.read(activeChatProvider)?.chatJid == jornada.chatJid;
 
-  /// Devuelve null si esa jornada ya se estaba subiendo.
+  /// Devuelve null si esa jornada ya se estaba subiendo o no hay rol activo.
   Future<UploadOutcome?> upload(JornadaRef jornada) async {
     if (state.containsKey(jornada)) return null;
+    // Sin rol no hay nada que subir (ningún indicador lo dispara): no se toca
+    // el estado ni el repositorio.
+    if (ref.read(currentReviewRoleProvider) == null) return null;
     state = {...state, jornada: (hechos: 0, total: 0)};
     try {
       return await _upload(jornada);
@@ -86,7 +89,7 @@ class ReviewUploadNotifier extends Notifier<Map<JornadaRef, UploadProgress>> {
   Future<UploadOutcome> _upload(JornadaRef jornada) async {
     // Se fijan al empezar: si cambia el usuario o el rol a mitad, esta subida
     // sigue con lo que tenía.
-    final rol = ref.read(currentReviewRoleProvider);
+    final rol = ref.read(currentReviewRoleProvider)!;
     final repository = ref.read(imageReviewRepositoryProvider);
     final uploader = ref.read(reviewUploaderProvider);
 

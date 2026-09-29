@@ -61,31 +61,56 @@ refactor grande — coherente con la Clean Architecture del proyecto.
   persisten, y de ahí se comparan contra **los números que registró el
   Revisor** (nunca contra datos del Sumador — ver `image-review-domain`,
   regla 7).
-- **Momento de la comparación/visualización — CONFIRMADO, siempre por
-  jornada, nunca por día**: el usuario aclaró explícitamente "siempre
-  es por jornada y nunca por día" — es decir, el cálculo/exhibición de
-  coincidencias corre **cuando esa jornada específica se sube**
-  (`image-review-offline-sync`, botón manual por jornada), y nunca
-  existe un disparador aparte de "fin de día" que consolide varias
-  jornadas juntas. No hay ambigüedad de dos disparadores: es uno solo,
-  a nivel de jornada, coherente con que también la reconciliación
-  (`image-review-domain`, regla 3-4) y los reportes (regla 5) son
-  siempre por jornada y nunca combinados por día.
+- **Acceso**: la pantalla es solo para `isAdmin`/`isSuperAdmin`
+  (`canViewMatches`, `features/matches/domain/helpers/`), compartida
+  entre el guard de `router.dart` (vía `lib/app/auth_redirect.dart`) y
+  la entrada "Coincidencias" del menú de `ChatList` — independiente de
+  `reviewRole`/`reviewShifts` (esos gobiernan el formulario de captura,
+  no esta pantalla) y sin filtro por `allowedGroups` (coherente con el
+  punto siguiente: mira todos los grupos, no solo los asignados al
+  usuario).
+- **Agrupación de la comparación/visualización — CONFIRMADA, siempre
+  por jornada, nunca por día**: el usuario aclaró explícitamente
+  "siempre es por jornada y nunca por día" — nunca existe un total
+  combinado de varias jornadas en un mismo día, coherente con que
+  también la reconciliación (`image-review-domain`, regla 3-4) y los
+  reportes (regla 5) son siempre por jornada y nunca combinados por
+  día.
+- **Disparador de la comparación — NO DEFINIDO (PENDIENTE)**: la
+  pantalla construida (`/matches`, datos inventados) consulta
+  **cualquier fecha a demanda** (selector de calendario, hoy por
+  defecto) y no está ligada a la subida de una jornada
+  (`image-review-offline-sync`) ni a "fin de día". Qué momento/lectura
+  alimentará los registros reales de coincidencias sigue sin resolver:
+  ¿se recalcula en cada consulta contra Firestore, o la Cloud Function
+  puente precalcula y guarda coincidencias al recibir números
+  ganadores? — pendiente.
 - **Alcance de la búsqueda de coincidencias**: un número ganador puede
   coincidir con un registro de **cualquier grupo monitoreado**, no solo
   el chat que se está viendo en ese momento — así que esta comparación
   necesita mirar los registros ya subidos de todos los grupos, no ser
   una función local de una sola conversación.
+- **Cómo se comparan los números**: igualdad exacta de `String` después
+  de `trim` en ambos lados, sin normalizar mayúsculas ni quitar ceros a
+  la izquierda (coherente con cómo el Revisor anota el número,
+  `image-review-domain` regla 6: `String`, con `trim`, conservando
+  ceros a la izquierda) — "0123" y "123" nunca coinciden entre sí.
+  Implementado en `findMatches` (`features/matches/domain/helpers/`).
 - **Qué se muestra al encontrar coincidencia**: el número que coincidió,
-  el grupo (`chatJid`/nombre del grupo) al que pertenece, y un click
-  debe llevar a esa imagen exacta.
-- **Redirección liviana**: como ya quedó definido en `image-review-domain`
-  (sección "El modelo `Message`"), no hace falta cargar la imagen
-  completa solo para mostrar la coincidencia en el resumen — con los
-  campos ya guardados del `Message` (`id`, `chatJid`, `senderName`,
-  `storagePath`, `shift`, `localTime`, `isEdited`) alcanza para
-  construir el contexto; la imagen se pide (`imageUrlProvider`) solo si
-  el usuario hace click para verla.
+  el grupo (`chatJid`/nombre del grupo) al que pertenece, quién lo
+  envió, la hora, la jornada y si el mensaje de WhatsApp fue editado.
+- **"Ver más" — corregido, NO navega al visor**: la UI construida abre
+  un **diálogo de detalle propio** (`MatchDetailDialog`), no
+  `ImageDetailPage` — no cambia el chat activo ni el filtro de fecha.
+  Sigue vigente la idea original de no cargar la imagen completa solo
+  por aparecer en la lista: dentro del diálogo, la imagen se pide
+  (`imageUrlProvider`) **solo si el usuario toca "Ver imagen"**, y con
+  los datos de prueba de hoy ese pedido está apagado por una bandera
+  (`realImageEnabled`, `false` por defecto): tocar "Ver imagen" muestra
+  un aviso, sin tocar la red ni construir ningún `ExtendedImage`. Los
+  campos ya guardados alcanzan para el contexto sin cargar la imagen:
+  `id`/`messageId`, `chatJid`, `senderName`, `storagePath`, `shift`,
+  `localTime` y si el mensaje fue editado.
 - **Pantalla dedicada, nueva** (no una sección de otra pantalla
   existente): muestra las coincidencias **por fecha**, con **el día
   actual como valor por defecto**, y un botón que despliega un
@@ -96,6 +121,20 @@ refactor grande — coherente con la Clean Architecture del proyecto.
   (`image-review-domain`, regla 5), esta pantalla también debe
   respetar eso: cada fecha se consulta y se muestra de forma
   independiente, nunca acumulada con otras fechas.
+- **Formato de la lista de ganadores — decisión del mock, no del
+  contrato real**: `MockMatchesRepository` (datos inventados) organiza
+  los números ganadores por (fecha, jornada), coherente con el punto
+  anterior — pero es una decisión de cómo se armó el mock, no un
+  contrato confirmado de la fuente externa; el formato real sigue
+  diferido (ver "Zona gris" más abajo).
+- **PENDIENTE: estructura de la colección real de números/coincidencias
+  no definida**. Al conectar (paso 7) va a hacer falta una colección
+  nueva con los registros de números — hoy `ImageReviewRecord`
+  (`features/image_review/domain/entities/`) no trae `senderName`,
+  `groupName`, `localTime` ni el `isEdited` del mensaje de WhatsApp (los
+  campos que hoy arma `MatchEntry` para la UI); de dónde sale cada uno
+  de esos datos en el contrato real (¿del propio `Message`? ¿de una
+  colección aparte?) queda diferido a ese paso.
 
 ## Jornadas desde otro proyecto de Firebase
 

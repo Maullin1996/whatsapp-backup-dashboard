@@ -2,10 +2,31 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:whatsapp_monitor_viewer/core/errors/image_review_failure.dart';
+import 'package:whatsapp_monitor_viewer/features/auth/domain/entities/authenticated_user.dart';
+import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_provider.dart';
+import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_providers.dart';
+import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_session_state.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/data/repositories/in_memory_image_review_repository.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/models/image_review_target.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/image_review_providers.dart';
+
+/// Sesión falsa que no toca Firebase: fija el estado que devuelve `build()`.
+class _FakeAuth extends AuthSessionNotifier {
+  final AuthSessionState _state;
+  _FakeAuth(this._state);
+
+  @override
+  AuthSessionState build() => _state;
+}
+
+AuthenticatedUser _user({ReviewRole? reviewRole}) => AuthenticatedUser(
+  id: 'uid-a',
+  email: 'a@x.com',
+  isAdmin: false,
+  isSuperAdmin: false,
+  reviewRole: reviewRole,
+);
 
 const _target = ImageReviewTarget(
   messageId: 'm1',
@@ -35,21 +56,70 @@ void main() {
       expect(logs, isEmpty);
     });
 
-    test('un valor inválido cae en revisor y lo avisa con debugPrint', () {
-      for (final value in ['admin', '', 'SUMADOR', ' sumador']) {
-        logs.clear();
-        expect(parseReviewRole(value), ReviewRole.revisor, reason: '"$value"');
-        expect(logs, hasLength(1), reason: '"$value"');
-        expect(logs.single, contains('REVIEW_ROLE'));
-      }
-    });
+    test(
+      'un valor inválido o vacío es "sin rol" y lo avisa con debugPrint',
+      () {
+        for (final value in ['admin', '', 'SUMADOR', ' sumador']) {
+          logs.clear();
+          expect(parseReviewRole(value), isNull, reason: '"$value"');
+          expect(logs, hasLength(1), reason: '"$value"');
+          expect(logs.single, contains('REVIEW_ROLE'));
+          expect(logs.single, contains('sin rol activo'));
+        }
+      },
+    );
 
-    test('sin --dart-define el rol activo por defecto es revisor', () {
-      // Válido cuando los tests corren sin --dart-define=REVIEW_ROLE=...
-      final container = ProviderContainer();
+    test('sin sesión autenticada real y sin --dart-define, el rol activo por '
+        'defecto es null (sin rol)', () {
+      // Sin override de authSessionProvider caería a Firebase real (no
+      // inicializado en este test); una sesión "unauthenticated" simulada
+      // basta para ejercer la rama del fallback sin tocarlo.
+      final container = ProviderContainer(
+        overrides: [
+          authSessionProvider.overrideWith(
+            () => _FakeAuth(const AuthSessionState.unauthenticated()),
+          ),
+        ],
+      );
       addTearDown(container.dispose);
 
-      expect(container.read(currentReviewRoleProvider), ReviewRole.revisor);
+      expect(container.read(currentReviewRoleProvider), isNull);
+      expect(logs, hasLength(1));
+      expect(logs.single, contains('sin rol activo'));
+    });
+
+    test('con sesión autenticada, el rol real es el `reviewRole` del claim '
+        '(sin caer al --dart-define, aunque sea null)', () {
+      final container = ProviderContainer(
+        overrides: [
+          authSessionProvider.overrideWith(
+            () => _FakeAuth(
+              AuthSessionState.authenticated(
+                _user(reviewRole: ReviewRole.sumador),
+              ),
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      expect(container.read(currentReviewRoleProvider), ReviewRole.sumador);
+      // El claim manda: ni siquiera se evalúa el fallback, sin avisos.
+      expect(logs, isEmpty);
+    });
+
+    test('con sesión autenticada pero sin reviewRole, el rol es null y NO cae '
+        'al --dart-define', () {
+      final container = ProviderContainer(
+        overrides: [
+          authSessionProvider.overrideWith(
+            () => _FakeAuth(AuthSessionState.authenticated(_user())),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      expect(container.read(currentReviewRoleProvider), isNull);
       expect(logs, isEmpty);
     });
 
@@ -62,6 +132,15 @@ void main() {
       addTearDown(container.dispose);
 
       expect(container.read(currentReviewRoleProvider), ReviewRole.sumador);
+    });
+
+    test('un override a null explícito representa "sin rol"', () {
+      final container = ProviderContainer(
+        overrides: [currentReviewRoleProvider.overrideWithValue(null)],
+      );
+      addTearDown(container.dispose);
+
+      expect(container.read(currentReviewRoleProvider), isNull);
     });
   });
 

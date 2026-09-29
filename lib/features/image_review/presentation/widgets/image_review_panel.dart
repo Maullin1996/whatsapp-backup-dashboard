@@ -34,6 +34,8 @@ class ImageReviewPanel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final rol = ref.watch(currentReviewRoleProvider);
+    // El visor no lo construye sin rol; guarda defensiva.
+    if (rol == null) return const SizedBox.shrink();
     final reviewKey = (messageId: target.messageId, rol: rol);
     final saved = ref.watch(savedRecordProvider(reviewKey));
     final isEditing = ref.watch(

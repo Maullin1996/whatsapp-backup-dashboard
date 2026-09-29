@@ -1,5 +1,7 @@
+import 'package:dartz/dartz.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:whatsapp_monitor_viewer/core/errors/failure.dart';
 import 'package:whatsapp_monitor_viewer/core/time/shifts.dart';
 import 'package:whatsapp_monitor_viewer/features/chats/domain/entities/chat.dart';
 import 'package:whatsapp_monitor_viewer/features/chats/presentation/provider/active_chat_provider.dart';
@@ -8,6 +10,7 @@ import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/co
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/estado_sync.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/image_review_form.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/image_review_record.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/pending_jornada.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/models/image_review_target.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/image_review_providers.dart';
@@ -44,11 +47,25 @@ ImageReviewRecord _record(
   estadoSync: estadoSync,
 );
 
+/// Cuenta las consultas de pendientes por jornada.
+class _SpyRepository extends InMemoryImageReviewRepository {
+  int pendingQueries = 0;
+
+  @override
+  Future<Either<Failure, List<PendingJornada>>> getPendingJornadas({
+    required String chatJid,
+    required ReviewRole rol,
+  }) {
+    pendingQueries++;
+    return super.getPendingJornadas(chatJid: chatJid, rol: rol);
+  }
+}
+
 void main() {
   late InMemoryImageReviewRepository repo;
   late ProviderContainer container;
 
-  ProviderContainer makeContainer({ReviewRole rol = ReviewRole.revisor}) {
+  ProviderContainer makeContainer({ReviewRole? rol = ReviewRole.revisor}) {
     final c = ProviderContainer(
       overrides: [
         imageReviewRepositoryProvider.overrideWithValue(repo),
@@ -73,6 +90,24 @@ void main() {
   test('sin chat activo la lista es vacía', () async {
     await repo.save(_record('a'));
     expect(await read(), isEmpty);
+  });
+
+  test('sin rol la lista es vacía y no se consulta el repositorio', () async {
+    final spy = _SpyRepository();
+    await spy.save(_record('a'));
+    final c = ProviderContainer(
+      overrides: [
+        imageReviewRepositoryProvider.overrideWithValue(spy),
+        currentReviewRoleProvider.overrideWithValue(null),
+        reviewerUidProvider.overrideWithValue('uid-a'),
+        reviewerEmailProvider.overrideWithValue('a@x.com'),
+      ],
+    );
+    addTearDown(c.dispose);
+    c.read(activeChatProvider.notifier).select(_chat('c1'));
+
+    expect(await c.read(pendingUploadsProvider.future), isEmpty);
+    expect(spy.pendingQueries, 0);
   });
 
   test('lista las jornadas del chat activo con su cantidad', () async {
