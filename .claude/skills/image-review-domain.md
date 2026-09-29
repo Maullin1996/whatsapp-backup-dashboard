@@ -257,9 +257,11 @@ recomendación de diseño es:
   valor que llega con retraso (hasta ~60 s de publicación, más
   reintentos del bot) puede producir un "faltante" que se resuelve solo.
 - **Es informativa, no bloquea nada**, está separada de la reconciliación
-  de dinero, y vive en la pantalla de resumen/coincidencias (pasos 5-6
-  del roadmap de `image-review-workflow`), **nunca en el indicador de
-  subida del paso 4**.
+  de dinero, y vive en el **Resumen** (paso 5 del roadmap de
+  `image-review-workflow`, `SummaryPage`) — **nunca en el indicador de
+  subida del paso 4**. La pantalla de **Coincidencias** con números
+  ganadores (paso 6, ver `image-review-firebase-integration`) es una
+  pantalla dedicada y separada del Resumen; este aviso no vive ahí.
 - **Pendientes de decidir / verificar (NO resueltos):**
   - **Zona horaria al construir el id.** Propuesta a confirmar: calcular
     la fecha con UTC-5 fijo y no con `toLocal()`, porque un dispositivo

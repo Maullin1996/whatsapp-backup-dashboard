@@ -71,10 +71,10 @@ App-level wiring lives in `lib/app/`:
 | `chats` | Real-time group list with search; backed by `group_stats` Firestore collection |
 | `messages` | Paginated message list (50/page), image viewer with pinch-to-zoom, day separators, shift labels |
 | `admin` | SuperAdmin/Admin panel: create/delete users, assign groups, toggle roles |
-| `summary` | `/summary` (`SummaryPage`): entry point for the per-shift summary/reconciliation — currently a placeholder empty state; opened from the "Resumen" item of the chat-list menu, visible to any signed-in user until the real revisor/sumador claims exist |
+| `summary` | `/summary` (`SummaryPage`): entry point for the per-shift summary/reconciliation — UI-only today, backed by invented data (`MockSummaryRepository`); opened from the "Resumen" item of the chat-list menu, visible to any signed-in user until the real revisor/sumador claims exist |
 | `home` | Responsive layout shell (split-view desktop, animated drawer on mobile); `custom_message_group.dart` renders each group tile |
 
-**In planning, not yet implemented** — image review feature (Revisor/Sumador roles, capture form in the image viewer, offline-first sync, Firebase-sourced shifts and winning numbers). See "Project Skills" below before touching any of this.
+**Image review feature status** — in active development, built layer by layer: roles + (group, shift) assignment, the capture form, local persistence (`hive_ce`), and the Resumen UI (invented data) are done, with the upload still SIMULATED (prints instead of writing to Firestore); the winning-numbers matches screen (step 6) and the real Firebase connection (step 7) are still pending. See `image-review-workflow` (in "Project Skills" below) for the step-by-step detail — not repeated here.
 
 ---
 
@@ -140,7 +140,7 @@ Beyond generic Dart/Flutter/Firebase best practices (covered by installed plugin
 | `image-review-workflow` | **Start here** for any image-review task — maps to the other four skills below, suggested implementation roadmap, and a consolidated list of open questions blocking parts of the feature |
 | `image-review-domain` | Vocabulary and business rules for the image review feature (comprobantes, números, totales, Revisor/Sumador reconciliation, shifts, the existing `Message` model) |
 | `image-review-roles` | Revisor/Sumador roles: how they're activated (superAdmin only, from `AdminPage`), mutual exclusivity, tablet/PC-only restriction, mandatory-form navigation guard |
-| `image-review-offline-sync` | Local-first storage for capture forms, per-shift completion detection, per-shift manual upload |
+| `image-review-offline-sync` | Local-first storage for capture forms (`hive_ce`) and a manual per-jornada upload — today SIMULATED (prints instead of writing to Firestore); jornada "completion" is never inferred by counting images (see `image-review-domain`) |
 | `image-review-firebase-integration` | Bridge Cloud Function to an external Firebase project (shifts, winning numbers), match-and-redirect flow, currently mocked/local pending the real connection |
 
-The image-review feature is still in the planning stage as of this writing — the five skills above capture the agreed design and the open questions, but no code exists yet. Read `image-review-workflow` first to know what to build next and in what order.
+These skills capture the agreed design and the open questions. Read `image-review-workflow` first for the step-by-step roadmap and current status of each step, which it keeps up to date.
