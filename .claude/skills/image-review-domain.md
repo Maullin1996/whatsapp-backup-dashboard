@@ -152,16 +152,18 @@ Consecuencias para el feature de revisión:
 - **Solo se puede registrar un `Message` si `isImage == true`** (tiene
   `storagePath`). Un mensaje de puro texto nunca entra al flujo de
   Revisor/Sumador.
-- **La redirección desde la pantalla de resumen (coincidencia con número
-  ganador) no necesita "navegar" a `image_detail_page` para mostrar
-  contexto** — con `id`, `chatJid`, `senderName`, `storagePath`, `shift`,
-  `localTime` e `isEdited` ya alcanza para construir una vista/tarjeta de
-  contexto (a qué grupo pertenece, cuándo se registró, quién lo envió).
-  La imagen en sí (pedir la URL con `storagePath` vía
-  `imageUrlProvider`) solo se carga **si el usuario hace click** para
-  ver la imagen completa — no se precarga por defecto solo por aparecer
-  en el resumen. Esto es una decisión de rendimiento, no una regla de
-  negocio dura; si en la práctica conviene precargar, se puede ajustar.
+- **La pantalla de coincidencias (con número ganador) no navega a
+  `image_detail_page` para mostrar contexto** — con `id`, `chatJid`,
+  `senderName`, `storagePath`, `shift`, `localTime` e `isEdited` ya
+  alcanza para construir una vista/tarjeta de contexto (a qué grupo
+  pertenece, cuándo se registró, quién lo envió); la UI construida abre
+  un diálogo de detalle propio en vez de navegar (ver
+  `image-review-firebase-integration` para el detalle). La imagen en sí
+  (pedir la URL con `storagePath` vía `imageUrlProvider`) solo se carga
+  **si el usuario hace click** para ver la imagen completa — no se
+  precarga por defecto solo por aparecer en la lista. Esto es una
+  decisión de rendimiento, no una regla de negocio dura; si en la
+  práctica conviene precargar, se puede ajustar.
 - **`shiftImageIndex` como conteo de avance de la jornada — HIPÓTESIS
   DESCARTADA como mecanismo de cierre**: se pensó inicialmente en usar
   el valor más alto de `shiftImageIndex` como "total esperado" para
@@ -343,7 +345,11 @@ recomendación de diseño es:
    números. Si un número coincide con un número ganador, debe
    quedar visible (en la pantalla que corresponda, ver
    `image-review-firebase-integration`) el número, el grupo al que
-   pertenece, y debe permitir navegar de vuelta a esa imagen exacta.
+   pertenece (nombre y `chatJid`), quién lo envió y la hora — la UI
+   construida lo hace con un "Ver más" que abre un diálogo de detalle
+   propio, **sin navegar al visor**. **PENDIENTE (no decidido)**: si
+   algún día se quiere navegar a la imagen exacta en el visor
+   (exigiría cambiar el chat activo y el filtro de fecha).
 
 ## Zona gris / a confirmar con el usuario antes de implementar
 

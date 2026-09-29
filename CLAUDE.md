@@ -55,7 +55,8 @@ data/           → Repository implementations, DataSources (Firestore), Models
 Shared code lives in `lib/core/` (`errors/`, `responsive/`, `theme/`, `time/`, `loading/`, `shared/widget/`) and `lib/helpers/` (`format_time.dart`, `map_failure_to_message.dart`).
 
 App-level wiring lives in `lib/app/`:
-- `router.dart` — GoRouter with auth guards (redirects to login if unauthenticated, to `/chats` if admin tries unauthorized route)
+- `router.dart` — GoRouter routes; the redirect *decision* (auth/role guards) is not inline here, see `auth_redirect.dart`
+- `auth_redirect.dart` — `computeAuthRedirect`: pure redirect logic (login/home/admin/matches guards), called from `router.dart`'s `redirect:`; kept in its own file because `router.dart` itself can't be imported in a VM test (pulls in `HomePage` → `MessageList`/`MessageBubble` → `package:web`)
 - `providers.dart` — Riverpod providers that inject `FirebaseAuth` and `FirebaseFirestore`
 - `app.dart` — `MaterialApp.router`, locale hardcoded to Spanish (`es`)
 
@@ -72,9 +73,10 @@ App-level wiring lives in `lib/app/`:
 | `messages` | Paginated message list (50/page), image viewer with pinch-to-zoom, day separators, shift labels |
 | `admin` | SuperAdmin/Admin panel: create/delete users, assign groups, toggle roles |
 | `summary` | `/summary` (`SummaryPage`): entry point for the per-shift summary/reconciliation — UI-only today, backed by invented data (`MockSummaryRepository`); opened from the "Resumen" item of the chat-list menu, visible to any signed-in user until the real revisor/sumador claims exist |
+| `matches` | `/matches` (`MatchesPage`): winning-numbers matches screen (step 6) — UI-only today, backed by invented data (`MockMatchesRepository`); admin/superAdmin only (`canViewMatches`), opened from the "Coincidencias" item of the chat-list menu |
 | `home` | Responsive layout shell (split-view desktop, animated drawer on mobile); `custom_message_group.dart` renders each group tile |
 
-**Image review feature status** — in active development, built layer by layer: roles + (group, shift) assignment, the capture form, local persistence (`hive_ce`), and the Resumen UI (invented data) are done, with the upload still SIMULATED (prints instead of writing to Firestore); the winning-numbers matches screen (step 6) and the real Firebase connection (step 7) are still pending. See `image-review-workflow` (in "Project Skills" below) for the step-by-step detail — not repeated here.
+**Image review feature status** — in active development, built layer by layer: roles + (group, shift) assignment, the capture form, local persistence (`hive_ce`), the Resumen UI (invented data), and the Coincidencias UI (step 6, invented data, `/matches`, admin/superAdmin only) are done, with the upload still SIMULATED (prints instead of writing to Firestore); the real Firebase connection (step 7) is still pending. See `image-review-workflow` (in "Project Skills" below) for the step-by-step detail — not repeated here.
 
 ---
 
@@ -124,7 +126,7 @@ The app is also deployed as a PWA on Firebase Hosting (`build/web`, SPA rewrite 
 - **Spanish locale** — UI strings are in Spanish. Keep new UI text in Spanish.
 - **Shifts** — `lib/core/time/shifts.dart` defines 6 work shifts per day used to classify messages. The `Shift` enum and its time-range logic are tested in `test/unit/shifts_test.dart`. **Planned**: shifts will eventually come from an external Firebase project instead of this fixed enum, and the valid set of shifts differs on Sundays (fewer shifts) — see `image-review-firebase-integration`. Do not assume the enum stays fixed-size when touching shift logic.
 - **Image URLs** — constructed client-side from `storagePath` using Firebase Storage public URL pattern; images are not stored as full URLs in Firestore.
-- **Responsive system** — `lib/core/responsive/` provides `AppBreakpoints.mobile` (600px) and the `ResponsiveLayout(mobile:, desktop:)` widget (uses `MediaQuery.sizeOf`). Use these for any new responsive UI (used by login, admin page/dialogs, image detail page, message bubble). Known inconsistency: `home_page.dart` still uses its own hardcoded `_mobileBreakpoint = 700` with `LayoutBuilder` — migrate it to `AppBreakpoints` rather than adding new hardcoded breakpoints. **Planned**: the image review capture form needs a tablet-vs-phone distinction that `AppBreakpoints.mobile` likely can't provide — a new named breakpoint will probably be added there (see `image-review-roles`), not a local hardcoded value.
+- **Responsive system** — `lib/core/responsive/` provides `AppBreakpoints.mobile` (600px) and the `ResponsiveLayout(mobile:, desktop:)` widget (uses `MediaQuery.sizeOf`). Use these for any new responsive UI (used by login, admin page/dialogs, image detail page, message bubble). `home_page.dart` already uses the named `AppBreakpoints.homeSplit` (700px) with its own `LayoutBuilder` — not a hardcoded `_mobileBreakpoint` (that claim was stale; verified in code). **Planned**: the image review capture form needs a tablet-vs-phone distinction that `AppBreakpoints.mobile` likely can't provide — a new named breakpoint will probably be added there (see `image-review-roles`), not a local hardcoded value.
 - **Performance** — `ChatList` and `MessageList`/`MessageBubble` were deliberately optimized for rendering (recent `perf:` commits); avoid rebuild-heavy changes there and keep widgets `const`/granular.
 - **Pagination** — messages load 50 at a time; scroll to top triggers `loadMore()` on the `MessagesNotifier`.
 
@@ -141,6 +143,6 @@ Beyond generic Dart/Flutter/Firebase best practices (covered by installed plugin
 | `image-review-domain` | Vocabulary and business rules for the image review feature (comprobantes, números, totales, Revisor/Sumador reconciliation, shifts, the existing `Message` model) |
 | `image-review-roles` | Revisor/Sumador roles: how they're activated (superAdmin only, from `AdminPage`), mutual exclusivity, tablet/PC-only restriction, mandatory-form navigation guard |
 | `image-review-offline-sync` | Local-first storage for capture forms (`hive_ce`) and a manual per-jornada upload — today SIMULATED (prints instead of writing to Firestore); jornada "completion" is never inferred by counting images (see `image-review-domain`) |
-| `image-review-firebase-integration` | Bridge Cloud Function to an external Firebase project (shifts, winning numbers), match-and-redirect flow, currently mocked/local pending the real connection |
+| `image-review-firebase-integration` | Bridge Cloud Function to an external Firebase project (shifts, winning numbers), match-and-detail-dialog flow — UI already built with mocked data at `/matches` (see `matches` in Features above), real connection still pending |
 
 These skills capture the agreed design and the open questions. Read `image-review-workflow` first for the step-by-step roadmap and current status of each step, which it keeps up to date.

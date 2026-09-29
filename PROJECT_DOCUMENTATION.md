@@ -145,6 +145,9 @@ Se invocan desde Flutter con `FirebaseFunctions.instance.httpsCallable(name)`.
 | `/home/viewer/:initialIndex` | `ImageDetailPage` | Requiere sesión iniciada. `initialIndex` = índice inicial dentro de las imágenes del chat activo. |
 | `/admin` | `AdminPage` | Requiere sesión iniciada **y** `isAdmin == true`; si no es admin, redirige a `/home`. |
 | `/summary` | `SummaryPage` | Requiere solo sesión iniciada, sin `isAdmin` ni rol de revisor/sumador (a propósito: los claims reales aún no existen; se acotará cuando existan). Hoy es solo UI, con datos INVENTADOS (ver sección 7.6); se abre desde el menú "Resumen" de `ChatList`. |
+| `/matches` | `MatchesPage` | Requiere sesión iniciada **y** (`isAdmin == true` **o** `isSuperAdmin == true`) (`canViewMatches`); si no, redirige a `/home`. Hoy es solo UI, con datos INVENTADOS (ver sección 7.7); se abre desde el ítem "Coincidencias" del menú de `ChatList`. |
+
+La decisión de redirect (a qué ruta mandar según sesión/rol) vive en `lib/app/auth_redirect.dart` (`computeAuthRedirect`), no inline en `router.dart` — se separó porque `router.dart` no se puede importar en un test de VM (arrastra `HomePage` → `MessageList`/`MessageBubble` → `package:web`, ver sección 10), y así el guard se puede testear sin GoRouter ni Firebase.
 
 El router también escucha `authSessionProvider` y se refresca automáticamente cuando cambia el estado de sesión (login/logout), sin necesidad de navegación manual.
 
@@ -291,6 +294,29 @@ El router también escucha `authSessionProvider` y se refresca automáticamente 
 **Aviso de imágenes sin registrar (también con datos inventados):** bajo cada rol de una jornada ya terminada, una línea informativa ("Faltan N imágenes por registrar") compara `imagenesEnJornada` (formato real de `shift_image_counts`) contra lo que registró ese rol. Es solo informativa y no altera el estado de dinero (cuadra/descuadre/pendiente).
 
 El reloj del Resumen (`clockProvider`) se lee una vez por construcción de la lista: una jornada que termina con la pantalla abierta no muestra el aviso hasta que se reconstruya (por ejemplo, al cambiar la fecha).
+
+### 7.7 Coincidencias (`lib/features/matches/`)
+
+**Qué hace:** pantalla dedicada que cruza los números ganadores contra lo que registró el Revisor, organizados por fecha (selector de calendario, hoy por defecto) y jornada (nunca combinadas en un total del día), en la ruta `/matches` (ver sección 6). Acceso solo para `isAdmin`/`isSuperAdmin` (`canViewMatches`), independiente de `reviewRole`/`reviewShifts` y sin filtro por `allowedGroups`; se abre desde el ítem "Coincidencias" del menú de `ChatList`.
+
+**Estado real: solo UI, con datos INVENTADOS.** `MockMatchesRepository` genera un día determinista por fecha (mismo día → mismos datos) cruzando números ganadores y registros inventados con `findMatches` (nunca hardcodea coincidencias) — no hay ninguna lectura real de Firestore ni de la Cloud Function puente todavía. Ver `.claude/skills/image-review-firebase-integration.md` para el contrato real, que sigue diferido al paso 7.
+
+**Piezas clave:**
+- `MatchesRepository`/`MockMatchesRepository` (`data/`) — único punto de conexión; reemplazar el mock por un repositorio real es cambiar un solo archivo (`matchesRepositoryProvider`).
+- `findMatches` (`domain/helpers/`) — igualdad exacta de `String` tras `trim`, sin normalizar (coherente con cómo el Revisor anota el número, `image-review-domain` regla 6); devuelve una entrada por registro coincidente, no por ganador.
+- `canViewMatches` (`domain/helpers/`) — `isAdmin || isSuperAdmin`; la usan tanto el guard de `router.dart` (vía `lib/app/auth_redirect.dart`) como el ítem del menú, para que nunca diverjan.
+- `matchesDateProvider`/`matchesRepositoryProvider`/`dayMatchesProvider` (`presentation/providers/`) — fecha activa, instancia del repositorio y las coincidencias del día elegido.
+- `MatchesPage` (`presentation/pages/`) — estados carga/vacío/error, selector de fecha, una `JornadaMatchesSection` por jornada.
+- `MatchDetailDialog` (`presentation/widgets/`) — detalle de una coincidencia ("Ver más"); la imagen se pide bajo demanda y con datos de prueba está apagada por una bandera (`realImageEnabled`, `false` por defecto).
+
+**Limitaciones conocidas:**
+- El mock no modela el conjunto reducido de jornadas de los domingos (muestra las 4 jornadas de un día normal), igual que `MockSummaryRepository` (sección 7.6).
+- `MatchesPage` y `MatchDetailDialog` tienen dos ramas de `ResponsiveLayout` casi idénticas (igual que `SummaryPage`, sección 7.6); la diferencia real móvil/escritorio está solo en `_MatchTile` (dentro de `JornadaMatchesSection`) y su skeleton. Unificar esas ramas casi idénticas es un refactor pendiente, no hecho.
+- `DayMatches.tieneGanador` significa "hubo coincidencia", no "hubo número ganador" — el vacío de página de `MatchesPage` usa `jornadas.every((j) => j.winningNumbers.isEmpty)`, no ese getter.
+- El texto "Editado" del visor (mensaje de WhatsApp editado, barra superior de `ImageDetailPage` — ver sección 7.3) y el chip de estado del registro de revisión (`ReviewStatusChip`, cuando el registro se re-guardó) ya coexisten con el mismo texto y color: ambos usan el literal `'Editado'` en `AppColors.errorMessage` (`lib/features/messages/presentation/viewer/image_detail_page.dart`, líneas 864 y 980; `lib/features/image_review/presentation/widgets/review_status_chip.dart`, línea 13, `ReviewStatus.edited`). Esta pantalla rotula "Mensaje editado" para no sumar un tercer caso con el mismo texto suelto.
+- La altura del skeleton (`MatchesSkeleton`) se calibró con datos cortos (tolerancia de 12 px sobre una forma representativa); con un nombre de grupo de ~40 caracteres o un chatJid real, la sección en móvil puede salir algo más alta que esa aproximación.
+- **Pruebas manuales pendientes**: falta probar la pantalla en un domingo (jornadas reducidas, no modeladas por el mock) y en anchos de 360, ~750 y 1280 px.
+- **Recordatorio**: no desplegar el hosting con esta pantalla visible a usuarios reales mientras los datos sigan siendo inventados (mismo criterio que el Resumen, sección 7.6).
 
 ---
 

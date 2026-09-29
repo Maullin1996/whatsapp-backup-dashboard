@@ -124,6 +124,13 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    — para poder construir y probar la pantalla nueva de coincidencias
    sin depender del proyecto externo real. El enum `Shift` local se
    mantiene tal cual hasta el siguiente paso.
+   **UI ya hecha con datos INVENTADOS** (página `/matches`, solo para
+   `isAdmin`/`isSuperAdmin` vía `canViewMatches`; entrada "Coincidencias"
+   en el menú de `ChatList`; `MockMatchesRepository` determinista por
+   fecha, en `features/matches/`). **Sigue pendiente conectar datos
+   reales** (paso 7: reemplazar el mock por un `MatchesRepository`
+   real; de dónde lee —y si hay o no lectura directa de Firestore— se
+   define en el paso 7).
 7. **Conexión real a Firebase** (`image-review-firebase-integration`):
    una vez el usuario tenga acceso al proyecto externo, revisar el
    formato real de jornadas/números ganadores y reemplazar los mocks
