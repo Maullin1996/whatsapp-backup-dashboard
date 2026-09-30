@@ -264,8 +264,9 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
   <fecha o 'hoy'>" → `ReviewUploadNotifier.upload(jornada)` (provider
   `reviewUploadProvider`). Sube registro por registro con el
   `ReviewUploader` (domain; hoy `SimulatedReviewUploader` en `data/sync/`,
-  que hace `debugPrint` de `image_reviews/<messageId>_<rol>` y el payload
-  `toUploadMap()` = `toMap()` sin `v` ni `estadoSync`; nunca falla). Cada
+  que hace `debugPrint` de la ruta completa y los datos que arma
+  `ImageReviewRecordModel.toUploadDocument()` — ver "Ruta de la subida" más
+  abajo; solo falla, sin imprimir nada, si el registro no tiene ruta). Cada
   registro subido se marca `sincronizado` de inmediato; los que fallan siguen
   pendientes. El estado del notifier es el avance por jornada
   (`hechos`, `total`): la píldora muestra "Subiendo X de N" y no se puede tocar
@@ -281,6 +282,45 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
   (`sinIntentar`), listo para reintentar cuando reaparezca el indicador.
 - **Si subió pero no se pudo marcar** (falló el guardado local): cuenta como
   fallido y seguirá pendiente; se re-sube (mismo id de documento, no duplica).
+
+### Ruta de la subida (paso 7, capa 1 — HECHA, sigue SIMULADA)
+
+- **Ruta** (nombres **PROVISIONALES**, constantes solo en
+  `ImageReviewRecordModel`: `uploadRootCollection`,
+  `uploadJornadasCollection`, `uploadRegistrosCollection`):
+  `image_reviews/{chatJid}/jornadas/{fechaJornada}_{shiftKey}/registros/{messageId}_{rol}`.
+  Agrupa grupo -> jornada -> registros; Revisor y Sumador de una imagen caen
+  en el mismo documento de jornada con ids distintos (`..._revisor`,
+  `..._sumador`).
+- **Un solo armador**: `ImageReviewRecordModel.toUploadDocument()` devuelve
+  `Either<Failure, ReviewUploadDocument>` (`pathSegments`, `path`, `data`).
+  Reemplazó a `uploadCollection`, `uploadDocumentId` y `toUploadMap()`; el
+  uploader no arma nada por su cuenta.
+- **`shiftKey`** = nombre del enum `Shift`, sacado de la etiqueta con
+  `shiftFromLabel`. Etiqueta desconocida u `outOfShift` → `Left(Failure.unknown)`
+  (no hay una variante específica; se reusó la existente) y no se imprime
+  nada. Para `ReviewUploadNotifier` eso es un fallo más: el registro sigue
+  pendiente. Si algún segmento queda vacío o con "/" (por ejemplo, un
+  `chatJid` raro) también es `Left`: la etiqueta "Domingo / Festivo" lleva
+  "/", pero en la ruta va `holiday`.
+- **Datos** = `toMap()` sin `v` ni `estadoSync`, más `shiftKey`. Conserva
+  `rol`, `shift` (etiqueta en español), `chatJid`, `fechaJornada`,
+  `registradoEn` (ISO-8601 UTC, texto) y `registradoPor` (solo auditoría).
+  No lleva `uid`.
+- **PENDIENTE (no decidido)**:
+  - Nombres definitivos de las colecciones (`image_reviews`, `jornadas`,
+    `registros` son provisionales).
+  - Cómo lee Coincidencias los registros de todos los grupos: consulta de
+    grupo de colecciones sobre `registros` o una Cloud Function.
+  - Separación por rol en la regla de lectura (hoy los dos roles comparten
+    el documento de jornada).
+  - Si `fechaJornada` sigue con `toLocal()` o pasa a UTC-5
+    (`bogotaWallClock`): ahora es parte de la ruta, así que cambiarla
+    después mueve los documentos.
+  - Límites de tamaño (comprobantes, números, largo de código y anotaciones,
+    tope de `total`): hoy el código no los impone salvo 12 dígitos en la UI.
+  - Reglas de seguridad de Firestore y cómo se despliegan (`firebase.json`
+    no tiene bloque `firestore` todavía).
 
 ### Pendiente de diseño para la integración real (paso 7)
 

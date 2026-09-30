@@ -96,8 +96,9 @@ toca al otro y ninguno lee al otro)
  │    hora "HH:mm"); por eso el campo se llama distinto.
  ├── storagePath = referencia de la imagen (nunca la imagen ni una URL)
  ├── estadoSync = `pendiente` | `sincronizado` (nace pendiente; re-guardar
- │    lo devuelve a pendiente; hoy nada lo pasa a sincronizado, no hay
- │    subida — ver image-review-offline-sync)
+ │    lo devuelve a pendiente; pasa a sincronizado con la subida por
+ │    jornada, `ReviewUploadNotifier` — hoy SIMULADA, ver
+ │    image-review-offline-sync). Es solo local: no viaja en la subida.
  ├── fecha del registro (`registradoEn`) = momento en que se diligenció
  │    el formulario (NO la fecha del mensaje: esa es `fechaJornada` —
  │    ver nota abajo)
@@ -110,6 +111,17 @@ toca al otro y ninguno lee al otro)
  └── datos internos de navegación (id de imagen/chat/grupo — ver
       image-review-roles, punto de redirección)
 ```
+
+**Dónde vive un registro subido (nombres PROVISIONALES)**: la subida
+agrupa por grupo -> jornada -> registros:
+`image_reviews/{chatJid}/jornadas/{fechaJornada}_{shiftKey}/registros/{messageId}_{rol}`.
+`shiftKey` es el **nombre del enum** `Shift` (`morning`, `afternoon1`,
+...), obtenido de la etiqueta guardada con `shiftFromLabel`; el registro
+sube también la etiqueta en español (`shift`). Una etiqueta desconocida o
+`outOfShift` no tiene ruta y no se sube. El id lleva el rol porque Revisor
+y Sumador de la misma imagen comparten el mismo documento de jornada y así
+no se pisan. Detalle y pendientes en `image-review-offline-sync`
+(§ "Ruta de la subida").
 
 **Nota sobre la fecha**: hay DOS fechas distintas en el registro y no se
 confunden. `registradoEn` es el momento en que el Revisor/Sumador

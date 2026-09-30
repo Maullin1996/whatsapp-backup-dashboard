@@ -136,6 +136,18 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    formato real de jornadas/números ganadores y reemplazar los mocks
    del paso 6 — varios puntos de esta skill quedaron explícitamente
    diferidos hasta ese momento (ver Pendientes globales).
+   **Pieza (a), subida real de registros — capa 1 HECHA, sigue
+   SIMULADA**: la ruta grupo -> jornada -> registros
+   (`image_reviews/{chatJid}/jornadas/{fechaJornada}_{shiftKey}/registros/{messageId}_{rol}`,
+   nombres provisionales) y el payload con `shiftKey` ya los arma
+   `ImageReviewRecordModel.toUploadDocument()`; el uploader sigue siendo
+   `SimulatedReviewUploader` (`debugPrint`), sin escritura real a Firestore.
+   Siguen **PENDIENTES** (detalle en `image-review-offline-sync` § "Ruta de
+   la subida"): nombres definitivos de las colecciones, cómo lee
+   Coincidencias entre grupos (consulta de grupo de colecciones o Cloud
+   Function), separación por rol en la regla de lectura, si `fechaJornada`
+   usa `toLocal()` o UTC-5 (ahora es parte de la ruta), límites de tamaño,
+   y reglas de seguridad y su despliegue.
 
 ## Checklist antes de pasar a la siguiente pieza
 
