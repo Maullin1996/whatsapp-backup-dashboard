@@ -138,12 +138,77 @@ refactor grande — coherente con la Clean Architecture del proyecto.
 
 ## Jornadas desde otro proyecto de Firebase
 
-- **Hoy**: las jornadas son un enum local y fijo,
-  `lib/core/time/shifts.dart` (`Shift`: mañana 06:00–10:54, tarde 1
+### Tabla definitiva (2026-09-30)
+
+**HECHOS** (verificados el 2026-09-30 con una lectura única y de solo
+lectura de la colección `jornadas` del proyecto `whats-apuestas`, base
+`(default)`):
+- 5 documentos: `festivos`, `manana`, `noche`, `tarde_1`, `tarde_2`, sin
+  subcolecciones. Los ids son distintos de las claves del enum `Shift`.
+- Cada uno tiene exactamente 7 campos: `name`, `startTime`, `endTime`,
+  `pendingApproval`, `proposedBy`, `proposedStartTime`, `proposedEndTime`.
+- `startTime`/`endTime` son **texto** `yyyy-MM-ddTHH:mm:ss.000`, sin zona
+  horaria (no `Timestamp`). `pendingApproval` es booleano (`false` en los
+  5); los tres `proposed*` venían en `null`.
+- Un documento por jornada con el horario vigente, sin historial. La fecha
+  (parte `yyyy-MM-dd`) varía entre documentos.
+- Sin campo de día de la semana ni lista de festivos: solo el documento
+  `festivos` ("Domingos y Festivos").
+- Horarios: Mañana 05:30–10:51, Tarde1 10:58–13:55, Tarde2 14:01–15:20,
+  Noche 15:28–22:15, Domingos y Festivos 06:00–19:15. Una sola "Noche".
+
+**SUPOSICIONES** (no verificadas): la hora es de pared de Colombia
+(America/Bogotá; el formato coincide con `toIso8601String()` de un
+`DateTime` local de Dart); solo importa la hora, la fecha sería la de la
+última edición; `pendingApproval`/`proposedBy`/`proposedStartTime`/
+`proposedEndTime` serían un flujo de propuesta y aprobación de cambios de
+horario (mientras `pendingApproval` sea `true` rigen `startTime`/`endTime`).
+
+**DECIDIDO** por el usuario (2026-09-30):
+- Ese horario es el DEFINITIVO. La app usa una **tabla fija en código**
+  (`lib/core/time/shifts.dart`), **sin lectura dinámica** de `jornadas`:
+  reemplaza, para las jornadas, la meta de leerlas del otro proyecto
+  (sección de abajo, que queda como antecedente). Rige en toda la app desde
+  el despliegue; el usuario solo despliega con todas las jornadas cerradas.
+- Tabla nueva (fin INCLUSIVO, último minuto completo; se trunca al
+  minuto): `morning` 05:30–10:51, `afternoon1` 10:58–13:55, `afternoon2`
+  14:01–15:20, `night1` 15:28–22:15, `holiday` 06:00–19:15 (solo domingos,
+  como hoy). Todo lo demás es `outOfShift`. **night2 no existe en la tabla
+  nueva**; se conserva en el enum solo por la tabla vieja y sus etiquetas.
+- Las claves del enum NO cambian (no cambian ids de `shift_image_counts`,
+  de `reviewShifts` ni de la ruta de subida).
+- Tabla vieja y nueva coexisten; el corte es `newShiftsEffectiveFromMs`
+  (ms UTC, hoy `null` = tabla vieja en toda la app). Lo ya guardado se queda
+  tal cual. Detalle de la regla en `image-review-domain` ("Jornadas: tabla
+  vieja, tabla nueva y corte").
+- Los huecos entre jornadas (10:52–10:57, 13:56–14:00, 15:21–15:27) **se
+  ven en el visor** agrupados junto a su jornada ("Fuera de jornada
+  Mañana/Tarde 1/Tarde 2") pero **no cuentan para reportes** (son
+  `outOfShift`).
+- El bot debe seguir clasificando los huecos como `out_of_shift` y solo
+  cambiar sus rangos y retirar night2; los bordes del bot se verifican en
+  su propio repo.
+
+**PENDIENTE** (no decidido):
+- Fecha fija del corte y despliegue coordinado con el bot.
+- Actualizar el bot (rangos y claves de `shift_image_counts`) en su repo.
+- Retirar night2 de `ASSIGNABLE_SHIFTS` en `functions/` (el cliente ya no
+  la ofrece con la tabla nueva, pero el servidor todavía la acepta).
+- Fuente de festivos (hoy solo se detectan domingos).
+- Caché de la PWA tras el despliegue (versiones viejas con la tabla vieja).
+- Mecanismo de recepción de números ganadores y contrato de la Cloud
+  Function puente (ver "Zona gris" al final).
+
+### Antecedente: la idea de leer las jornadas del otro proyecto
+
+- **Antes** (hasta la tabla definitiva): las jornadas eran un enum local y
+  fijo, `lib/core/time/shifts.dart` (`Shift`: mañana 06:00–10:54, tarde 1
   10:55–13:58, tarde 2 13:59–15:23, noche 1 15:24–22:24, noche 2
-  22:25–22:30, domingo/festivo 06:00–19:20, fuera de jornada). Cada
-  mensaje se clasifica en una jornada al mapearse a dominio.
-- **Meta**: reemplazar esos rangos fijos por datos que vienen de **otro
+  22:25–22:30, domingo/festivo 06:00–19:20, fuera de jornada) — hoy es la
+  tabla VIEJA. Cada mensaje se clasifica en una jornada al mapearse a
+  dominio.
+- **Meta original** (superada para las jornadas por la tabla fija de
+  arriba): reemplazar esos rangos fijos por datos que vienen de **otro
   proyecto de Firebase** — es decir, no una colección nueva dentro del
   mismo proyecto `whatsapp-pro-3d483`, sino un **proyecto de Firebase
   distinto**, con su propio `projectId`/credenciales. **Decisión
@@ -196,18 +261,19 @@ refactor grande — coherente con la Clean Architecture del proyecto.
 
 ## Zona gris / a confirmar antes de implementar
 
-Estos tres puntos quedan **deferidos hasta tener acceso al proyecto
-externo de Firebase** — el usuario indicó que los revisamos juntos en
-ese momento, no hay forma de resolverlos por conversación ahora mismo:
+Estos puntos quedan **deferidos** — el usuario indicó que los revisamos
+juntos con acceso al proyecto externo. El formato de las jornadas ya se
+vio (ver "Tabla definitiva" arriba) y se decidió usar una tabla fija, así
+que ese punto ya no bloquea:
 
 - **Mecanismo exacto de "recepción" de números ganadores**: ¿es un
   endpoint HTTP al que algo externo hace push (webhook), o la Cloud
   Function puente consulta activamente al otro proyecto (polling
   programado)? Cambia bastante el diseño (trigger HTTP vs. Cloud
   Scheduler).
-- **Formato exacto de la lista de jornadas por fecha** que devuelve el
-  proyecto externo (nombres, horarios, cómo se marca cuáles aplican un
-  domingo vs. un día normal) — sin verlo no se puede diseñar el modelo
-  final que reemplace el enum `Shift`.
+- ~~Formato exacto de la lista de jornadas por fecha~~ — **resuelto**: ya
+  se vio la colección `jornadas` y se decidió una tabla fija en código
+  (ver "Tabla definitiva"). Queda pendiente solo cómo se marcan los
+  festivos (la colección no los lista).
 - Contrato completo de la Cloud Function puente (qué recibe/devuelve
   exactamente para jornadas y para números ganadores).

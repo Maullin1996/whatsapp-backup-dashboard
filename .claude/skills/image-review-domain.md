@@ -61,9 +61,10 @@ cada vez. Antes de tocar código de este feature, lee esta skill completa.
   **la app no los pide como dato de entrada**: sumados entre sí no dan
   el total del comprobante, así que no sirven para calcular ni validar
   nada — son ruido visual del papel, no un dato del formulario.
-- **Jornada**: turno laboral (mañana, tarde 1, tarde 2, noche 1, noche 2,
-  domingo/festivo, fuera de jornada — ver `lib/core/time/shifts.dart`
-  en el repo). Todo el feature de revisión se agrupa por jornada.
+- **Jornada**: turno laboral (mañana, tarde 1, tarde 2, noche 1,
+  domingo/festivo, fuera de jornada; noche 2 solo en la tabla vieja — ver
+  `lib/core/time/shifts.dart` y "Jornadas: tabla vieja, tabla nueva y
+  corte" más abajo). Todo el feature de revisión se agrupa por jornada.
 - **Números ganadores**: lista externa (hoy local/mock, más adelante vía
   Cloud Function) contra la que se comparan los números registrados por
   el Revisor, para detectar coincidencias.
@@ -265,7 +266,10 @@ recomendación de diseño es:
     la app lo trata como 0.
   - El bot solo publica hoy y ayer (fecha UTC-5) y no borra nada. Antes
     del 2026-09-26 no hay documentos.
-  - App y bot usan los mismos rangos horarios, truncan a minutos con
+  - App y bot usan los mismos rangos horarios (hoy los de la tabla VIEJA;
+    al fijar el corte, el bot tiene que pasar a la tabla nueva de forma
+    coordinada — PENDIENTE, ver "Jornadas: tabla vieja, tabla nueva y
+    corte"), truncan a minutos con
     límites inclusivos y detectan solo domingos. Diferencia: la app
     calcula la jornada con `toLocal()`; el bot, con `America/Bogota`, y
     su `shift_date` usa UTC-5 fijo.
@@ -302,6 +306,59 @@ recomendación de diseño es:
     verificado).
   - **Confirmar en el bot** que un mensaje real se procesa bien con el
     publicador (primera jornada tras el deploy).
+
+## Jornadas: tabla vieja, tabla nueva y corte
+
+**DECIDIDO** por el usuario (2026-09-30). El horario de la colección
+`jornadas` de `whats-apuestas` es el definitivo y la app lo usa como una
+tabla fija en código (hechos de esa lectura y pendientes de integración en
+`image-review-firebase-integration`, "Tabla definitiva").
+
+| Clave (`Shift`) | Tabla VIEJA | Tabla NUEVA |
+|---|---|---|
+| `morning` | 06:00–10:54 | 05:30–10:51 |
+| `afternoon1` | 10:55–13:58 | 10:58–13:55 |
+| `afternoon2` | 13:59–15:23 | 14:01–15:20 |
+| `night1` | 15:24–22:24 | 15:28–22:15 |
+| `night2` | 22:25–22:30 | **no existe (retirada)** |
+| `holiday` (solo domingos) | 06:00–19:20 | 06:00–19:15 |
+| `outOfShift` | todo lo demás | todo lo demás, incluidos los huecos |
+
+- **Bordes**: se trunca al minuto y el fin es INCLUSIVO (el último minuto
+  completo): con la tabla nueva 10:51:59 es mañana y 10:52:00 no.
+- **Claves sin cambios**: el enum `Shift` sigue igual (ids de
+  `shift_image_counts`, `reviewShifts` y ruta de subida). `night2` queda en
+  el enum solo por la tabla vieja y sus etiquetas ya guardadas.
+- **Regla del corte**: `newShiftsEffectiveFromMs` (ms UTC, en
+  `shifts.dart`; hoy `null` = tabla vieja en toda la app). Un mensaje se
+  clasifica con la tabla nueva si la constante no es `null` y su
+  `messageTimestamp` es >= la constante; si no, con la vieja
+  (`getCurrentShift` aplica lo mismo al instante que recibe; comparación de
+  enteros, sin conversión de zona nueva). Se fija el día del despliegue, a
+  una medianoche sin jornada abierta, así que un día nunca mezcla tablas.
+  `jornadaTerminada` elige la tabla por el día de la jornada contra el
+  corte (llevado a hora de Bogotá con `bogotaWallClock`).
+- **Lo ya guardado se queda tal cual**: los mensajes anteriores al corte
+  conservan la etiqueta vieja y los registros guardados con etiquetas
+  viejas se siguen traduciendo a su clave (`shiftFromLabel` reconoce las
+  dos tablas).
+- **Etiquetas**: cada tabla tiene las suyas con sus horas (`shiftNames` la
+  vieja, `newShiftNames` la nueva, p. ej. "Jornada Mañana (05:30 –
+  10:51)").
+- **Huecos (tabla nueva): dos lecturas de la misma hora.**
+  - **Reportes** (panel de formulario, `toUploadDocument`, reconciliación,
+    aviso de imágenes sin registrar, pendientes): solo cuenta lo que está
+    dentro de los rangos; un hueco es `Shift.outOfShift`.
+  - **Visor**: un mensaje en un hueco de día se etiqueta "Fuera de jornada
+    Mañana" (10:52–10:57), "Fuera de jornada Tarde 1" (13:56–14:00) o
+    "Fuera de jornada Tarde 2" (15:21–15:27) y se agrupa junto a esa
+    jornada (fila propia en "Imágenes por jornada" del panel de control,
+    solo si tiene imágenes). La madrugada (22:16–05:29) y lo fuera de
+    horario en domingo siguen siendo "Fuera de las jornadas", sin grupo.
+  - `shiftFromLabel` de "Fuera de jornada X" da `outOfShift`: el panel de
+    formulario no aparece en un hueco y `toUploadDocument` lo rechaza.
+- **Festivos**: sin cambios, solo se detectan domingos (PENDIENTE: fuente
+  de festivos).
 
 ## Reglas de negocio (no negociables sin confirmación explícita del usuario)
 

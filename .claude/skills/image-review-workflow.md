@@ -167,6 +167,19 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    Function), separación por rol en la regla de lectura, si `fechaJornada`
    usa `toLocal()` o UTC-5 (ahora es parte de la ruta), límites de tamaño,
    y reglas de seguridad y su despliegue.
+   **Jornadas — tabla definitiva, código HECHO, corte SIN fijar**: se leyó
+   una vez `jornadas` de `whats-apuestas` (2026-09-30) y el usuario decidió
+   usar ese horario como tabla fija en código, sin lectura dinámica. Tabla
+   vieja y nueva coexisten en `shifts.dart`; `newShiftsEffectiveFromMs`
+   sigue en `null` (tabla vieja en toda la app) hasta que el usuario lo fije
+   el día del despliegue. night2 retirado de la tabla nueva; los huecos se
+   ven en el visor ("Fuera de jornada X") pero no cuentan para reportes.
+   Detalle en `image-review-domain` ("Jornadas: tabla vieja, tabla nueva y
+   corte") y en `image-review-firebase-integration` ("Tabla definitiva").
+   **PENDIENTES**: fecha fija del corte y despliegue coordinado con el bot;
+   actualizar el bot (rangos y claves de `shift_image_counts`) en su repo;
+   retirar night2 de `ASSIGNABLE_SHIFTS` en `functions/`; fuente de
+   festivos; caché de la PWA tras el despliegue.
 
 ## Checklist antes de pasar a la siguiente pieza
 
@@ -214,12 +227,17 @@ de aquí y de la skill correspondiente cuando el usuario confirme):
 - **`sqflite`/`drift` vs. `Hive`** (`image-review-offline-sync`) —
   decisión libre, a tomar en Claude Code; no hay nada existente que
   condicione la elección.
-- **Tres puntos diferidos explícitamente hasta tener acceso al proyecto
-  externo de Firebase** (`image-review-firebase-integration`): mecanismo
-  de recepción de números ganadores (webhook vs. polling), formato real
-  de las jornadas por fecha, y el contrato completo de la Cloud
-  Function puente. El usuario dijo que los revisamos juntos cuando
-  tenga acceso a ese proyecto — no intentar adivinarlos antes.
+- **Dos puntos diferidos del proyecto externo de Firebase**
+  (`image-review-firebase-integration`): mecanismo de recepción de números
+  ganadores (webhook vs. polling) y el contrato completo de la Cloud
+  Function puente. El usuario dijo que los revisamos juntos — no intentar
+  adivinarlos antes. (El formato de las jornadas ya se vio y se decidió
+  una tabla fija en código, 2026-09-30.)
+- **Corte de la tabla de jornadas** (`image-review-domain`): fecha fija de
+  `newShiftsEffectiveFromMs` y despliegue coordinado con el bot (rangos y
+  claves de `shift_image_counts` en su repo), retirar night2 de
+  `ASSIGNABLE_SHIFTS` en `functions/`, fuente de festivos y caché de la PWA
+  tras el despliegue.
 - **Calidad de conexión en la subida real** (`image-review-offline-sync`,
   paso 7) — el timeout por registro ya existe (15 s, capa 3); falta decidir
   si además se verifica la conexión antes de subir, y qué pasa si una
