@@ -18,6 +18,7 @@ const _target = ImageReviewTarget(
   shift: 'Jornada Mañana',
   storagePath: 'img_m1.png',
   fechaJornada: '2026-01-15',
+  messageTimestamp: 1788489942000,
   localTime: '10:03',
   shiftImageIndex: 4,
 );

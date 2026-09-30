@@ -13,6 +13,10 @@ class ImageReviewTarget {
   /// registro y sirve para consultar pendientes por jornada.
   final String fechaJornada;
 
+  /// `messageTimestamp` del mensaje (epoch en milisegundos, tal cual viene de
+  /// `whatsapp_messages`); se guarda en el registro sin transformarlo.
+  final int messageTimestamp;
+
   /// Hora local de la imagen y su número dentro de la jornada. Solo se
   /// muestran en el encabezado del panel; no forman parte del registro.
   final String? localTime;
@@ -24,6 +28,7 @@ class ImageReviewTarget {
     required this.shift,
     required this.storagePath,
     required this.fechaJornada,
+    required this.messageTimestamp,
     this.localTime,
     this.shiftImageIndex,
   });

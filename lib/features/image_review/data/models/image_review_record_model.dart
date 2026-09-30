@@ -40,6 +40,8 @@ class ImageReviewRecordModel {
     'rol': record.rol.name,
     'storagePath': record.storagePath,
     'fechaJornada': record.fechaJornada,
+    // Tal cual (ms); null solo en registros guardados antes de este campo.
+    'messageTimestamp': record.messageTimestamp,
     'comprobantes': [
       for (final c in record.form.comprobantes)
         {'codigo': c.codigo, 'numeros': c.numeros, 'total': c.total},
@@ -62,9 +64,10 @@ class ImageReviewRecordModel {
   ///
   /// `shiftKey` es el nombre del enum [Shift] de la etiqueta guardada en el
   /// registro. `Left` si la etiqueta no es de una jornada asignable
-  /// (desconocida o [Shift.outOfShift]) o si algún segmento de la ruta queda
-  /// vacío o con "/". El id lleva el rol: Revisor y Sumador de la misma
-  /// imagen comparten jornada y no se pisan.
+  /// (desconocida o [Shift.outOfShift]), si el registro no tiene
+  /// `messageTimestamp` (guardado antes de ese campo) o si algún segmento de
+  /// la ruta queda vacío o con "/". El id lleva el rol: Revisor y Sumador de
+  /// la misma imagen comparten jornada y no se pisan.
   Either<Failure, ReviewUploadDocument> toUploadDocument() {
     final shift = shiftFromLabel(record.shift);
     if (shift == null || shift == Shift.outOfShift) {
@@ -73,6 +76,16 @@ class ImageReviewRecordModel {
           message:
               'La imagen no pertenece a una jornada asignable '
               '("${record.shift}"): no se puede subir.',
+        ),
+      );
+    }
+    if (record.messageTimestamp == null) {
+      return Left(
+        Failure.unknown(
+          message:
+              'El registro de la imagen ${record.messageId} es anterior a '
+              'este cambio y no se puede subir: guárdalo de nuevo desde el '
+              'visor.',
         ),
       );
     }
@@ -126,6 +139,9 @@ class ImageReviewRecordModel {
         rol: ReviewRole.values.byName(map['rol'] as String),
         storagePath: map['storagePath'] as String,
         fechaJornada: map['fechaJornada'] as String,
+        // Opcional sin subir el esquema: ausente (registro de antes) -> null;
+        // presente con otro tipo -> falla como los demás campos.
+        messageTimestamp: map['messageTimestamp'] as int?,
         form: ImageReviewForm(
           comprobantes: comprobantes,
           anotaciones: map['anotaciones'] as String?,

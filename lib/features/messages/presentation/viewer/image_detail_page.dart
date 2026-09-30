@@ -513,6 +513,7 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage>
                         shift: item.shift,
                         storagePath: item.storagePath,
                         fechaJornada: item.fechaJornada,
+                        messageTimestamp: item.messageTimestamp,
                         localTime: item.localTime,
                         shiftImageIndex: item.shiftImageIndex,
                       ),

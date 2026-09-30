@@ -10,12 +10,16 @@ import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/im
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/image_review_record.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
 
+/// `messageTimestamp` real (ms), para comprobar que se conserva tal cual.
+const _timestamp = 1788489942000;
+
 ImageReviewRecord _record({
   ReviewRole rol = ReviewRole.revisor,
   String? anotaciones,
   bool editado = false,
   EstadoSync estadoSync = EstadoSync.pendiente,
   List<Comprobante>? comprobantes,
+  int? messageTimestamp = _timestamp,
 }) => ImageReviewRecord(
   messageId: 'm-1',
   chatJid: '1203630@g.us',
@@ -23,6 +27,7 @@ ImageReviewRecord _record({
   rol: rol,
   storagePath: 'chats/1203630/img_1.jpg',
   fechaJornada: '2026-01-15',
+  messageTimestamp: messageTimestamp,
   form: ImageReviewForm(
     comprobantes:
         comprobantes ??
@@ -103,6 +108,43 @@ void main() {
       final map = ImageReviewRecordModel(_record()).toMap();
       expect(map['storagePath'], 'chats/1203630/img_1.jpg');
       expect(jsonEncode(map), isNot(contains('http')));
+    });
+
+    test('conserva messageTimestamp tal cual (int, ms)', () {
+      final map = ImageReviewRecordModel(_record()).toMap();
+      expect(map['messageTimestamp'], 1788489942000);
+
+      final back = _roundTrip(_record());
+      expect(back.messageTimestamp, 1788489942000);
+      expect(back.messageTimestamp, isA<int>());
+    });
+  });
+
+  group('ImageReviewRecordModel: messageTimestamp en registros guardados', () {
+    Map<String, dynamic> stored() =>
+        jsonDecode(jsonEncode(ImageReviewRecordModel(_record()).toMap()))
+            as Map<String, dynamic>;
+
+    test('un registro guardado SIN la clave se lee con null y no falla', () {
+      final map = stored()..remove('messageTimestamp');
+      expect(map['v'], 1);
+
+      final back = ImageReviewRecordModel.fromMap(map).record;
+
+      expect(back.messageTimestamp, isNull);
+      expect(back.messageId, 'm-1');
+    });
+
+    test('con un valor de tipo incorrecto, falla', () {
+      for (final wrong in <Object>['1788489942000', 1788489942000.5, true]) {
+        expect(
+          () => ImageReviewRecordModel.fromMap(
+            stored()..['messageTimestamp'] = wrong,
+          ),
+          throwsA(anything),
+          reason: '$wrong',
+        );
+      }
     });
   });
 
@@ -209,6 +251,28 @@ void main() {
         r.registradoEn.toUtc().toIso8601String(),
       );
       expect(doc.data.containsKey('uid'), isFalse);
+    });
+
+    test('con messageTimestamp: el payload lo lleva exacto y registradoEn '
+        'sigue presente', () {
+      final r = _record();
+      final doc = document(r);
+
+      expect(doc.data['messageTimestamp'], 1788489942000);
+      expect(doc.data['messageTimestamp'], isA<int>());
+      expect(
+        doc.data['registradoEn'],
+        r.registradoEn.toUtc().toIso8601String(),
+      );
+    });
+
+    test('sin messageTimestamp (registro de antes): Left(Failure.unknown) '
+        'que pide volver a guardarlo, con el messageId', () {
+      final f = failure(_record(messageTimestamp: null));
+
+      expect(f, isA<UnknownFailure>());
+      expect(f.message, contains('m-1'));
+      expect(f.message, contains('guárdalo de nuevo'));
     });
   });
 

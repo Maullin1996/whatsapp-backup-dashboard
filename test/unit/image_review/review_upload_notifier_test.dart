@@ -29,6 +29,7 @@ ImageReviewRecord _record(
   ReviewRole rol = ReviewRole.revisor,
   DateTime? registradoEn,
   int total = 1000,
+  int? messageTimestamp = 1788489942000,
 }) => ImageReviewRecord(
   messageId: id,
   chatJid: 'c1',
@@ -36,6 +37,7 @@ ImageReviewRecord _record(
   rol: rol,
   storagePath: 'img_$id.png',
   fechaJornada: fecha,
+  messageTimestamp: messageTimestamp,
   form: ImageReviewForm(
     comprobantes: [
       Comprobante(
@@ -168,6 +170,7 @@ void main() {
         'rol': 'revisor',
         'storagePath': 'img_m1.png',
         'fechaJornada': '2026-01-15',
+        'messageTimestamp': 1788489942000,
         'comprobantes': [
           {
             'codigo': 'A1',
@@ -180,6 +183,16 @@ void main() {
         'registradoPor': 'a@x.com',
         'editado': false,
       });
+    });
+
+    test('sin messageTimestamp (registro de antes): Left y no imprime '
+        'nada', () async {
+      final result = await const SimulatedReviewUploader().upload(
+        _record('m4', messageTimestamp: null),
+      );
+
+      expect(result.isLeft(), isTrue);
+      expect(printed, isEmpty);
     });
 
     test('el id del documento lleva el rol', () async {

@@ -34,6 +34,7 @@ const _target = ImageReviewTarget(
   shift: 'Jornada Mañana',
   storagePath: 'img_m1.png',
   fechaJornada: '2026-01-15',
+  messageTimestamp: 1788489942000,
 );
 
 ({String messageId, ReviewRole rol}) _key(ReviewRole rol, [String id = 'm1']) =>
@@ -176,6 +177,20 @@ void main() {
       draft.setTotal(0, total);
       await draft.save(_target);
     }
+
+    test('save() guarda el messageTimestamp del target sin transformarlo, en '
+        'los dos roles', () async {
+      await saveAs(ReviewRole.revisor);
+      await saveAs(ReviewRole.sumador);
+
+      for (final rol in ReviewRole.values) {
+        final saved = await container.read(
+          savedRecordProvider(_key(rol)).future,
+        );
+        expect(saved!.messageTimestamp, _target.messageTimestamp);
+        expect(saved.messageTimestamp, 1788489942000);
+      }
+    });
 
     test('lo guardado como Revisor no aparece como Sumador', () async {
       await saveAs(ReviewRole.revisor);

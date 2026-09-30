@@ -152,6 +152,7 @@ class ReviewDraftNotifier extends Notifier<ReviewDraftState> {
       rol: key.rol,
       storagePath: target.storagePath,
       fechaJornada: target.fechaJornada,
+      messageTimestamp: target.messageTimestamp,
       form: form,
       registradoEn: DateTime.now(),
       registradoPor: email,

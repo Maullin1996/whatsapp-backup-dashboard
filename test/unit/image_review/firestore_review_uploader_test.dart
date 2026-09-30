@@ -23,6 +23,7 @@ ImageReviewRecord _record(
   String id, {
   ReviewRole rol = ReviewRole.revisor,
   String shift = _shift,
+  int? messageTimestamp = 1788489942000,
 }) => ImageReviewRecord(
   messageId: id,
   chatJid: 'c1@g.us',
@@ -30,6 +31,7 @@ ImageReviewRecord _record(
   rol: rol,
   storagePath: 'img_$id.png',
   fechaJornada: '2026-01-15',
+  messageTimestamp: messageTimestamp,
   form: ImageReviewForm(
     comprobantes: [
       Comprobante(
@@ -100,6 +102,19 @@ void main() {
     expect(segments, expected.pathSegments);
     expect(data, expected.data);
     expect(data['shiftKey'], 'morning');
+    expect(data['messageTimestamp'], 1788489942000);
+    expect(data.containsKey('registradoEn'), isTrue);
+  });
+
+  test('sin messageTimestamp (registro de antes): Left sin llamar al '
+      'datasource', () async {
+    final result = await uploader.upload(_record('m1', messageTimestamp: null));
+
+    final failure = result.fold((f) => f, (_) => fail('se esperaba Left'));
+    expect(failure, isA<UnknownFailure>());
+    expect(failure.message, contains('m1'));
+    expect(datasource.calls, isEmpty);
+    expect(datasource.documents, isEmpty);
   });
 
   test('idempotente: subir el mismo registro dos veces deja un solo '

@@ -20,6 +20,7 @@ const _target = ImageReviewTarget(
   shift: 'Jornada Mañana',
   storagePath: 'img_m1.png',
   fechaJornada: '2026-01-15',
+  messageTimestamp: 1788489942000,
 );
 
 ({String messageId, ReviewRole rol}) _key(
@@ -87,6 +88,7 @@ void main() {
         shift: 'Jornada Mañana',
         storagePath: 'img_$id.png',
         fechaJornada: '2026-01-15',
+        messageTimestamp: 1788489942000,
       ),
     );
   }
