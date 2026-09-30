@@ -146,10 +146,15 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    (reemplaza el documento completo, idempotente, no lanza) y
    `FirestoreReviewUploader`, ambos en Dart puro y probados con un
    datasource falso; `reviewUploaderProvider` sigue en el simulado.
+   **Capa 3 HECHA, aún no conectada**: `FirestoreReviewUploadDatasource`
+   (`doc(path).set(data)` sin `SetOptions`, timeout de 15 s por registro,
+   todo error a `Left`), probada con una función de escritura falsa; nada la
+   construye fuera de los tests y el provider sigue en el simulado.
    Siguen **PENDIENTES** (detalle en `image-review-offline-sync` § "Ruta de
-   la subida"): la clase del datasource con Firestore real, timeout y
-   verificación de conexión, cableado al provider, mensajes de error en
-   español, nombres definitivos de las colecciones, cómo lee
+   la subida"): verificación de conexión antes de subir, si una escritura en
+   cola del SDK web llega tarde después de un timeout, cableado al provider,
+   mensajes de error visibles en español, nombres definitivos de las
+   colecciones, cómo lee
    Coincidencias entre grupos (consulta de grupo de colecciones o Cloud
    Function), separación por rol en la regla de lectura, si `fechaJornada`
    usa `toLocal()` o UTC-5 (ahora es parte de la ruta), límites de tamaño,
@@ -207,10 +212,10 @@ de aquí y de la skill correspondiente cuando el usuario confirme):
   de las jornadas por fecha, y el contrato completo de la Cloud
   Function puente. El usuario dijo que los revisamos juntos cuando
   tenga acceso a ese proyecto — no intentar adivinarlos antes.
-- **Calidad de conexión / timeout por registro en la subida real**
-  (`image-review-offline-sync`, paso 7) — el uploader simulado nunca falla ni
-  se cuelga; antes de conectar Firestore hay que decidir si se verifica la
-  conexión antes de subir y/o se pone un timeout por registro.
+- **Calidad de conexión en la subida real** (`image-review-offline-sync`,
+  paso 7) — el timeout por registro ya existe (15 s, capa 3); falta decidir
+  si además se verifica la conexión antes de subir, y qué pasa si una
+  escritura en cola del SDK web llega después del timeout.
 - **Qué pasa si le quitan el rol a alguien con registros locales sin
   subir** (`image-review-roles`) — queda como decisión operativa del
   superAdmin, no resuelta por la app.

@@ -312,7 +312,7 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
     Dart puro, sin `cloud_firestore`): `setDocument(pathSegments, data)` →
     `Future<Either<Failure, Unit>>`. Contrato documentado: REEMPLAZA el
     documento completo (sin merge), es idempotente con el mismo id y no lanza.
-    **No existe todavía la implementación con Firestore.**
+    Su implementación con Firestore es la capa 3 (abajo).
   - `FirestoreReviewUploader` (`data/sync/`, Dart puro): implementa
     `ReviewUploader` con `toUploadDocument()` (la misma ruta y datos que el
     simulado, sin duplicar lógica). `Left` de la ruta → se devuelve sin llamar
@@ -322,15 +322,42 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
   - `reviewUploaderProvider` **sigue** en `SimulatedReviewUploader`. Tests con
     un datasource falso en memoria (`firestore_review_uploader_test.dart`),
     incluida la integración con `ReviewUploadNotifier`.
+- **Capa 3 — HECHA, AÚN NO CONECTADA** (nombres provisionales):
+  - `FirestoreReviewUploadDatasource`
+    (`data/datasources/firestore_review_upload_datasource.dart`) implementa
+    `ReviewUploadDatasource`. Constructor principal: recibe `FirebaseFirestore`
+    y escribe con `firestore.doc(pathSegments.join('/')).set(data)` **sin
+    `SetOptions`** (reemplazo completo, sin merge). Constructor
+    `.withWriter(fn)`: recibe la función de escritura `(path, data) ->
+    Future<void>`, para probar sin Firebase.
+  - **Timeout por registro: 15 s**, constante única `reviewUploadTimeout` en
+    ese archivo (el constructor acepta otro valor, usado solo en tests). Al
+    vencer: `Left(Failure.unknown("El registro no se pudo subir a tiempo
+    (<path>)."))` — el registro sigue pendiente y el lote continúa con el
+    siguiente, así "Subiendo X de N" ya no puede quedar colgado para siempre.
+  - Errores, siempre `Left`, nunca lanza: `FirebaseException` →
+    `mapFirestoreError` (`permission-denied` → `unauthorized`, `unavailable` →
+    `firestore("Servicio no disponible")`, el resto → `firestore(message de
+    Firebase)`); cualquier otra excepción o `Error` →
+    `Failure.unknown("Error inesperado al subir el registro (<path>).")`. Una
+    ruta vacía, con número impar de segmentos o con un segmento vacío o con
+    "/" → `Left` sin escribir (defensa extra; ya lo valida `toUploadDocument`).
+  - No imprime el payload. **Nada la construye fuera de sus tests**: no hay
+    provider que la cree, ningún archivo nuevo usa `FirebaseFirestore.instance`,
+    y `reviewUploaderProvider` sigue en `SimulatedReviewUploader`.
 - **PENDIENTE (no decidido)**:
-  - La clase del datasource con Firestore real (la única que importaría
-    `cloud_firestore`), y el cableado de `FirestoreReviewUploader` a
-    `reviewUploaderProvider` (requiere autorización explícita).
-  - Timeout por registro y/o verificación de conexión antes de subir (ver
-    "Pendiente de diseño" abajo).
-  - Mensajes de error en español para los fallos de Firestore
-    (`mapFirestoreError` reenvía el `message` de Firebase en el caso por
-    defecto).
+  - Cableado al provider: construir `FirestoreReviewUploadDatasource` y
+    `FirestoreReviewUploader` en `reviewUploaderProvider` (requiere
+    autorización explícita; es lo que activa la escritura real).
+  - Verificación de conexión antes de subir (el timeout ya existe, ver
+    arriba).
+  - Si una escritura que el SDK web dejó en cola llega tarde, después de que
+    el timeout ya la dio por fallida: el registro queda pendiente y se
+    volverá a subir (mismo id, reemplazo completo), pero qué versión queda
+    en el servidor si entre tanto se editó no está analizado.
+  - Mensajes de error visibles en español: `mapFirestoreError` reenvía el
+    `message` de Firebase en el caso por defecto, y hoy
+    `ReviewUploadNotifier` solo cuenta los fallos, no muestra su mensaje.
   - Nombres definitivos de las colecciones (`image_reviews`, `jornadas`,
     `registros` son provisionales).
   - Cómo lee Coincidencias los registros de todos los grupos: consulta de
@@ -347,12 +374,13 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
 
 ### Pendiente de diseño para la integración real (paso 7)
 
-El uploader simulado nunca falla ni se cuelga, así que hoy no hay nada que
-proteja contra una conexión mala. Antes de conectar Firestore de verdad hay
-que decidir: **verificar la calidad de conexión antes de subir y/o un
-timeout por registro** (un registro colgado hoy bloquearía toda la jornada
-con "Subiendo X de N" indefinido). Decidirlo junto con la implementación
-real de `ReviewUploader`.
+**Timeout por registro: resuelto en la capa 3** (15 s en
+`FirestoreReviewUploadDatasource`, ver "Ruta de la subida"): un registro
+colgado ya no bloquea la jornada con "Subiendo X de N" indefinido. **Sigue
+pendiente** decidir si además se verifica la calidad de conexión antes de
+subir, y qué pasa con una escritura que el SDK dejó en cola y llega después
+del timeout. El uploader simulado (el que usa hoy el provider) nunca falla
+ni se cuelga.
 
 ## Forma de trabajo dentro de esta skill
 
