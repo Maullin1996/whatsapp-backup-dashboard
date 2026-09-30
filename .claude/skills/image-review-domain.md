@@ -94,6 +94,11 @@ toca al otro y ninguno lee al otro)
  │    chat y la jornada permite listar los pendientes de una jornada.
  │    OJO: NO es `Message.messageDate` (a pesar del nombre guarda la
  │    hora "HH:mm"); por eso el campo se llama distinto.
+ ├── messageTimestamp = `messageTimestamp` del mensaje de WhatsApp (int,
+ │    epoch en milisegundos UTC, tal cual viene de `whatsapp_messages`, sin
+ │    convertir ni redondear). Lo copia `save()` desde el target. Es `int?`:
+ │    null solo en registros guardados antes de agregar el campo, que no se
+ │    pueden subir hasta volver a guardarlos (ver image-review-offline-sync).
  ├── storagePath = referencia de la imagen (nunca la imagen ni una URL)
  ├── estadoSync = `pendiente` | `sincronizado` (nace pendiente; re-guardar
  │    lo devuelve a pendiente; pasa a sincronizado con la subida por
@@ -124,7 +129,9 @@ no se pisan. Detalle y pendientes en `image-review-offline-sync`
 (§ "Ruta de la subida").
 
 **Nota sobre la fecha**: hay DOS fechas distintas en el registro y no se
-confunden. `registradoEn` es el momento en que el Revisor/Sumador
+confunden (tres datos de tiempo contando `messageTimestamp`, que es el
+instante exacto del mensaje y no reemplaza a ninguna de las dos:
+`registradoEn` se mantiene igual, también en la subida). `registradoEn` es el momento en que el Revisor/Sumador
 diligencia el formulario (no la metadata original del mensaje).
 `fechaJornada` sí sale del mensaje: es el día de la jornada a la que
 pertenece la imagen (decisión confirmada al implementar la persistencia

@@ -150,8 +150,16 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    (`doc(path).set(data)` sin `SetOptions`, timeout de 15 s por registro,
    todo error a `Left`), probada con una función de escritura falsa; nada la
    construye fuera de los tests y el provider sigue en el simulado.
+   **Capa 4 HECHA, sigue simulada**: `messageTimestamp` (int, ms UTC, tal
+   cual) viaja del visor al registro (`int?`, esquema sigue en v1) y al
+   payload; `registradoEn` se mantiene. Un registro viejo sin el campo no se
+   sube hasta re-guardarlo desde el visor.
    Siguen **PENDIENTES** (detalle en `image-review-offline-sync` § "Ruta de
-   la subida"): verificación de conexión antes de subir, si una escritura en
+   la subida"): aviso visible para los registros viejos que no se pueden
+   subir (y que la píldora los sigue contando), si conviene subir el
+   esquema a v2 (versiones antiguas de la app en caché), que las reglas de
+   Firestore comparen `messageTimestamp` con `whatsapp_messages/{messageId}`,
+   verificación de conexión antes de subir, si una escritura en
    cola del SDK web llega tarde después de un timeout, cableado al provider,
    mensajes de error visibles en español, nombres definitivos de las
    colecciones, cómo lee

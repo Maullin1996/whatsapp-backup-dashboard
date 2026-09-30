@@ -171,7 +171,9 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
    `fechaJornada` (`yyyy-MM-dd`, día de la jornada = fecha del mensaje en
    hora local, calculada con `fechaJornadaDe(messageTimestamp)`; **no** es
    `Message.messageDate`, que a pesar del nombre guarda la hora "HH:mm",
-   ni `registradoEn`), `registradoPor`, `editado` y `estadoSync`.
+   ni `registradoEn`), `messageTimestamp` (int?, ms UTC del mensaje, tal
+   cual; lo copia `save()` del target), `registradoPor`, `editado` y
+   `estadoSync`.
 3. **`estadoSync` (`EstadoSync { pendiente, sincronizado }`)**: un registro
    nuevo nace `pendiente`. **Re-guardar (editar) un registro, aunque
    estuviera `sincronizado`, lo devuelve a `pendiente` y pone
@@ -206,6 +208,12 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
    la soportada, o un registro ilegible, falla con un `Failure.storage`
    que **identifica el messageId** (en `getByMessageId` y `getPending`);
    no se saltan registros en silencio.
+   **`messageTimestamp` se agregó SIN subir el esquema (sigue en v1, sin
+   paso nuevo en `migrate`)**: `fromMap` lo lee como `int?` — clave ausente
+   (registro guardado antes) → `null`, sin fallar; presente con otro tipo →
+   falla como el resto de campos estrictos. Esos registros viejos con `null`
+   se leen y se muestran normal, pero **no se suben hasta re-guardarlos**
+   desde el visor (ver "Ruta de la subida").
 8. **Arquitectura**: `ReviewLocalDatasource` (`data/datasources/`) es lo
    único que toca `hive_ce`, devuelve `Either<Failure, T>` y nunca se llama
    desde un Notifier. Las entidades de domain no llevan anotaciones de la
@@ -305,8 +313,9 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
   "/", pero en la ruta va `holiday`.
 - **Datos** = `toMap()` sin `v` ni `estadoSync`, más `shiftKey`. Conserva
   `rol`, `shift` (etiqueta en español), `chatJid`, `fechaJornada`,
-  `registradoEn` (ISO-8601 UTC, texto) y `registradoPor` (solo auditoría).
-  No lleva `uid`.
+  `messageTimestamp` (int, ms UTC, tal cual), `registradoEn` (ISO-8601 UTC,
+  texto; se mantiene sin cambios) y `registradoPor` (solo auditoría). No
+  lleva `uid`.
 - **Capa 2 — HECHA, AÚN NO CONECTADA** (nombres provisionales):
   - `ReviewUploadDatasource` (`data/datasources/review_upload_datasource.dart`,
     Dart puro, sin `cloud_firestore`): `setDocument(pathSegments, data)` →
@@ -345,7 +354,30 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
   - No imprime el payload. **Nada la construye fuera de sus tests**: no hay
     provider que la cree, ningún archivo nuevo usa `FirebaseFirestore.instance`,
     y `reviewUploaderProvider` sigue en `SimulatedReviewUploader`.
+- **Capa 4 — HECHA, sigue SIMULADA**: `messageTimestamp` en el registro y
+  en el payload.
+  - Camino: `ImageViewItem.messageTimestamp` → `ImageReviewTarget`
+    (campo obligatorio, se arma en `image_detail_page.dart`) →
+    `ReviewDraftNotifier.save` → `ImageReviewRecord.messageTimestamp`
+    (`int?`) → `toMap()` (se persiste en Hive) → payload de subida. Nunca
+    se convierte ni se redondea; `shift` y `fechaJornada` se siguen
+    calculando igual que antes.
+  - **Registro viejo sin el campo** (`null`): `toUploadDocument()` devuelve
+    `Left(Failure.unknown("El registro de la imagen <messageId> es
+    anterior a este cambio y no se puede subir: guárdalo de nuevo desde el
+    visor."))`, sin llamar a ningún uploader ni imprimir nada. Para
+    `ReviewUploadNotifier` es un fallo más: sigue pendiente. Al re-guardarlo
+    desde el visor, `save()` le pone el `messageTimestamp` del mensaje.
 - **PENDIENTE (no decidido)**:
+  - Aviso visible para los registros viejos que no se pueden subir: hoy solo
+    cuentan como "no se pudieron subir" en el SnackBar, sin decir cuál ni
+    por qué, y **la píldora los sigue contando** (el índice de pendientes no
+    sabe que les falta el campo).
+  - Si conviene subir el esquema a v2 igual (por ejemplo, para que una
+    versión antigua de la app que siga en caché no lea ni reescriba
+    registros con un campo que no conoce).
+  - Que las reglas de Firestore comparen `messageTimestamp` con
+    `whatsapp_messages/{messageId}` (hoy nada verifica que coincida).
   - Cableado al provider: construir `FirestoreReviewUploadDatasource` y
     `FirestoreReviewUploader` en `reviewUploaderProvider` (requiere
     autorización explícita; es lo que activa la escritura real).
