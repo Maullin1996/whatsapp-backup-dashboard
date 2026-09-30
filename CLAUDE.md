@@ -101,6 +101,7 @@ Errors are modeled as sealed Freezed unions in `lib/core/errors/failures.dart` �
 - `whatsapp_messages` — Messages (`chatJid`, `senderName`, `messageTimestamp`, `hasMedia`, `storagePath`, `isEdited`, `messageDate`)
 - `users` — User documents (`uid`, `email`, `displayName`, `allowedGroups[]`, `disabled`, `createdAt`, and `isAdmin` as a mirror written by `setUserRole`; the source of truth for roles is the custom claims). `isSuperAdmin` is NOT stored here: it only exists as a custom claim (set with `functions/set-admin.js`)
 - `edit_attempts` — Audit trail for edited WhatsApp messages
+- `image_reviews` — **PROVISIONAL**, image review records (Revisor/Sumador), structured group -> jornada -> registros: `image_reviews/{chatJid}/jornadas/{fechaJornada}_{shiftKey}/registros/{messageId}_{rol}`. **Not written yet: the upload is simulated** (`SimulatedReviewUploader`); names, reads, rules and deployment are pending — see `image-review-offline-sync` ("Ruta de la subida")
 
 **Cloud Functions** (`functions/index.js`) handle all privileged user-management operations: `createUser`, `setUserRole`, `updateUserPassword`, `deleteUser`, `listUsers`, `toggleUserStatus`, `updateUserGroups`, `listGroups`, `setReviewRole`, `updateReviewShifts`. All callable from Flutter via `FirebaseFunctions.instance.httpsCallable(name)`.
 

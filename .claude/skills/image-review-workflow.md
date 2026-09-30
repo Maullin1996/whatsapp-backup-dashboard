@@ -142,8 +142,14 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    nombres provisionales) y el payload con `shiftKey` ya los arma
    `ImageReviewRecordModel.toUploadDocument()`; el uploader sigue siendo
    `SimulatedReviewUploader` (`debugPrint`), sin escritura real a Firestore.
+   **Capa 2 HECHA, aún no conectada**: interfaz `ReviewUploadDatasource`
+   (reemplaza el documento completo, idempotente, no lanza) y
+   `FirestoreReviewUploader`, ambos en Dart puro y probados con un
+   datasource falso; `reviewUploaderProvider` sigue en el simulado.
    Siguen **PENDIENTES** (detalle en `image-review-offline-sync` § "Ruta de
-   la subida"): nombres definitivos de las colecciones, cómo lee
+   la subida"): la clase del datasource con Firestore real, timeout y
+   verificación de conexión, cableado al provider, mensajes de error en
+   español, nombres definitivos de las colecciones, cómo lee
    Coincidencias entre grupos (consulta de grupo de colecciones o Cloud
    Function), separación por rol en la regla de lectura, si `fechaJornada`
    usa `toLocal()` o UTC-5 (ahora es parte de la ruta), límites de tamaño,

@@ -307,7 +307,30 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
   `rol`, `shift` (etiqueta en español), `chatJid`, `fechaJornada`,
   `registradoEn` (ISO-8601 UTC, texto) y `registradoPor` (solo auditoría).
   No lleva `uid`.
+- **Capa 2 — HECHA, AÚN NO CONECTADA** (nombres provisionales):
+  - `ReviewUploadDatasource` (`data/datasources/review_upload_datasource.dart`,
+    Dart puro, sin `cloud_firestore`): `setDocument(pathSegments, data)` →
+    `Future<Either<Failure, Unit>>`. Contrato documentado: REEMPLAZA el
+    documento completo (sin merge), es idempotente con el mismo id y no lanza.
+    **No existe todavía la implementación con Firestore.**
+  - `FirestoreReviewUploader` (`data/sync/`, Dart puro): implementa
+    `ReviewUploader` con `toUploadDocument()` (la misma ruta y datos que el
+    simulado, sin duplicar lógica). `Left` de la ruta → se devuelve sin llamar
+    al datasource; si no, devuelve el resultado del datasource tal cual; si el
+    datasource lanza, `Left(Failure.unknown)` ("Error inesperado al subir el
+    registro <messageId>.") y nunca relanza. No imprime el payload.
+  - `reviewUploaderProvider` **sigue** en `SimulatedReviewUploader`. Tests con
+    un datasource falso en memoria (`firestore_review_uploader_test.dart`),
+    incluida la integración con `ReviewUploadNotifier`.
 - **PENDIENTE (no decidido)**:
+  - La clase del datasource con Firestore real (la única que importaría
+    `cloud_firestore`), y el cableado de `FirestoreReviewUploader` a
+    `reviewUploaderProvider` (requiere autorización explícita).
+  - Timeout por registro y/o verificación de conexión antes de subir (ver
+    "Pendiente de diseño" abajo).
+  - Mensajes de error en español para los fallos de Firestore
+    (`mapFirestoreError` reenvía el `message` de Firebase en el caso por
+    defecto).
   - Nombres definitivos de las colecciones (`image_reviews`, `jornadas`,
     `registros` son provisionales).
   - Cómo lee Coincidencias los registros de todos los grupos: consulta de
