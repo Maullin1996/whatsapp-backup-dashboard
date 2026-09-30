@@ -7,8 +7,9 @@ Message toDomain(RawMessageModel model) {
     model.messageTimestamp,
   ).toLocal();
 
-  final shift = getCurrentShift(date);
-  final shiftLabel = shiftNames[shift];
+  // Etiqueta del visor, con la tabla que rige para este mensaje (vieja o
+  // nueva, según su timestamp; en un hueco de la nueva, "Fuera de jornada X").
+  final shiftLabel = shiftViewerLabel(date);
 
   return Message(
     id: model.id,
@@ -19,7 +20,7 @@ Message toDomain(RawMessageModel model) {
     localTime: model.localTime,
     caption: model.caption,
     storagePath: model.storagePath,
-    shift: shiftLabel!,
+    shift: shiftLabel,
     messageDate: date.toString().substring(11, 16),
     isEdited: model.isEdited,
     shiftImageIndex: model.shiftImageIndex,

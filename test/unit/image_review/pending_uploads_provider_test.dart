@@ -136,6 +136,22 @@ void main() {
     ]);
   });
 
+  test('las jornadas con etiquetas de la tabla nueva se ordenan igual que las '
+      'viejas (por la clave de la jornada)', () async {
+    final newMorning = newShiftNames[Shift.morning]!;
+    final newNight = newShiftNames[Shift.night1]!;
+    await repo.save(_record('a', fecha: '2026-11-02', shift: newNight));
+    await repo.save(_record('b', fecha: '2026-11-02', shift: newMorning));
+    await repo.save(_record('c', fecha: '2026-11-02', shift: _afternoon));
+    container.read(activeChatProvider.notifier).select(_chat('c1'));
+
+    expect(await read(), [
+      ('2026-11-02', newMorning, 1),
+      ('2026-11-02', _afternoon, 1),
+      ('2026-11-02', newNight, 1),
+    ]);
+  });
+
   test('ignora sincronizados, otro chat y el otro rol', () async {
     await repo.save(_record('a', estadoSync: EstadoSync.sincronizado));
     await repo.save(_record('b', chatJid: 'c2'));

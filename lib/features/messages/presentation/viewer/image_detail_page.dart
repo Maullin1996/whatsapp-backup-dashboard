@@ -37,9 +37,12 @@ const Duration _blockedNoticeThrottle = Duration(milliseconds: 1500);
 /// `item` viene como etiqueta en español (`ImageViewItem.shift`); se traduce
 /// al enum antes de comparar contra `reviewShifts` (que guarda el nombre del
 /// enum). Sin coincidencia de etiqueta (`shiftFromLabel` da `null`) tampoco
-/// matchea nada, que es lo seguro.
+/// matchea nada, que es lo seguro. Fuera de jornada (también un hueco entre
+/// jornadas, "Fuera de jornada X") nunca hay formulario, aunque alguien
+/// hubiera guardado `outOfShift` en `reviewShifts`.
 bool _matchesAssignment(List<ReviewShift> shifts, ImageViewItem item) {
   final shift = shiftFromLabel(item.shift);
+  if (shift == null || shift == Shift.outOfShift) return false;
   return shifts.any((s) => s.chatJid == item.chatJid && s.shift == shift);
 }
 

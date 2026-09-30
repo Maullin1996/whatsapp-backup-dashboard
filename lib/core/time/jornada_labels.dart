@@ -10,13 +10,17 @@ String _base(String label) =>
 /// Nombre corto de una jornada a partir del texto largo que guarda el registro
 /// ("Jornada Mañana (06:00 – 10:54)" -> "Mañana").
 ///
-/// Si dos jornadas darían el mismo nombre corto (las dos "Noche"), se agrega
-/// la hora de inicio para distinguirlas ("Noche (15:24)"). Un texto que no
-/// sigue el formato se devuelve tal cual.
+/// Si dos jornadas DE LA MISMA TABLA darían el mismo nombre corto (las dos
+/// "Noche" de la tabla vieja), se agrega la hora de inicio para distinguirlas
+/// ("Noche (15:24)"); la única "Noche" de la tabla nueva queda "Noche". Un
+/// texto que no sigue el formato (por ejemplo "Fuera de jornada Mañana") se
+/// devuelve tal cual.
 String shortShiftName(String label) {
   final base = _base(label);
-  final collides =
-      shiftNames.values.where((other) => _base(other) == base).length > 1;
+  final table = newShiftNames.containsValue(label)
+      ? newShiftNames.values
+      : shiftNames.values;
+  final collides = table.where((other) => _base(other) == base).length > 1;
   if (!collides) return base;
   final start = _range.firstMatch(label)?.group(1);
   return start == null ? base : '$base ($start)';
