@@ -143,8 +143,8 @@ void main() {
     });
     tearDown(() => debugPrint = original);
 
-    test('imprime colección, id de documento y datos (sin v ni estadoSync) '
-        'y no falla', () async {
+    test('imprime la ruta grupo -> jornada -> registro y los datos (sin v '
+        'ni estadoSync, con shiftKey) y no falla', () async {
       final record = _record('m1', registradoEn: DateTime.utc(2026, 1, 15, 8));
 
       final result = await const SimulatedReviewUploader().upload(record);
@@ -152,7 +152,11 @@ void main() {
       expect(result.isRight(), isTrue);
       expect(printed, hasLength(1));
       final lines = printed.single.split('\n');
-      expect(lines.first, '[SUBIDA SIMULADA] image_reviews/m1_revisor');
+      expect(
+        lines.first,
+        '[SUBIDA SIMULADA] '
+        'image_reviews/c1/jornadas/2026-01-15_morning/registros/m1_revisor',
+      );
       final data = jsonDecode(lines.skip(1).join('\n')) as Map<String, dynamic>;
       expect(data.containsKey('v'), isFalse);
       expect(data.containsKey('estadoSync'), isFalse);
@@ -160,6 +164,7 @@ void main() {
         'messageId': 'm1',
         'chatJid': 'c1',
         'shift': _shift,
+        'shiftKey': 'morning',
         'rol': 'revisor',
         'storagePath': 'img_m1.png',
         'fechaJornada': '2026-01-15',
@@ -181,8 +186,27 @@ void main() {
       await const SimulatedReviewUploader().upload(
         _record('m2', rol: ReviewRole.sumador),
       );
-      expect(printed.single, contains('image_reviews/m2_sumador'));
+      expect(
+        printed.single,
+        contains(
+          'image_reviews/c1/jornadas/2026-01-15_morning/registros/m2_sumador',
+        ),
+      );
     });
+
+    for (final (caso, shift) in [
+      ('fuera de jornada', 'Fuera de las jornadas'),
+      ('etiqueta desconocida', 'Jornada Madrugada'),
+    ]) {
+      test('$caso: devuelve Left y no imprime nada', () async {
+        final result = await const SimulatedReviewUploader().upload(
+          _record('m3', shift: shift),
+        );
+
+        expect(result.isLeft(), isTrue);
+        expect(printed, isEmpty);
+      });
+    }
   });
 
   group('subir una jornada', () {

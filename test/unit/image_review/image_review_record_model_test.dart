@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:whatsapp_monitor_viewer/core/errors/failure.dart';
+import 'package:whatsapp_monitor_viewer/core/time/shifts.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/data/models/image_review_record_model.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/comprobante.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/estado_sync.dart';
@@ -101,6 +103,112 @@ void main() {
       final map = ImageReviewRecordModel(_record()).toMap();
       expect(map['storagePath'], 'chats/1203630/img_1.jpg');
       expect(jsonEncode(map), isNot(contains('http')));
+    });
+  });
+
+  group('ImageReviewRecordModel: documento de subida', () {
+    ReviewUploadDocument document(ImageReviewRecord r) =>
+        ImageReviewRecordModel(
+          r,
+        ).toUploadDocument().fold((f) => fail('Left: $f'), (d) => d);
+
+    Failure failure(ImageReviewRecord r) => ImageReviewRecordModel(
+      r,
+    ).toUploadDocument().fold((f) => f, (_) => fail('se esperaba Left'));
+
+    final asignables = Shift.values.where((s) => s != Shift.outOfShift);
+
+    test('las 6 jornadas asignables: ruta grupo -> jornada -> registro, sin '
+        '"/" en ningún segmento', () {
+      expect(asignables, hasLength(6));
+      for (final shift in asignables) {
+        final doc = document(_record().copyWith(shift: shiftNames[shift]!));
+        expect(doc.pathSegments, [
+          'image_reviews',
+          '1203630@g.us',
+          'jornadas',
+          '2026-01-15_${shift.name}',
+          'registros',
+          'm-1_revisor',
+        ], reason: shift.name);
+        for (final segment in doc.pathSegments) {
+          expect(segment, isNot(contains('/')), reason: shift.name);
+          expect(segment, isNotEmpty, reason: shift.name);
+        }
+        expect(doc.path, doc.pathSegments.join('/'));
+        expect(doc.data['shiftKey'], shift.name);
+        expect(doc.data['shift'], shiftNames[shift]);
+      }
+    });
+
+    test(
+      'domingo/festivo: la etiqueta lleva "/" pero la ruta usa "holiday"',
+      () {
+        final label = shiftNames[Shift.holiday]!;
+        expect(label, contains('/'));
+
+        final doc = document(_record().copyWith(shift: label));
+
+        expect(doc.pathSegments[3], '2026-01-15_holiday');
+        expect(doc.pathSegments.where((s) => s.contains('/')), isEmpty);
+        expect(doc.pathSegments, hasLength(6));
+      },
+    );
+
+    test('fuera de jornada: Left (Failure.unknown)', () {
+      final r = _record().copyWith(shift: shiftNames[Shift.outOfShift]!);
+      expect(failure(r), isA<UnknownFailure>());
+    });
+
+    test('etiqueta desconocida: Left (Failure.unknown)', () {
+      final r = _record().copyWith(shift: 'Jornada Madrugada (01:00 – 05:00)');
+      expect(failure(r), isA<UnknownFailure>());
+    });
+
+    test('un segmento con "/" o vacío: Left, no una ruta más larga', () {
+      expect(
+        failure(_record().copyWith(chatJid: 'a/b@g.us')),
+        isA<UnknownFailure>(),
+      );
+      expect(failure(_record().copyWith(chatJid: '')), isA<UnknownFailure>());
+    });
+
+    test('Revisor y Sumador de la misma imagen: mismo documento de jornada, '
+        'ids de registro distintos', () {
+      final revisor = document(_record());
+      final sumador = document(
+        _record(
+          rol: ReviewRole.sumador,
+          comprobantes: const [
+            Comprobante(codigo: 'A1', numeros: [], total: 500),
+          ],
+        ),
+      );
+
+      expect(
+        revisor.pathSegments.take(5).toList(),
+        sumador.pathSegments.take(5).toList(),
+      );
+      expect(revisor.pathSegments.last, 'm-1_revisor');
+      expect(sumador.pathSegments.last, 'm-1_sumador');
+    });
+
+    test('los datos: lo persistido sin v ni estadoSync, más shiftKey', () {
+      final r = _record(anotaciones: 'no se lee bien', editado: true);
+      final doc = document(r);
+
+      final expected = ImageReviewRecordModel(r).toMap()
+        ..remove('v')
+        ..remove('estadoSync')
+        ..['shiftKey'] = 'night1';
+      expect(doc.data, expected);
+      expect(doc.data['rol'], 'revisor');
+      expect(doc.data['registradoPor'], 'revisor@example.com');
+      expect(
+        doc.data['registradoEn'],
+        r.registradoEn.toUtc().toIso8601String(),
+      );
+      expect(doc.data.containsKey('uid'), isFalse);
     });
   });
 

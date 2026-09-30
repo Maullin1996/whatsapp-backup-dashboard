@@ -1,8 +1,22 @@
+import 'package:dartz/dartz.dart';
+import 'package:whatsapp_monitor_viewer/core/errors/failure.dart';
+import 'package:whatsapp_monitor_viewer/core/time/shifts.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/comprobante.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/estado_sync.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/image_review_form.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/image_review_record.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
+
+/// Un registro listo para subir: [pathSegments] alterna colección / documento
+/// (ver [ImageReviewRecordModel.toUploadDocument]).
+class ReviewUploadDocument {
+  final List<String> pathSegments;
+  final Map<String, dynamic> data;
+
+  const ReviewUploadDocument({required this.pathSegments, required this.data});
+
+  String get path => pathSegments.join('/');
+}
 
 /// Forma persistida de un [ImageReviewRecord]: un `Map` de tipos primitivos
 /// (que se guarda como JSON) con una versión de esquema para poder migrar.
@@ -38,17 +52,55 @@ class ImageReviewRecordModel {
     'estadoSync': record.estadoSync.name,
   };
 
-  /// Colección de Firestore a la que se sube el registro.
-  static const String uploadCollection = 'image_reviews';
+  // Ruta de subida (nombres PROVISIONALES, solo aquí):
+  // image_reviews/{chatJid}/jornadas/{fechaJornada}_{shiftKey}/registros/{messageId}_{rol}
+  static const String uploadRootCollection = 'image_reviews';
+  static const String uploadJornadasCollection = 'jornadas';
+  static const String uploadRegistrosCollection = 'registros';
 
-  /// Id del documento: uno por imagen y por rol.
-  String get uploadDocumentId => '${record.messageId}_${record.rol.name}';
+  /// Documento a subir: la ruta por grupo -> jornada -> registro y los datos.
+  ///
+  /// `shiftKey` es el nombre del enum [Shift] de la etiqueta guardada en el
+  /// registro. `Left` si la etiqueta no es de una jornada asignable
+  /// (desconocida o [Shift.outOfShift]) o si algún segmento de la ruta queda
+  /// vacío o con "/". El id lleva el rol: Revisor y Sumador de la misma
+  /// imagen comparten jornada y no se pisan.
+  Either<Failure, ReviewUploadDocument> toUploadDocument() {
+    final shift = shiftFromLabel(record.shift);
+    if (shift == null || shift == Shift.outOfShift) {
+      return Left(
+        Failure.unknown(
+          message:
+              'La imagen no pertenece a una jornada asignable '
+              '("${record.shift}"): no se puede subir.',
+        ),
+      );
+    }
 
-  /// Lo que se sube: lo persistido, sin lo que es solo local (versión de
-  /// esquema y estado de sincronización).
-  Map<String, dynamic> toUploadMap() => toMap()
-    ..remove('v')
-    ..remove('estadoSync');
+    final segments = [
+      uploadRootCollection,
+      record.chatJid,
+      uploadJornadasCollection,
+      '${record.fechaJornada}_${shift.name}',
+      uploadRegistrosCollection,
+      '${record.messageId}_${record.rol.name}',
+    ];
+    if (segments.any((s) => s.isEmpty || s.contains('/'))) {
+      return Left(
+        Failure.unknown(
+          message: 'Ruta de subida inválida: ${segments.join(' | ')}',
+        ),
+      );
+    }
+
+    // Lo persistido, sin lo que es solo local (versión de esquema y estado de
+    // sincronización), más la jornada como nombre del enum.
+    final data = toMap()
+      ..remove('v')
+      ..remove('estadoSync')
+      ..['shiftKey'] = shift.name;
+    return Right(ReviewUploadDocument(pathSegments: segments, data: data));
+  }
 
   /// Lee un mapa persistido (de cualquier versión conocida). Lanza si le
   /// falta algo, tiene un tipo inesperado o es de una versión más nueva que
