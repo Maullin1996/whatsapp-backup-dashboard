@@ -114,8 +114,9 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    el contador que publica el bot en `shift_image_counts`, no `count()` ni
    el máximo de `whatsapp_messages` (ver `image-review-domain.md`).
    **UI ya hecha con datos INVENTADOS** (menú "Resumen" en `ChatList` +
-   ruta `/summary`, visible para cualquier usuario autenticado hasta que
-   existan los claims reales; `SummaryPage` con selector de fecha y
+   ruta `/summary`, **solo para admin y superAdmin** — `canViewSummary`,
+   decidido; Revisor y Sumador no la ven, ver `image-review-roles`;
+   `SummaryPage` con selector de fecha y
    tarjetas por grupo y jornada, alimentada por `MockSummaryRepository`,
    determinista por fecha, en `features/summary/`). **Sigue pendiente
    conectar datos reales** (reemplazar el mock por un `SummaryRepository`
@@ -205,6 +206,13 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    Function), si `fechaJornada`
    usa `toLocal()` o UTC-5 (ahora es parte de la ruta), límites de tamaño
    (tampoco los impone el borrador de reglas), primera escritura real.
+   **Acceso al Resumen — HECHO**: `/summary` y su entrada "Resumen" del
+   menú solo para admin y superAdmin (`canViewSummary`, misma regla que
+   `canViewMatches` pero separada); el resto va a `/home`. **PENDIENTES**:
+   si Revisor o Sumador deben ver sus propias sumas, una Cloud Function
+   (toca `functions/`); el desfase de claims (se leen solo al iniciar
+   sesión: un admin al que le quiten el rol sigue viendo la pantalla hasta
+   que se renueve el token).
    **Lectura de `image_reviews` — DECIDIDO por el usuario**: solo la leen
    cuentas con claim `admin` o `superAdmin`; Revisor y Sumador no leen nada
    de `image_reviews` (sus registros siguen en local). La regla todavía no
@@ -228,8 +236,7 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    **PENDIENTES (no decididos)**: escribir y publicar la regla de lectura
    de `registros` (consulta de grupo, comodín recursivo) y de
    `shift_image_counts` solo para admin y superAdmin — **decidida, todavía
-   NO está en `firestore.rules.draft`** ni publicada; guard de `/summary` y
-   la entrada "Resumen" del menú (hoy cualquier usuario autenticado); índice
+   NO está en `firestore.rules.draft`** ni publicada; índice
    de grupo de colecciones sobre `fechaJornada` en `registros` (verificar al
    correr la consulta; se crea desde la consola); cambiar
    `summaryRepositoryProvider` al repositorio real (una línea, con

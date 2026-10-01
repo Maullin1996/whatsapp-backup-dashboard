@@ -402,6 +402,26 @@ limpio (sin migración de datos).
   explícitamente (ya no hay default Revisor, ni asignación por
   defecto).
 
+## Acceso a Resumen y Coincidencias — DECIDIDO: solo admin y superAdmin
+
+- `/summary` (Resumen) y `/matches` (Coincidencias) solo se abren con claim
+  `admin` o `superAdmin`, y solo esas cuentas ven sus entradas en el menú
+  de `ChatList`. **Revisor y Sumador no ven el Resumen** (ni ningún dato de
+  `image_reviews`): su rol solo gobierna el formulario de captura.
+- Helpers separados con la misma regla hoy (`isAdmin || isSuperAdmin`), para
+  poder divergir: `canViewSummary` (`features/summary/domain/helpers/`) y
+  `canViewMatches` (`features/matches/domain/helpers/`). Cada uno lo usan el
+  guard (`computeAuthRedirect`, `lib/app/auth_redirect.dart`: sin permiso →
+  `/home`; sin sesión → `/login`, como siempre) y el menú, para que nunca
+  diverjan entre sí. `reviewRole` no suma ni resta.
+- **PENDIENTE (no decidido)**: si algún día Revisor o Sumador deben ver
+  sus propias sumas, haría falta una Cloud Function que se las entregue
+  (toca `functions/`), porque no leen `image_reviews`. **Desfase de
+  claims**: el cliente lee los claims solo al iniciar sesión
+  (`getIdTokenResult(true)` en `mapToDomain`), así que a un admin al que le
+  quiten el rol puede seguir viendo el Resumen y Coincidencias hasta que se
+  renueve el token (nuevo login o recarga de sesión).
+
 ## Zona gris / a confirmar antes de implementar
 
 - **Validar `reviewForm = 840` en dispositivos reales** (tablet
