@@ -5,8 +5,8 @@ import 'package:whatsapp_monitor_viewer/core/errors/failure.dart';
 /// base de datos en la subida: `FirestoreReviewUploader` arma el documento y
 /// delega aquí.
 ///
-/// La implementación con Firestore todavía no existe (la subida sigue
-/// SIMULADA); en los tests se usa un datasource falso en memoria.
+/// La implementación con Firestore es `FirestoreReviewUploadDatasource`; en
+/// los tests se usa un datasource falso en memoria.
 abstract class ReviewUploadDatasource {
   /// Escribe [data] en el documento de [pathSegments] (colección / documento
   /// alternados, como `ReviewUploadDocument.pathSegments`).

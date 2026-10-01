@@ -12,8 +12,8 @@ import 'package:whatsapp_monitor_viewer/features/image_review/domain/repositorie
 /// (sin imprimir nada) si el registro no tiene una ruta válida (ver
 /// [ImageReviewRecordModel.toUploadDocument]).
 ///
-/// La conexión real es otra implementación de [ReviewUploader]; no se activa
-/// sin autorización explícita.
+/// No cableado en producción; solo tests y referencia; candidato a borrar.
+/// La subida real es `FirestoreReviewUploader` (ver `reviewUploaderProvider`).
 class SimulatedReviewUploader implements ReviewUploader {
   const SimulatedReviewUploader();
 

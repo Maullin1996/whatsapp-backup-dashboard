@@ -11,7 +11,7 @@ import 'package:whatsapp_monitor_viewer/features/image_review/presentation/provi
 import 'package:whatsapp_monitor_viewer/helpers/map_failure_to_message.dart';
 
 /// Una píldora por jornada del chat activo con registros pendientes de
-/// subir. Al tocarla se confirma y se sube esa jornada (hoy simulado: ver
+/// subir. Al tocarla se confirma y se sube esa jornada a Firestore (ver
 /// `reviewUploaderProvider`). Sin pendientes no ocupa espacio.
 class PendingUploadIndicators extends ConsumerWidget {
   const PendingUploadIndicators({super.key});

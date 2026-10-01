@@ -10,7 +10,9 @@ import 'package:whatsapp_monitor_viewer/features/image_review/data/datasources/r
 import 'package:whatsapp_monitor_viewer/features/image_review/data/repositories/local_image_review_repository.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/data/repositories/no_session_image_review_repository.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/data/repositories/unavailable_image_review_repository.dart';
-import 'package:whatsapp_monitor_viewer/features/image_review/data/sync/simulated_review_uploader.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/data/datasources/firestore_review_upload_datasource.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/data/datasources/review_upload_datasource.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/data/sync/firestore_review_uploader.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/image_review_record.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_shift.dart';
@@ -162,11 +164,17 @@ final imageReviewRepositoryProvider = Provider<ImageReviewRepository>((ref) {
       );
 });
 
-/// Único punto donde se instancia el uploader. SIMULADO: imprime en consola lo
-/// que se subiría y no toca Firestore. La conexión real (otra implementación
-/// de [ReviewUploader]) no se activa sin autorización explícita.
+/// Único punto donde se instancia el datasource de la subida: escribe en
+/// Firestore con el [firestoreProvider] de la app.
+final reviewUploadDatasourceProvider = Provider<ReviewUploadDatasource>(
+  (ref) => FirestoreReviewUploadDatasource(ref.watch(firestoreProvider)),
+);
+
+/// Único punto donde se instancia el uploader: la subida REAL a Firestore.
+/// Solo se construye al iniciar una subida (`ReviewUploadNotifier`), no al
+/// abrir la app ni el visor.
 final reviewUploaderProvider = Provider<ReviewUploader>(
-  (ref) => const SimulatedReviewUploader(),
+  (ref) => FirestoreReviewUploader(ref.watch(reviewUploadDatasourceProvider)),
 );
 
 /// Registro guardado de una imagen para un rol (por [ReviewKey]); null si no

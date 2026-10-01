@@ -18,8 +18,8 @@ const Duration reviewUploadTimeout = Duration(seconds: 15);
 /// `SetOptions`, así que reemplaza el documento completo (sin merge) y, con el
 /// mismo id, es idempotente. Nunca lanza: todo error vuelve como `Left`.
 ///
-/// TODAVÍA NO CONECTADO: nada la construye fuera de los tests y
-/// `reviewUploaderProvider` sigue usando el uploader simulado.
+/// La construye `reviewUploadDatasourceProvider` con el `firestoreProvider`
+/// de la app.
 class FirestoreReviewUploadDatasource implements ReviewUploadDatasource {
   /// Escritura real contra [firestore].
   FirestoreReviewUploadDatasource(

@@ -254,4 +254,96 @@ void main() {
       expect(datasource.documents, isEmpty);
     });
   });
+
+  // El provider por defecto, con SOLO el datasource sobreescrito (nunca el
+  // firestoreProvider real).
+  group('reviewUploaderProvider cableado', () {
+    late InMemoryImageReviewRepository repo;
+
+    const jornada = (
+      chatJid: 'c1@g.us',
+      fechaJornada: '2026-01-15',
+      shift: _shift,
+    );
+
+    ProviderContainer makeContainer() {
+      final c = ProviderContainer(
+        overrides: [
+          reviewUploadDatasourceProvider.overrideWithValue(datasource),
+          imageReviewRepositoryProvider.overrideWithValue(repo),
+          currentReviewRoleProvider.overrideWithValue(ReviewRole.revisor),
+          reviewerUidProvider.overrideWithValue('uid-a'),
+          reviewerEmailProvider.overrideWithValue('a@x.com'),
+        ],
+      );
+      addTearDown(c.dispose);
+      c
+          .read(activeChatProvider.notifier)
+          .select(
+            Chat(
+              chatJid: 'c1@g.us',
+              groupName: 'g',
+              lastMessageAt: 0,
+              totalImages: 0,
+            ),
+          );
+      return c;
+    }
+
+    Future<EstadoSync> estado(String id) async => (await repo.getByMessageId(
+      id,
+      ReviewRole.revisor,
+    )).fold((_) => fail('Left'), (r) => r!.estadoSync);
+
+    setUp(() => repo = InMemoryImageReviewRepository());
+
+    test('es un FirestoreReviewUploader que escribe la ruta y el payload '
+        'esperados (con messageTimestamp)', () async {
+      final c = makeContainer();
+      final provided = c.read(reviewUploaderProvider);
+      expect(provided, isA<FirestoreReviewUploader>());
+
+      final record = _record('m1');
+      final result = await provided.upload(record);
+
+      expect(result, const Right<Failure, Unit>(unit));
+      final expected = ImageReviewRecordModel(
+        record,
+      ).toUploadDocument().fold((f) => fail('Left: $f'), (d) => d);
+      expect(datasource.documents.keys, ['$_jornadaPath/registros/m1_revisor']);
+      final data = datasource.documents['$_jornadaPath/registros/m1_revisor']!;
+      expect(data, expected.data);
+      expect(data['messageTimestamp'], 1788489942000);
+      expect(data['shiftKey'], 'morning');
+    });
+
+    test('con ReviewUploadNotifier, éxito: marca sincronizado', () async {
+      await repo.save(_record('m1'));
+      final c = makeContainer();
+
+      final outcome = await c
+          .read(reviewUploadProvider.notifier)
+          .upload(jornada);
+
+      expect(outcome!.todoSubido, isTrue);
+      expect(await estado('m1'), EstadoSync.sincronizado);
+      expect(datasource.documents.keys, ['$_jornadaPath/registros/m1_revisor']);
+    });
+
+    test('con ReviewUploadNotifier, fallo del datasource: sigue pendiente y '
+        'no lanza', () async {
+      await repo.save(_record('m1'));
+      datasource.failWith = const Failure.unauthorized();
+      final c = makeContainer();
+
+      final outcome = await c
+          .read(reviewUploadProvider.notifier)
+          .upload(jornada);
+
+      expect(outcome!.subidos, 0);
+      expect(outcome.fallidos, 1);
+      expect(await estado('m1'), EstadoSync.pendiente);
+      expect(datasource.documents, isEmpty);
+    });
+  });
 }
