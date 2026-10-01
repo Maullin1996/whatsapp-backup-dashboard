@@ -384,9 +384,8 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
   confirmar que las de la consola siguen siendo esas.
   - **Bloque nuevo**, solo para
     `image_reviews/{chatJid}/jornadas/{jornadaId}/registros/{registroId}`:
-    `create` y `update` con las mismas condiciones, `delete` negado, `get` y
-    `list` sin regla (negados por defecto). Ninguna regla de lectura nueva
-    (tampoco `shift_image_counts`).
+    `create` y `update` con las mismas condiciones, `delete` negado. La
+    lectura no la da este bloque (ver "Lectura de admin" abajo).
   - **Qué valida** (todo junto): hay sesión; el claim `reviewRole` es
     `'revisor'` o `'sumador'` (leído con `token.get('reviewRole', null)`:
     sin claim, niega sin error); `rol` del documento == el claim;
@@ -404,7 +403,21 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
   - **Qué NO valida**: `uid`, `reviewShifts`, `allowedGroups`,
     `registradoPor`, `registradoEn`, el contenido de `comprobantes`, ni
     tamaños máximos de campos o listas.
-  - **Probado en la zona de pruebas de la consola (2026-10-01), parcial.**
+  - **Lectura de admin (agregada después, SIN publicar y SIN probar en la
+    consola)**: función `isAdmin()` = sesión y
+    (`token.get('admin', false) == true` o
+    `token.get('superAdmin', false) == true`; `admin` puede faltar o valer
+    false, `superAdmin` vale true o no existe). `match
+    /{path=**}/registros/{registroId}` con `allow read: if isAdmin()` (solo
+    lectura, get y list): el comodín recursivo es lo que exige la consulta
+    de grupo de colecciones sobre `registros` del Resumen y Coincidencias,
+    y también cubre el get/list directo; el nombre `registros` aplica a toda
+    colección con ese nombre en la base (hoy no hay otra); sigue
+    `rules_version = '2'`. `match /shift_image_counts/{docId}`: lectura
+    solo `isAdmin()`, escritura negada (el bot escribe con el Admin SDK).
+    Revisor y Sumador no leen nada de `image_reviews`.
+  - **Probado en la zona de pruebas de la consola (2026-10-01), parcial**
+    (solo la escritura; la lectura de admin es posterior y no se probó).
     El claim se simuló cambiando a mano la línea del claim en el editor de
     reglas (el simulador no deja editar la carga útil del token); sin
     emulador. **Las reglas AÚN NO ESTÁN PUBLICADAS en producción.**
@@ -471,12 +484,17 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
   - La primera escritura real (y comprobarla en la consola), que además
     confirma que `registradoEn` llega como texto y que el claim real del
     token se evalúa como en el simulador.
-  - Regla de lectura de `image_reviews` y de `shift_image_counts`:
-    **decidido** que solo las leen cuentas con claim `admin` o `superAdmin`
-    (Revisor y Sumador no leen nada de `image_reviews`); falta escribirla
-    en `firestore.rules.draft` y publicarla. Si las reglas de escritura
-    deben validar `reviewShifts` o `allowedGroups`; reglas de Storage (no
-    están en el repo).
+  - Regla de lectura de `image_reviews` y de `shift_image_counts` (solo
+    admin y superAdmin, decidido): **ya está en `firestore.rules.draft`**,
+    sin probar en la consola ni publicar. Falta probarla en la zona de
+    pruebas y publicarla (a mano, con el contenido limpio del repo y
+    autorización del usuario); crear el índice de grupo de colecciones
+    sobre `fechaJornada` desde la consola cuando falle la primera consulta
+    real; el desfase de claims (se leen solo al iniciar sesión); qué hacer
+    con `functions/set-admin.js`, que reemplaza los claims sin fusionarlos
+    (borraría `reviewRole`).
+  - Si las reglas de escritura deben validar `reviewShifts` o
+    `allowedGroups`; reglas de Storage (no están en el repo).
   - Verificación de conexión antes de subir (el timeout ya existe, ver
     arriba).
   - Si una escritura que el SDK web dejó en cola llega tarde, después de que

@@ -161,8 +161,9 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    **Capa 5, BORRADOR de reglas, NO desplegado**: `firestore.rules.draft`
    (raíz del repo, no referenciado en `firebase.json`; se publicaría a mano
    en la consola, reemplazando todo el conjunto, por eso copia tal cual las
-   reglas actuales). Agrega solo create/update de
-   `image_reviews/.../registros/{registroId}` (delete negado, sin lectura):
+   reglas actuales). Agrega create/update de
+   `image_reviews/.../registros/{registroId}` (delete negado; la lectura
+   de admin se agregó después, ver más abajo):
    sesión, claim `reviewRole`, `rol` == claim, ids de registro y de jornada
    coherentes con el payload, `shiftKey` asignable, tipos de las claves, y
    `messageTimestamp`/`chatJid` iguales a los de `whatsapp_messages`.
@@ -196,7 +197,9 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    esquema a v2 (versiones antiguas de la app en caché), terminar de probar
    el borrador (casos no probados) y publicarlo (a mano, con
    el contenido limpio de `firestore.rules.draft`, autorización del usuario
-   y comprobando antes que las reglas de la consola no cambiaron), regla de lectura de `image_reviews` y `shift_image_counts`,
+   y comprobando antes que las reglas de la consola no cambiaron; la regla
+   de lectura de admin de `image_reviews` y `shift_image_counts` ya está en
+   el borrador, sin probar),
    si validar `reviewShifts` o `allowedGroups`, reglas de Storage,
    verificación de conexión antes de subir, si una escritura en
    cola del SDK web llega tarde después de un timeout,
@@ -245,12 +248,18 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    **PENDIENTES (no decididos)**: la caché no se comparte entre pestañas ni
    sesiones; un registro subido después puede tardar hasta 5 minutos en
    aparecer (el botón "Actualizar" lo evita).
-   **PENDIENTES (no decididos)**: escribir y publicar la regla de lectura
-   de `registros` (consulta de grupo, comodín recursivo) y de
-   `shift_image_counts` solo para admin y superAdmin — **decidida, todavía
-   NO está en `firestore.rules.draft`** ni publicada; índice
-   de grupo de colecciones sobre `fechaJornada` en `registros` (verificar al
-   correr la consulta; se crea desde la consola); cambiar
+   **Reglas de lectura de admin — EN EL BORRADOR, sin publicar ni probar**:
+   `isAdmin()` (claims `admin` o `superAdmin` leídos con `get`), `match
+   /{path=**}/registros/{registroId}` solo lectura (sirve a la consulta de
+   grupo; el nombre `registros` aplica a toda colección con ese nombre) y
+   `shift_image_counts` con lectura de admin y escritura negada.
+   **PENDIENTES (no decididos)**: probar el borrador en la zona de pruebas
+   y publicarlo (a mano, con el contenido limpio del repo y autorización
+   del usuario); crear el índice de grupo de colecciones sobre
+   `fechaJornada` en `registros` desde la consola cuando falle la primera
+   consulta real; el desfase de claims (se leen solo al iniciar sesión);
+   qué hacer con `functions/set-admin.js`, que reemplaza los claims sin
+   fusionarlos (borraría `reviewRole`); cambiar
    `summaryRepositoryProvider` al repositorio real (una línea, con
    autorización); costo en lecturas (hasta unas 3600 por consulta real; la
    caché de 5 minutos evita repetirla); `lastIndex` puede ser mayor que las imágenes reales; no hay
