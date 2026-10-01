@@ -64,6 +64,11 @@ flujo completo sin tocar la base de datos real. Esto aplica en
 sigue vigente aunque el resto del feature ya esté probado con mocks:
 no es una señal de "ya se puede conectar", solo el usuario la da.
 
+**Actualización (paso 7, capa 6)**: el usuario autorizó y decidió cablear
+la subida real por jornada (`reviewUploaderProvider` → `FirestoreReviewUploader`,
+sin bandera). La regla sigue vigente para todo lo demás: Cloud Function
+puente, publicar reglas, cualquier otra escritura.
+
 ## Roadmap sugerido (a confirmar/ajustar con el usuario, no es definitivo)
 
 Basado en dependencias reales entre las piezas — **no lo asumas como
@@ -90,7 +95,7 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    simple de lo que se pensaba originalmente: solo guardar y listar
    pendientes.
 4. ✅ **Indicador/botón de subida por jornada** (`image-review-offline-sync`)
-   — hecho, con subida SIMULADA (`debugPrint`, sin tocar Firestore): una
+   — hecho (con subida SIMULADA al principio; REAL desde el paso 7, capa 6): una
    píldora por jornada con pendientes, encima de `GoToLatestMessageButton` en
    `MessageList`; aparece con el primer registro pendiente, sin lógica de
    conteo — la persona asignada decide cuándo presionarlo. Incluye
@@ -136,21 +141,19 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    formato real de jornadas/números ganadores y reemplazar los mocks
    del paso 6 — varios puntos de esta skill quedaron explícitamente
    diferidos hasta ese momento (ver Pendientes globales).
-   **Pieza (a), subida real de registros — capa 1 HECHA, sigue
-   SIMULADA**: la ruta grupo -> jornada -> registros
+   **Pieza (a), subida real de registros — capas 1-6 HECHAS, subida REAL
+   cableada**. Capa 1: la ruta grupo -> jornada -> registros
    (`image_reviews/{chatJid}/jornadas/{fechaJornada}_{shiftKey}/registros/{messageId}_{rol}`,
-   nombres provisionales) y el payload con `shiftKey` ya los arma
-   `ImageReviewRecordModel.toUploadDocument()`; el uploader sigue siendo
-   `SimulatedReviewUploader` (`debugPrint`), sin escritura real a Firestore.
-   **Capa 2 HECHA, aún no conectada**: interfaz `ReviewUploadDatasource`
+   nombres provisionales) y el payload con `shiftKey` los arma
+   `ImageReviewRecordModel.toUploadDocument()`.
+   **Capa 2**: interfaz `ReviewUploadDatasource`
    (reemplaza el documento completo, idempotente, no lanza) y
    `FirestoreReviewUploader`, ambos en Dart puro y probados con un
-   datasource falso; `reviewUploaderProvider` sigue en el simulado.
-   **Capa 3 HECHA, aún no conectada**: `FirestoreReviewUploadDatasource`
+   datasource falso.
+   **Capa 3**: `FirestoreReviewUploadDatasource`
    (`doc(path).set(data)` sin `SetOptions`, timeout de 15 s por registro,
-   todo error a `Left`), probada con una función de escritura falsa; nada la
-   construye fuera de los tests y el provider sigue en el simulado.
-   **Capa 4 HECHA, sigue simulada**: `messageTimestamp` (int, ms UTC, tal
+   todo error a `Left`), probada con una función de escritura falsa.
+   **Capa 4**: `messageTimestamp` (int, ms UTC, tal
    cual) viaja del visor al registro (`int?`, esquema sigue en v1) y al
    payload; `registradoEn` se mantiene. Un registro viejo sin el campo no se
    sube hasta re-guardarlo desde el visor.
@@ -164,17 +167,39 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    `messageTimestamp`/`chatJid` iguales a los de `whatsapp_messages`.
    Detalle de qué valida y qué no en `image-review-offline-sync` § "Ruta de
    la subida".
+   **Probado en la zona de pruebas de la consola el 2026-10-01, en parte**
+   (claim simulado editando a mano la línea del claim en el editor; el
+   simulador no deja editar la carga útil del token). PERMITIDO: create de
+   un revisor con el documento correcto. RECHAZADO: `messageTimestamp`
+   distinto del mensaje real, sin sesión, `rol` distinto del claim. NO
+   PROBADO: el claim real de un token, `jornadaId` mal armado, `shiftKey`
+   `outOfShift`, id sin sufijo de rol, `chatJid` distinto, mensaje
+   inexistente, `delete`, `get` y el cliente real de la app. Nota: el
+   simulador convirtió `registradoEn` ISO en fecha y la regla lo rechazó
+   por `is string`; se asume, sin verificar, que la app lo manda como
+   texto (se confirma en la primera escritura real). **Las reglas AÚN NO
+   ESTÁN PUBLICADAS.**
+   **Capa 6, subida REAL cableada** (decisión del usuario, sin bandera):
+   `reviewUploadDatasourceProvider` construye
+   `FirestoreReviewUploadDatasource` con el `firestoreProvider` de la app y
+   `reviewUploaderProvider` devuelve siempre `FirestoreReviewUploader`. Solo
+   se construye al confirmar "Subir" (`ReviewUploadNotifier._upload`). Cada
+   fallo deja un `debugPrint` con el messageId y el tipo de `Failure`, sin
+   payload ni chatJid. **Hoy las reglas de producción rechazan la escritura
+   en `image_reviews`** (`permission-denied`): el registro queda pendiente
+   hasta que se publique el borrador de la capa 5. `SimulatedReviewUploader`
+   queda sin cablear (candidato a borrar).
    Siguen **PENDIENTES** (detalle en `image-review-offline-sync` § "Ruta de
    la subida"): aviso visible para los registros viejos que no se pueden
    subir (y que la píldora los sigue contando), si conviene subir el
-   esquema a v2 (versiones antiguas de la app en caché), probar el borrador
-   de reglas en la zona de pruebas de la consola y publicarlo (a mano, con
-   autorización del usuario, comprobando antes que las reglas de la consola
-   no cambiaron), regla de lectura de `image_reviews` y `shift_image_counts`,
+   esquema a v2 (versiones antiguas de la app en caché), terminar de probar
+   el borrador (casos no probados) y publicarlo (a mano, con
+   el contenido limpio de `firestore.rules.draft`, autorización del usuario
+   y comprobando antes que las reglas de la consola no cambiaron), regla de lectura de `image_reviews` y `shift_image_counts`,
    si validar `reviewShifts` o `allowedGroups`, reglas de Storage,
    verificación de conexión antes de subir, si una escritura en
-   cola del SDK web llega tarde después de un timeout, cableado al provider,
-   mensajes de error visibles en español, nombres definitivos de las
+   cola del SDK web llega tarde después de un timeout,
+   mensajes de error visibles en español en la interfaz, nombres definitivos de las
    colecciones, cómo lee
    Coincidencias entre grupos (consulta de grupo de colecciones o Cloud
    Function), separación por rol en la regla de lectura, si `fechaJornada`

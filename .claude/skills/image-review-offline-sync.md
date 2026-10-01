@@ -42,6 +42,12 @@ subir todo lo acumulado.
 
 ## ⚠️ Regla de trabajo del usuario: NO conectar a Firebase real sin autorización explícita
 
+> **Actualización (paso 7, capa 6)**: el usuario **autorizó y decidió**
+> cablear la subida real por jornada: `reviewUploaderProvider` devuelve
+> siempre `FirestoreReviewUploader` (sin bandera). Lo de abajo sobre la
+> subida simulada queda como historia; la regla sigue vigente para todo lo
+> demás (Cloud Function puente, publicar reglas, cualquier otra escritura).
+
 Aunque esta skill describe el diseño final con subida real a Firestore,
 **el usuario decide cuándo se activa esa conexión de verdad**. Mientras
 no dé esa autorización explícita en la conversación:
@@ -179,7 +185,7 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
    estuviera `sincronizado`, lo devuelve a `pendiente` y pone
    `editado = true`** (habrá que volver a subirlo). Lo decide presentation
    (`ReviewDraftNotifier.save`), no el repositorio. **Pasa a `sincronizado`
-   solo con la subida por jornada** (`ReviewUploadNotifier`, hoy SIMULADA,
+   solo con la subida por jornada** (`ReviewUploadNotifier`, hoy REAL a Firestore,
    ver "Indicador de subida por jornada" más abajo).
 4. **Separación por usuario, con el `uid`** (`AuthenticatedUser.id`), no el
    email: `reviewerUidProvider`. Todas las claves llevan el uid, así que
@@ -249,7 +255,7 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
     Queda una ventana mínima entre esa relectura y el `delete` (aceptable con
     una sola pestaña).
 
-## Indicador de subida por jornada (paso 4 — HECHO, subida SIMULADA)
+## Indicador de subida por jornada (paso 4 — HECHO; subida REAL desde el paso 7, capa 6)
 
 - **Dónde vive**: `PendingUploadIndicators`
   (`image_review/presentation/widgets/pending_upload_indicators.dart`), un
@@ -271,10 +277,10 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
 - **Subida**: tocar la píldora → diálogo "Subir N registros de <jornada>,
   <fecha o 'hoy'>" → `ReviewUploadNotifier.upload(jornada)` (provider
   `reviewUploadProvider`). Sube registro por registro con el
-  `ReviewUploader` (domain; hoy `SimulatedReviewUploader` en `data/sync/`,
-  que hace `debugPrint` de la ruta completa y los datos que arma
+  `ReviewUploader` (domain; hoy `FirestoreReviewUploader` en `data/sync/`,
+  que escribe en Firestore la ruta y los datos que arma
   `ImageReviewRecordModel.toUploadDocument()` — ver "Ruta de la subida" más
-  abajo; solo falla, sin imprimir nada, si el registro no tiene ruta). Cada
+  abajo). Cada
   registro subido se marca `sincronizado` de inmediato; los que fallan siguen
   pendientes. El estado del notifier es el avance por jornada
   (`hechos`, `total`): la píldora muestra "Subiendo X de N" y no se puede tocar
@@ -291,7 +297,7 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
 - **Si subió pero no se pudo marcar** (falló el guardado local): cuenta como
   fallido y seguirá pendiente; se re-sube (mismo id de documento, no duplica).
 
-### Ruta de la subida (paso 7, capa 1 — HECHA, sigue SIMULADA)
+### Ruta de la subida (paso 7, capas 1-6 — subida REAL cableada desde la capa 6)
 
 - **Ruta** (nombres **PROVISIONALES**, constantes solo en
   `ImageReviewRecordModel`: `uploadRootCollection`,
@@ -316,7 +322,7 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
   `messageTimestamp` (int, ms UTC, tal cual), `registradoEn` (ISO-8601 UTC,
   texto; se mantiene sin cambios) y `registradoPor` (solo auditoría). No
   lleva `uid`.
-- **Capa 2 — HECHA, AÚN NO CONECTADA** (nombres provisionales):
+- **Capa 2 — HECHA, cableada en la capa 6** (nombres provisionales):
   - `ReviewUploadDatasource` (`data/datasources/review_upload_datasource.dart`,
     Dart puro, sin `cloud_firestore`): `setDocument(pathSegments, data)` →
     `Future<Either<Failure, Unit>>`. Contrato documentado: REEMPLAZA el
@@ -328,10 +334,9 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
     al datasource; si no, devuelve el resultado del datasource tal cual; si el
     datasource lanza, `Left(Failure.unknown)` ("Error inesperado al subir el
     registro <messageId>.") y nunca relanza. No imprime el payload.
-  - `reviewUploaderProvider` **sigue** en `SimulatedReviewUploader`. Tests con
-    un datasource falso en memoria (`firestore_review_uploader_test.dart`),
+  - Tests con un datasource falso en memoria (`firestore_review_uploader_test.dart`),
     incluida la integración con `ReviewUploadNotifier`.
-- **Capa 3 — HECHA, AÚN NO CONECTADA** (nombres provisionales):
+- **Capa 3 — HECHA, cableada en la capa 6** (nombres provisionales):
   - `FirestoreReviewUploadDatasource`
     (`data/datasources/firestore_review_upload_datasource.dart`) implementa
     `ReviewUploadDatasource`. Constructor principal: recibe `FirebaseFirestore`
@@ -351,10 +356,10 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
     `Failure.unknown("Error inesperado al subir el registro (<path>).")`. Una
     ruta vacía, con número impar de segmentos o con un segmento vacío o con
     "/" → `Left` sin escribir (defensa extra; ya lo valida `toUploadDocument`).
-  - No imprime el payload. **Nada la construye fuera de sus tests**: no hay
-    provider que la cree, ningún archivo nuevo usa `FirebaseFirestore.instance`,
-    y `reviewUploaderProvider` sigue en `SimulatedReviewUploader`.
-- **Capa 4 — HECHA, sigue SIMULADA**: `messageTimestamp` en el registro y
+  - No imprime el payload. La construye `reviewUploadDatasourceProvider`
+    (capa 6) con el `firestoreProvider` de la app; ningún archivo nuevo usa
+    `FirebaseFirestore.instance`.
+- **Capa 4 — HECHA**: `messageTimestamp` en el registro y
   en el payload.
   - Camino: `ImageViewItem.messageTimestamp` → `ImageReviewTarget`
     (campo obligatorio, se arma en `image_detail_page.dart`) →
@@ -399,7 +404,57 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
   - **Qué NO valida**: `uid`, `reviewShifts`, `allowedGroups`,
     `registradoPor`, `registradoEn`, el contenido de `comprobantes`, ni
     tamaños máximos de campos o listas.
-  - No se probó todavía (ni emulador ni zona de pruebas de la consola).
+  - **Probado en la zona de pruebas de la consola (2026-10-01), parcial.**
+    El claim se simuló cambiando a mano la línea del claim en el editor de
+    reglas (el simulador no deja editar la carga útil del token); sin
+    emulador. **Las reglas AÚN NO ESTÁN PUBLICADAS en producción.**
+    - PERMITIDO: create de un revisor con el documento correcto (13 claves,
+      ids coherentes, `messageTimestamp` y `chatJid` iguales a los del
+      mensaje real).
+    - RECHAZADO: `messageTimestamp` distinto del del mensaje real; sin
+      sesión; `rol` del documento distinto del claim.
+    - NO PROBADO: el claim real de un token (solo se simuló); `jornadaId`
+      mal armado, `shiftKey` `outOfShift`, id sin sufijo de rol, `chatJid`
+      distinto, mensaje inexistente, `delete` y `get`; el comportamiento con
+      el cliente real de la app.
+    - Nota: el simulador convirtió `registradoEn` en fecha cuando se
+      escribió como ISO (`"...T12:00:00.000Z"`) y la regla lo rechazó por
+      `is string`; con un texto cualquiera pasó. **SUPOSICIÓN, sin
+      verificar**: el cliente real de la app lo envía como texto
+      (`toIso8601String()` en `toMap()`). Se confirma en la primera
+      escritura real.
+- **Capa 6 — HECHA: subida REAL cableada** (decisión del usuario, sin
+  bandera de compilación):
+  - `reviewUploadDatasourceProvider` =
+    `FirestoreReviewUploadDatasource(ref.watch(firestoreProvider))` (el de
+    `lib/app/providers.dart`); `reviewUploaderProvider` =
+    `FirestoreReviewUploader(ref.watch(reviewUploadDatasourceProvider))`.
+  - **Cuándo se construye**: solo al iniciar una subida. El único lector de
+    `reviewUploaderProvider` es `ReviewUploadNotifier._upload`
+    (`ref.read`), que corre al confirmar "Subir" en la píldora
+    (`PendingUploadIndicators._onTap` → `upload`). Abrir la app, el visor o
+    la lista de mensajes no lo construye.
+  - **Log de fallo**: todo `Left` del uploader deja
+    `debugPrint('[SUBIDA] falló <messageId>: <tipo>')`, con el tipo
+    `firestore` / `unauthorized` / `storage` / `unknown`; sin payload ni
+    `chatJid`. Ni `ReviewUploader` ni el notifier cambiaron.
+  - **Hoy las reglas de producción rechazan la escritura** en
+    `image_reviews` (no tienen regla para esa colección, así que todo se
+    niega): cada registro vuelve `permission-denied` → `unauthorized`, cuenta
+    como fallido en el SnackBar ("no se pudieron subir; siguen pendientes")
+    y **queda pendiente**, sin perder nada. Empieza a escribir recién cuando
+    se publique el borrador de la capa 5.
+  - `SimulatedReviewUploader` **no se borró**: queda sin cablear ("No
+    cableado en producción; solo tests y referencia; candidato a borrar"),
+    con el mismo contrato.
+  - Tests: ningún test dependía del provider por defecto (los de la subida ya
+    sobreescribían `reviewUploaderProvider`). Nuevos, en
+    `firestore_review_uploader_test.dart`: con solo
+    `reviewUploadDatasourceProvider` sobreescrito por el datasource falso, el
+    provider es un `FirestoreReviewUploader` que escribe la ruta y el payload
+    esperados (con `messageTimestamp`); con `ReviewUploadNotifier`, el éxito
+    marca `sincronizado` y el fallo deja `pendiente` sin lanzar. Ningún test
+    instancia `FirebaseFirestore` ni lee el `firestoreProvider` real.
 - **PENDIENTE (no decidido)**:
   - Aviso visible para los registros viejos que no se pueden subir: hoy solo
     cuentan como "no se pudieron subir" en el SnackBar, sin decir cuál ni
@@ -408,26 +463,27 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
   - Si conviene subir el esquema a v2 igual (por ejemplo, para que una
     versión antigua de la app que siga en caché no lea ni reescriba
     registros con un campo que no conoce).
-  - Probar el borrador de reglas en la zona de pruebas de la consola
-    (incluida la comparación de `messageTimestamp` y `chatJid` con
-    `whatsapp_messages/{messageId}`) y publicarlo: a mano, con autorización
-    explícita del usuario, comprobando antes que las reglas de la consola no
-    cambiaron.
+  - Terminar de probar el borrador en la zona de pruebas (los casos NO
+    PROBADOS de arriba) y publicarlo: a mano, con el contenido
+    limpio de `firestore.rules.draft` y autorización explícita del usuario,
+    comprobando antes que las reglas de la consola no cambiaron. Hasta
+    entonces toda subida falla con `permission-denied`.
+  - La primera escritura real (y comprobarla en la consola), que además
+    confirma que `registradoEn` llega como texto y que el claim real del
+    token se evalúa como en el simulador.
   - Regla de lectura de `image_reviews` y de `shift_image_counts`; si las
     reglas deben validar `reviewShifts` o `allowedGroups`; reglas de
     Storage (no están en el repo).
-  - Cableado al provider: construir `FirestoreReviewUploadDatasource` y
-    `FirestoreReviewUploader` en `reviewUploaderProvider` (requiere
-    autorización explícita; es lo que activa la escritura real).
   - Verificación de conexión antes de subir (el timeout ya existe, ver
     arriba).
   - Si una escritura que el SDK web dejó en cola llega tarde, después de que
     el timeout ya la dio por fallida: el registro queda pendiente y se
     volverá a subir (mismo id, reemplazo completo), pero qué versión queda
     en el servidor si entre tanto se editó no está analizado.
-  - Mensajes de error visibles en español: `mapFirestoreError` reenvía el
-    `message` de Firebase en el caso por defecto, y hoy
-    `ReviewUploadNotifier` solo cuenta los fallos, no muestra su mensaje.
+  - Mensajes de error visibles en español en la interfaz: `mapFirestoreError`
+    reenvía el `message` de Firebase en el caso por defecto, y hoy
+    `ReviewUploadNotifier` solo cuenta los fallos, no muestra su mensaje (el
+    tipo solo queda en el `debugPrint`).
   - Nombres definitivos de las colecciones (`image_reviews`, `jornadas`,
     `registros` son provisionales).
   - Cómo lee Coincidencias los registros de todos los grupos: consulta de
@@ -450,8 +506,8 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
 colgado ya no bloquea la jornada con "Subiendo X de N" indefinido. **Sigue
 pendiente** decidir si además se verifica la calidad de conexión antes de
 subir, y qué pasa con una escritura que el SDK dejó en cola y llega después
-del timeout. El uploader simulado (el que usa hoy el provider) nunca falla
-ni se cuelga.
+del timeout. Desde la capa 6 el provider usa el uploader real; el simulado
+(sin cablear) nunca fallaba ni se colgaba.
 
 ## Forma de trabajo dentro de esta skill
 
@@ -465,9 +521,11 @@ una antes de seguir:
 2. ✅ **Listado de pendientes por jornada** — hecho, solo en el
    repositorio (`getPending`), sin UI (esto ya no requiere "detectar
    si está completa", solo listar lo que hay).
-3. ✅ **Subida individual** de un registro pendiente — hecha SIMULADA
-   (`ReviewUploader` + `SimulatedReviewUploader`); la real espera autorización.
-4. ✅ **Subida por jornada** con éxitos/fallos parciales — hecha (simulada),
+3. ✅ **Subida individual** de un registro pendiente — hecha primero
+   SIMULADA (`SimulatedReviewUploader`, hoy sin cablear); desde el paso 7,
+   capa 6, REAL (`FirestoreReviewUploader`).
+4. ✅ **Subida por jornada** con éxitos/fallos parciales — hecha (real desde
+   la capa 6),
    ver "Indicador de subida por jornada".
 5. ✅ **UI del indicador/botón por jornada** en el listado de mensajes,
    arriba de `GoToLatestMessageButton` — hecha.
