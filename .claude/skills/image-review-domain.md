@@ -345,7 +345,17 @@ nombre provisional; `summaryRepositoryProvider` sigue en el mock):
   jornada (orden del enum), como el mock.
 - **Errores**: si fallan los registros o los contadores, `Left`; un
   documento con formato inesperado es `Left` con su id (nunca se omite).
-  Nunca lanza; sin caché ni reintentos.
+  Nunca lanza; el repositorio en sí no tiene caché ni reintentos.
+- **Caché (encima del repositorio)**: `SummaryCache`
+  (`features/summary/data/cache/`), en memoria, por fecha
+  (`fechaJornadaDe`): TTL de 5 minutos, solo resultados correctos, una sola
+  lectura por fecha a la vez, máximo 10 fechas (sale la más antigua). La usa
+  `jornadaSummariesProvider`; "Actualizar" y "Reintentar" invalidan la fecha
+  elegida y van a la fuente. Los nombres de grupo se guardan toda la sesión
+  con `CachedGroupNameDatasource` (solo los encontrados: un documento
+  ausente o un error se vuelve a pedir). No se comparte entre pestañas ni
+  sesiones; un registro subido después puede tardar hasta 5 minutos en
+  aparecer si no se toca "Actualizar".
 
 ## Jornadas: tabla vieja, tabla nueva y corte
 

@@ -233,6 +233,18 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    `real_summary_providers.dart` (`realSummaryRepositoryProvider` y los tres
    datasources) que **ningún código lee**: `summaryRepositoryProvider` sigue
    en `MockSummaryRepository`.
+   **Caché del Resumen — HECHA** (funciona ya con el mock): `SummaryCache`
+   en memoria, por fecha (`fechaJornadaDe`), TTL de 5 minutos
+   (`summaryCacheTtl`), solo éxitos (un `Left` nunca se guarda), una sola
+   lectura por fecha a la vez, máximo 10 fechas (sale la más antigua).
+   `jornadaSummariesProvider` pasa por ella. Botón "Actualizar" en la barra
+   de `SummaryPage` y "Reintentar" del error: invalidan la fecha elegida y
+   van a la fuente (`reloadJornadaSummariesProvider`). Nombres de grupo:
+   `CachedGroupNameDatasource` guarda los encontrados toda la sesión (no
+   los ausentes ni los errores), aplicado solo en `real_summary_providers.dart`.
+   **PENDIENTES (no decididos)**: la caché no se comparte entre pestañas ni
+   sesiones; un registro subido después puede tardar hasta 5 minutos en
+   aparecer (el botón "Actualizar" lo evita).
    **PENDIENTES (no decididos)**: escribir y publicar la regla de lectura
    de `registros` (consulta de grupo, comodín recursivo) y de
    `shift_image_counts` solo para admin y superAdmin — **decidida, todavía
@@ -240,8 +252,8 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    de grupo de colecciones sobre `fechaJornada` en `registros` (verificar al
    correr la consulta; se crea desde la consola); cambiar
    `summaryRepositoryProvider` al repositorio real (una línea, con
-   autorización); costo en lecturas (hasta unas 3600 por consulta, sin
-   caché); `lastIndex` puede ser mayor que las imágenes reales; no hay
+   autorización); costo en lecturas (hasta unas 3600 por consulta real; la
+   caché de 5 minutos evita repetirla); `lastIndex` puede ser mayor que las imágenes reales; no hay
    contadores de días anteriores a la publicación inicial (ver
    `image-review-domain`); el día se arma con `fechaJornadaDe` (`toLocal()`)
    y `shiftDate` es UTC-5 fijo; qué colección de resultados manda para las
