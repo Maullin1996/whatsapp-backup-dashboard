@@ -1,0 +1,99 @@
+// BORRADOR. No referenciado en firebase.json, no se despliega. Se publica a
+// mano pegándolo en la consola de Firebase; esa publicación REEMPLAZA todo el
+// conjunto de reglas, por eso incluye los bloques existentes. Antes de
+// publicar, confirmar que las reglas de la consola siguen siendo las del
+// bloque existente.
+//
+// Bloque existente: copia exacta de las reglas actuales de la consola, sin
+// cambios. Bloque nuevo: solo la escritura (create/update) de los registros
+// de revisión de imágenes en image_reviews (nombres PROVISIONALES); sin
+// lectura, sin delete.
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /whatsapp_messages/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+    match /group_stats/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+    match /edit_attempts/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+    match /users/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    // ─── Nuevo: registros de Revisor/Sumador (BORRADOR) ──────────────────
+    // Ruta que arma ImageReviewRecordModel.toUploadDocument():
+    // image_reviews/{chatJid}/jornadas/{fechaJornada}_{shiftKey}/registros/{messageId}_{rol}
+    // get/list sin regla: denegados por defecto.
+    match /image_reviews/{chatJid}/jornadas/{jornadaId}/registros/{registroId} {
+      allow create, update: if puedeEscribirRegistro(chatJid, jornadaId, registroId);
+      allow delete: if false;
+    }
+
+    // Claim reviewRole ('revisor' | 'sumador'), leído con get() para que un
+    // claim ausente dé null y la regla niegue sin error.
+    function reviewRole() {
+      return request.auth.token.get('reviewRole', null);
+    }
+
+    // Jornadas asignables: nombres del enum Shift, nunca outOfShift.
+    function shiftKeyValido(shiftKey) {
+      return shiftKey in ['morning', 'afternoon1', 'afternoon2', 'night1', 'night2', 'holiday'];
+    }
+
+    // Todas las claves del payload actual, con su tipo. Sin hasOnly, para no
+    // romper al agregar campos. No valida el contenido de comprobantes.
+    function payloadValido(data) {
+      return data.keys().hasAll([
+          'messageId', 'chatJid', 'shift', 'shiftKey', 'rol', 'storagePath',
+          'fechaJornada', 'messageTimestamp', 'comprobantes', 'anotaciones',
+          'registradoEn', 'registradoPor', 'editado'
+        ])
+        && data.messageId is string
+        && data.chatJid is string
+        && data.shift is string
+        && data.shiftKey is string
+        && data.rol is string
+        && data.storagePath is string
+        && data.fechaJornada is string
+        && data.registradoEn is string
+        && data.registradoPor is string
+        && data.messageTimestamp is int
+        && data.comprobantes is list
+        && data.comprobantes.size() >= 1
+        && data.editado is bool
+        && (data.anotaciones == null || data.anotaciones is string);
+    }
+
+    // Contra el mensaje real: una sola lectura de whatsapp_messages. Si el
+    // mensaje no existe, get() falla y la regla niega.
+    function coincideConMensaje(data) {
+      let mensaje = get(/databases/$(database)/documents/whatsapp_messages/$(data.messageId)).data;
+      return mensaje.messageTimestamp == data.messageTimestamp
+        && mensaje.chatJid == data.chatJid;
+    }
+
+    // Orden: sesión y claim primero, la lectura del mensaje al final (&& corta).
+    function puedeEscribirRegistro(chatJid, jornadaId, registroId) {
+      let data = request.resource.data;
+      return request.auth != null
+        && reviewRole() in ['revisor', 'sumador']
+        && payloadValido(data)
+        && data.rol == reviewRole()
+        && registroId == data.messageId + '_' + data.rol
+        && chatJid == data.chatJid
+        && data.fechaJornada.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && shiftKeyValido(data.shiftKey)
+        && jornadaId == data.fechaJornada + '_' + data.shiftKey
+        && coincideConMensaje(data);
+    }
+  }
+}
