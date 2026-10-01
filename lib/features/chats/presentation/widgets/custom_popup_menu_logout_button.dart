@@ -7,6 +7,7 @@ import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
 import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_providers.dart';
 import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_session_state.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/domain/helpers/can_view_matches.dart';
+import 'package:whatsapp_monitor_viewer/features/summary/domain/helpers/can_view_summary.dart';
 
 class CustomPopupMenuLogoutButton extends ConsumerWidget {
   const CustomPopupMenuLogoutButton({super.key});
@@ -43,6 +44,11 @@ class CustomPopupMenuLogoutButton extends ConsumerWidget {
       authenticated: (user) => canViewMatches(user),
       orElse: () => false,
     );
+    // Misma función que el guard de /summary.
+    final canGoToSummary = authState.maybeWhen(
+      authenticated: (user) => canViewSummary(user),
+      orElse: () => false,
+    );
     return PopupMenuButton<_ChatMenuAction>(
       position: PopupMenuPosition.under,
       icon: const Icon(CupertinoIcons.ellipsis_vertical),
@@ -72,16 +78,15 @@ class CustomPopupMenuLogoutButton extends ConsumerWidget {
               text: 'Panel de administración',
             ),
           ),
-        // Visible para cualquier usuario autenticado: no hay claims reales de
-        // revisor/sumador todavía (ver la ruta `/summary` en router.dart).
-        const PopupMenuItem<_ChatMenuAction>(
-          value: _ChatMenuAction.summary,
-          padding: EdgeInsets.zero,
-          child: _HoverMenuItem(
-            icon: Icons.fact_check_rounded,
-            text: 'Resumen',
+        if (canGoToSummary)
+          const PopupMenuItem<_ChatMenuAction>(
+            value: _ChatMenuAction.summary,
+            padding: EdgeInsets.zero,
+            child: _HoverMenuItem(
+              icon: Icons.fact_check_rounded,
+              text: 'Resumen',
+            ),
           ),
-        ),
         if (canGoToMatches)
           const PopupMenuItem<_ChatMenuAction>(
             value: _ChatMenuAction.matches,

@@ -2,14 +2,19 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:whatsapp_monitor_viewer/app/auth_redirect.dart';
 import 'package:whatsapp_monitor_viewer/features/auth/domain/entities/authenticated_user.dart';
 import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_session_state.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
 
-AuthenticatedUser _user({bool isAdmin = false, bool isSuperAdmin = false}) =>
-    AuthenticatedUser(
-      id: 'uid',
-      email: 'a@x.com',
-      isAdmin: isAdmin,
-      isSuperAdmin: isSuperAdmin,
-    );
+AuthenticatedUser _user({
+  bool isAdmin = false,
+  bool isSuperAdmin = false,
+  ReviewRole? reviewRole,
+}) => AuthenticatedUser(
+  id: 'uid',
+  email: 'a@x.com',
+  isAdmin: isAdmin,
+  isSuperAdmin: isSuperAdmin,
+  reviewRole: reviewRole,
+);
 
 void main() {
   group('sin sesión', () {
@@ -18,6 +23,13 @@ void main() {
     test('yendo a /matches redirige a /login', () {
       expect(
         computeAuthRedirect(authState: authState, location: '/matches'),
+        '/login',
+      );
+    });
+
+    test('yendo a /summary redirige a /login (como antes)', () {
+      expect(
+        computeAuthRedirect(authState: authState, location: '/summary'),
         '/login',
       );
     });
@@ -56,6 +68,58 @@ void main() {
         isNull,
       );
     });
+
+    for (final rol in ReviewRole.values) {
+      test('${rol.name} (sin admin) termina en /home, como antes', () {
+        final authState = AuthSessionState.authenticated(
+          _user(reviewRole: rol),
+        );
+        expect(
+          computeAuthRedirect(authState: authState, location: '/matches'),
+          '/home',
+        );
+      });
+    }
+  });
+
+  group('/summary (canViewSummary: admin o superAdmin)', () {
+    test('isAdmin (sin superAdmin) entra, sin redirigir', () {
+      final authState = AuthSessionState.authenticated(_user(isAdmin: true));
+      expect(
+        computeAuthRedirect(authState: authState, location: '/summary'),
+        isNull,
+      );
+    });
+
+    test('isSuperAdmin (sin isAdmin) entra, sin redirigir', () {
+      final authState = AuthSessionState.authenticated(
+        _user(isSuperAdmin: true),
+      );
+      expect(
+        computeAuthRedirect(authState: authState, location: '/summary'),
+        isNull,
+      );
+    });
+
+    for (final rol in ReviewRole.values) {
+      test('${rol.name} (sin admin) termina en /home', () {
+        final authState = AuthSessionState.authenticated(
+          _user(reviewRole: rol),
+        );
+        expect(
+          computeAuthRedirect(authState: authState, location: '/summary'),
+          '/home',
+        );
+      });
+    }
+
+    test('usuario sin claims termina en /home', () {
+      final authState = AuthSessionState.authenticated(_user());
+      expect(
+        computeAuthRedirect(authState: authState, location: '/summary'),
+        '/home',
+      );
+    });
   });
 
   test('en loading no redirige, sin importar el destino', () {
@@ -74,7 +138,7 @@ void main() {
     );
   });
 
-  group('/admin y /summary se comportan igual que antes', () {
+  group('/admin se comporta igual que antes', () {
     test('/admin: usuario normal termina en /home', () {
       final authState = AuthSessionState.authenticated(_user());
       expect(
@@ -98,14 +162,6 @@ void main() {
       final authState = AuthSessionState.authenticated(_user(isAdmin: true));
       expect(
         computeAuthRedirect(authState: authState, location: '/admin'),
-        isNull,
-      );
-    });
-
-    test('/summary: cualquier usuario autenticado entra, sin redirigir', () {
-      final authState = AuthSessionState.authenticated(_user());
-      expect(
-        computeAuthRedirect(authState: authState, location: '/summary'),
         isNull,
       );
     });

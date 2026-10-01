@@ -1,5 +1,6 @@
 import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_session_state.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/domain/helpers/can_view_matches.dart';
+import 'package:whatsapp_monitor_viewer/features/summary/domain/helpers/can_view_summary.dart';
 
 /// Decisión pura del guard global de `router.dart`, separada de `redirect:`
 /// (y de este archivo aparte del propio `router.dart`) para poder testearla
@@ -38,18 +39,23 @@ String? computeAuthRedirect({
     authenticated: (user) => canViewMatches(user),
   );
 
+  // Acceso a /summary: admin o superAdmin (ver canViewSummary). Revisor y
+  // Sumador no la abren: no leen nada de `image_reviews`.
+  final canGoToSummary = authState.maybeWhen(
+    orElse: () => false,
+    authenticated: (user) => canViewSummary(user),
+  );
+
   final isGoingToLogin = location == '/login';
   final isGoingToAdmin = location == '/admin';
   final isGoingToMatches = location == '/matches';
+  final isGoingToSummary = location == '/summary';
 
   if (!isLoggedIn) return isGoingToLogin ? null : '/login';
   if (isGoingToLogin) return '/home';
   if (isGoingToAdmin && !isAdmin) return '/home';
   if (isGoingToMatches && !canGoToMatches) return '/home';
-  // `/summary` solo exige sesión iniciada (ya cubierto arriba): a propósito,
-  // sin `isAdmin` ni rol de revisor/sumador, porque esos claims reales
-  // todavía no existen (ver image-review-roles, "Rol activo TEMPORAL"). Se
-  // acotará cuando existan.
+  if (isGoingToSummary && !canGoToSummary) return '/home';
 
   return null;
 }
