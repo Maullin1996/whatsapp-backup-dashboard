@@ -4,10 +4,18 @@
 // publicar, confirmar que las reglas de la consola siguen siendo las del
 // bloque existente.
 //
-// Bloque existente: copia exacta de las reglas actuales de la consola, sin
-// cambios. Bloque nuevo: solo la escritura (create/update) de los registros
-// de revisión de imágenes en image_reviews (nombres PROVISIONALES); sin
-// lectura, sin delete.
+// Bloques existentes (copia exacta de las reglas actuales de la consola, sin
+// cambios): whatsapp_messages, group_stats, edit_attempts y users.
+//
+// Bloques nuevos (nombres PROVISIONALES):
+// - Escritura (create/update) de los registros de revisión en image_reviews,
+//   para Revisor/Sumador; sin delete.
+// - Lectura (get/list) de los registros, solo para admin o superAdmin
+//   (isAdmin()), con comodín recursivo para la consulta de grupo de
+//   colecciones sobre `registros` (Resumen y Coincidencias). Revisor y
+//   Sumador no leen nada de image_reviews.
+// - shift_image_counts: lectura solo para admin o superAdmin; escritura
+//   negada (el bot escribe con el Admin SDK, que no pasa por estas reglas).
 
 rules_version = '2';
 service cloud.firestore {
@@ -32,10 +40,37 @@ service cloud.firestore {
     // ─── Nuevo: registros de Revisor/Sumador (BORRADOR) ──────────────────
     // Ruta que arma ImageReviewRecordModel.toUploadDocument():
     // image_reviews/{chatJid}/jornadas/{fechaJornada}_{shiftKey}/registros/{messageId}_{rol}
-    // get/list sin regla: denegados por defecto.
+    // get/list de esta ruta: solo los permite la regla recursiva de lectura
+    // de más abajo, para admin y superAdmin. Revisor y Sumador no leen.
     match /image_reviews/{chatJid}/jornadas/{jornadaId}/registros/{registroId} {
       allow create, update: if puedeEscribirRegistro(chatJid, jornadaId, registroId);
       allow delete: if false;
+    }
+
+    // ─── Nuevo: lectura solo para admin o superAdmin (BORRADOR) ──────────
+    // Claims booleanos: `admin` puede faltar o valer false; `superAdmin` vale
+    // true o no existe. Se leen con get() para que un claim ausente dé false
+    // sin error.
+    function isAdmin() {
+      return request.auth != null
+        && (request.auth.token.get('admin', false) == true
+          || request.auth.token.get('superAdmin', false) == true);
+    }
+
+    // Lectura de los registros de revisión, con comodín recursivo: es la
+    // forma que exige una consulta de grupo de colecciones (rules_version 2)
+    // y también cubre el get/list de image_reviews/.../registros/{id}. OJO:
+    // el nombre "registros" aplica a TODA colección con ese nombre en la base,
+    // a cualquier profundidad (hoy no hay otra). Solo lectura: la escritura
+    // sigue siendo la del bloque de image_reviews de arriba.
+    match /{path=**}/registros/{registroId} {
+      allow read: if isAdmin();
+    }
+
+    // Contadores que publica el bot (lo lee el Resumen).
+    match /shift_image_counts/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     // Claim reviewRole ('revisor' | 'sumador'), leído con get() para que un
