@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:whatsapp_monitor_viewer/features/summary/data/cache/summary_cache.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/data/mock_summary_repository.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/domain/entities/jornada_summary.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/domain/repositories/summary_repository.dart';
@@ -29,15 +30,33 @@ final summaryRepositoryProvider = Provider<SummaryRepository>(
   (ref) => const MockSummaryRepository(),
 );
 
-/// Resúmenes por grupo y jornada del día elegido. Se recalcula al cambiar
-/// [summaryDateProvider]. Un `Failure` queda como error del `AsyncValue`, sin
-/// reintento automático (no es transitorio).
+/// Caché en memoria del Resumen (ver [SummaryCache]: 5 minutos por fecha,
+/// solo éxitos). Vive lo que dura la app; se rehace si cambia el repositorio.
+final summaryCacheProvider = Provider<SummaryCache>((ref) {
+  ref.watch(summaryRepositoryProvider);
+  return SummaryCache(now: ref.watch(clockProvider));
+});
+
+/// Resúmenes por grupo y jornada del día elegido, pasando por
+/// [summaryCacheProvider]. Se recalcula al cambiar [summaryDateProvider]. Un
+/// `Failure` queda como error del `AsyncValue`, sin reintento automático (no
+/// es transitorio).
 final jornadaSummariesProvider = FutureProvider<List<JornadaSummary>>((
   ref,
 ) async {
   final date = ref.watch(summaryDateProvider);
+  final repository = ref.watch(summaryRepositoryProvider);
   final result = await ref
-      .watch(summaryRepositoryProvider)
-      .getJornadaSummaries(date);
+      .watch(summaryCacheProvider)
+      .get(date, () => repository.getJornadaSummaries(date));
   return result.fold((failure) => throw failure, (list) => list);
 }, retry: (retryCount, error) => null);
+
+/// Recarga la fecha elegida desde la fuente, aunque haya caché vigente
+/// ("Actualizar" y "Reintentar").
+final reloadJornadaSummariesProvider = Provider<void Function()>(
+  (ref) => () {
+    ref.read(summaryCacheProvider).invalidate(ref.read(summaryDateProvider));
+    ref.invalidate(jornadaSummariesProvider);
+  },
+);

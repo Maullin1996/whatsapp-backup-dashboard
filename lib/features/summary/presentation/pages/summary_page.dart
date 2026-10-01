@@ -61,6 +61,11 @@ class _SummaryScaffold extends ConsumerWidget {
         ),
         actions: [
           IconButton(
+            tooltip: 'Actualizar',
+            icon: const Icon(Icons.refresh_rounded),
+            onPressed: () => ref.read(reloadJornadaSummariesProvider)(),
+          ),
+          IconButton(
             tooltip: 'Elegir fecha',
             icon: const Icon(Icons.calendar_month_rounded),
             onPressed: () => _pickDate(context, ref),
@@ -146,7 +151,8 @@ class _SummaryContent extends ConsumerWidget {
             icon: Icons.error_outline_rounded,
             message: mapFailureToMessage(error),
             actionLabel: 'Reintentar',
-            onAction: () => ref.invalidate(jornadaSummariesProvider),
+            // A la fuente, nunca a la caché.
+            onAction: () => ref.read(reloadJornadaSummariesProvider)(),
           ),
         ),
         data: (list) => list.isEmpty

@@ -365,7 +365,9 @@ void main() {
       expect(find.text('Hoy'), findsOneWidget);
     });
 
-    testWidgets('"Hoy" vuelve a la fecha de hoy y recarga', (tester) async {
+    testWidgets('"Hoy" vuelve a la fecha de hoy, desde la caché (vigente)', (
+      tester,
+    ) async {
       final container = await _pumpPage(tester, repo: repo);
       await _selectDate(tester, container, march15);
 
@@ -376,7 +378,8 @@ void main() {
       expect(find.text('Hoy'), findsNothing);
       expect(find.text('Grupo Marzo'), findsNothing);
       expect(find.byType(JornadaSummaryCard), findsOneWidget);
-      expect(repo.requested.map(DateUtils.dateOnly), [today, march15, today]);
+      // Hoy ya se había leído hace menos de 5 minutos: no se vuelve a pedir.
+      expect(repo.requested.map(DateUtils.dateOnly), [today, march15]);
     });
 
     testWidgets('durante la recarga se ve el skeleton', (tester) async {
@@ -422,6 +425,40 @@ void main() {
         repo.requested.map(DateUtils.dateOnly).last,
         DateTime(2026, 3, 20),
       );
+    });
+
+    testWidgets('"Actualizar" vuelve a pedir la fecha elegida aunque haya '
+        'caché vigente', (tester) async {
+      final container = await _pumpPage(tester, repo: repo);
+      await _selectDate(tester, container, march15);
+      expect(repo.requested.map(DateUtils.dateOnly), [today, march15]);
+
+      await tester.tap(find.byTooltip('Actualizar'));
+      await tester.pumpAndSettle();
+
+      expect(repo.requested.map(DateUtils.dateOnly), [today, march15, march15]);
+      expect(find.byType(JornadaSummaryCard), findsNWidgets(2));
+      expect(find.byIcon(Icons.refresh_rounded), findsOneWidget);
+    });
+
+    testWidgets('"Reintentar" tras un error va a la fuente, aunque la fecha '
+        'estuviera en caché antes', (tester) async {
+      await _pumpPage(tester, repo: repo);
+      expect(repo.requested, hasLength(1));
+
+      repo.failure = const Failure.firestore(message: 'No se pudo leer');
+      await tester.tap(find.byTooltip('Actualizar'));
+      await tester.pumpAndSettle();
+      expect(find.text('No se pudo leer'), findsOneWidget);
+      expect(repo.requested, hasLength(2));
+
+      repo.failure = null;
+      await tester.tap(find.text('Reintentar'));
+      await tester.pumpAndSettle();
+
+      expect(repo.requested, hasLength(3));
+      expect(find.text('No se pudo leer'), findsNothing);
+      expect(find.byType(JornadaSummaryCard), findsOneWidget);
     });
 
     testWidgets('cancelar el selector no cambia la fecha', (tester) async {

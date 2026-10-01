@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:whatsapp_monitor_viewer/app/providers.dart';
+import 'package:whatsapp_monitor_viewer/features/summary/data/datasources/cached_group_name_datasource.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/data/datasources/firestore_group_name_datasource.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/data/datasources/firestore_shift_image_counts_datasource.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/data/datasources/firestore_summary_records_datasource.dart';
@@ -22,8 +23,12 @@ final shiftImageCountsDatasourceProvider = Provider<ShiftImageCountsDatasource>(
   (ref) => FirestoreShiftImageCountsDatasource(ref.watch(firestoreProvider)),
 );
 
+/// Con los nombres encontrados guardados toda la sesión (no los ausentes ni
+/// los errores).
 final groupNameDatasourceProvider = Provider<GroupNameDatasource>(
-  (ref) => FirestoreGroupNameDatasource(ref.watch(firestoreProvider)),
+  (ref) => CachedGroupNameDatasource(
+    FirestoreGroupNameDatasource(ref.watch(firestoreProvider)),
+  ),
 );
 
 final realSummaryRepositoryProvider = Provider<SummaryRepository>(
