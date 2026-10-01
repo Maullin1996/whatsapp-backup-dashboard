@@ -202,9 +202,43 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    mensajes de error visibles en español en la interfaz, nombres definitivos de las
    colecciones, cómo lee
    Coincidencias entre grupos (consulta de grupo de colecciones o Cloud
-   Function), separación por rol en la regla de lectura, si `fechaJornada`
+   Function), si `fechaJornada`
    usa `toLocal()` o UTC-5 (ahora es parte de la ruta), límites de tamaño
    (tampoco los impone el borrador de reglas), primera escritura real.
+   **Lectura de `image_reviews` — DECIDIDO por el usuario**: solo la leen
+   cuentas con claim `admin` o `superAdmin`; Revisor y Sumador no leen nada
+   de `image_reviews` (sus registros siguen en local). La regla todavía no
+   está escrita.
+   **Pieza (d), Resumen real — capa 1 HECHA, NO conectada**: capa de datos
+   en `features/summary/data/` (nombres provisionales), probada con
+   datasources falsos. Tres datasources en Dart puro con su clase Firestore
+   (constructor con `FirebaseFirestore` y `.withReader` para tests; nunca
+   lanzan; `FirebaseException` → `mapFirestoreError`): registros del día
+   (`collectionGroup('registros').where('fechaJornada', ...)`), contadores
+   del bot del día (`shift_image_counts.where('shiftDate', ...)`) y nombre
+   del grupo (`group_stats/{chatJid}`). Un documento con un campo faltante,
+   un tipo incorrecto, un `shiftKey` desconocido u `outOfShift` (o un `rol`
+   desconocido) hace que la lectura devuelva `Left` con su id: nunca se
+   omite. `FirestoreSummaryRepository` arma un `JornadaSummary` por cada
+   (grupo, jornada) con contador o registros ese día (ver
+   `image-review-domain`, "Cómo se arma el Resumen real"). Providers en
+   `real_summary_providers.dart` (`realSummaryRepositoryProvider` y los tres
+   datasources) que **ningún código lee**: `summaryRepositoryProvider` sigue
+   en `MockSummaryRepository`.
+   **PENDIENTES (no decididos)**: escribir y publicar la regla de lectura
+   de `registros` (consulta de grupo, comodín recursivo) y de
+   `shift_image_counts` solo para admin y superAdmin — **decidida, todavía
+   NO está en `firestore.rules.draft`** ni publicada; guard de `/summary` y
+   la entrada "Resumen" del menú (hoy cualquier usuario autenticado); índice
+   de grupo de colecciones sobre `fechaJornada` en `registros` (verificar al
+   correr la consulta; se crea desde la consola); cambiar
+   `summaryRepositoryProvider` al repositorio real (una línea, con
+   autorización); costo en lecturas (hasta unas 3600 por consulta, sin
+   caché); `lastIndex` puede ser mayor que las imágenes reales; no hay
+   contadores de días anteriores a la publicación inicial (ver
+   `image-review-domain`); el día se arma con `fechaJornadaDe` (`toLocal()`)
+   y `shiftDate` es UTC-5 fijo; qué colección de resultados manda para las
+   coincidencias; y lo ya pendiente.
    **Jornadas — tabla definitiva, código HECHO, corte SIN fijar**: se leyó
    una vez `jornadas` de `whats-apuestas` (2026-09-30) y el usuario decidió
    usar ese horario como tabla fija en código, sin lectura dinámica. Tabla

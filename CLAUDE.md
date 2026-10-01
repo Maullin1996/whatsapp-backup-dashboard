@@ -72,7 +72,7 @@ App-level wiring lives in `lib/app/`:
 | `chats` | Real-time group list with search; backed by `group_stats` Firestore collection |
 | `messages` | Paginated message list (50/page), image viewer with pinch-to-zoom, day separators, shift labels |
 | `admin` | SuperAdmin/Admin panel: create/delete users, assign groups, toggle roles |
-| `summary` | `/summary` (`SummaryPage`): entry point for the per-shift summary/reconciliation — UI-only today, backed by invented data (`MockSummaryRepository`); opened from the "Resumen" item of the chat-list menu, visible to any signed-in user until the real revisor/sumador claims exist |
+| `summary` | `/summary` (`SummaryPage`): entry point for the per-shift summary/reconciliation — still backed by invented data (`MockSummaryRepository`); a real data layer (`FirestoreSummaryRepository` + three datasources, `real_summary_providers.dart`) exists but is NOT wired (step 7, piece d, layer 1; reads of `image_reviews` will be admin/superAdmin only, rule not written yet); opened from the "Resumen" item of the chat-list menu, visible to any signed-in user until the real revisor/sumador claims exist |
 | `matches` | `/matches` (`MatchesPage`): winning-numbers matches screen (step 6) — UI-only today, backed by invented data (`MockMatchesRepository`); admin/superAdmin only (`canViewMatches`), opened from the "Coincidencias" item of the chat-list menu |
 | `home` | Responsive layout shell (split-view desktop, animated drawer on mobile); `custom_message_group.dart` renders each group tile |
 

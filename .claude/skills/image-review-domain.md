@@ -298,14 +298,54 @@ recomendación de diseño es:
   - **Fecha de corte.** Mecanismo por definir: constante y calendario
     sin días anteriores, o mostrar esos días sin comparación. La
     comparación arranca en la primera jornada posterior al deploy.
-  - **Reglas de Firestore**: no están en el repo. Confirmar en la
-    consola que la app puede leer `shift_image_counts` antes de escribir
-    el datasource.
+  - **Reglas de Firestore**: decidido que solo admin y superAdmin leen
+    `shift_image_counts` (y `image_reviews`); la regla todavía no está
+    escrita en `firestore.rules.draft` ni publicada. El datasource ya
+    existe (Resumen real, capa 1, sin conectar).
+  - **Historial**: la colección existe desde el deploy del 2026-09-28
+    (01:34 UTC). Según `BOT_DOCUMENTATION.md`, ese primer ciclo publicó
+    también las filas de 2026-09-26 y 2026-09-27; no hay contadores de días
+    anteriores.
   - **Verificar que `toDomain` use la misma conversión que
     `fechaJornadaDe`** (el comentario del código lo afirma; no está
     verificado).
   - **Confirmar en el bot** que un mensaje real se procesa bien con el
     publicador (primera jornada tras el deploy).
+
+### Cómo se arma el Resumen real (pieza d, capa 1 — sin conectar)
+
+`FirestoreSummaryRepository` (`features/summary/data/repositories/`,
+nombre provisional; `summaryRepositoryProvider` sigue en el mock):
+
+- **Día**: `fechaJornadaDe` de la medianoche local de la fecha elegida (el
+  mismo helper que los mocks). Con ese texto se piden los registros
+  (`fechaJornada`) y los contadores del bot (`shiftDate`, que el bot calcula
+  con UTC-5 fijo: en un dispositivo fuera de UTC-5 podrían no coincidir;
+  pendiente, igual que el id de arriba).
+- **Universo**: un `JornadaSummary` por cada (grupo, jornada) que tenga
+  contador o registros ese día. Cada jornada por separado, nunca combinadas
+  por día (reglas 4 y 5).
+- **`RoleSummary` de cada rol** (los registros de ese rol en esa jornada):
+  - `registrado`: hay al menos un registro del rol;
+  - `cantidadImagenes`: cantidad de registros del rol (uno por imagen: el id
+    es `${messageId}_${rol}`);
+  - `cantidadTickets`: cantidad total de comprobantes. **SUPOSICIÓN**: las
+    skills no definen "ticket"; se toma como comprobante;
+  - `totalSuma`: suma de los `total` de todos sus comprobantes;
+  - sin registros: `RoleSummary.sinRegistrar`.
+  - Los números no cuentan (el Sumador los sube vacíos); el estado
+    (cuadra / descuadre / pendiente) sigue saliendo de `JornadaSummary.estado`.
+- **`imagenesEnJornada`**: `lastIndex` del contador, o 0 si no hay
+  documento. Puede ser mayor que las imágenes reales (ver arriba).
+- **`groupName`**: `group_stats/{chatJid}.groupName`; si el documento falta
+  o la lectura falla, el `chatJid` (el Resumen sigue).
+- **`shift`**: la etiqueta larga de `shiftNamesAt` del día (la tabla que
+  rige ese día); un `night2` en un día de tabla nueva usa su etiqueta vieja.
+- **Orden**: por grupo (nombre, luego `chatJid`) y, dentro del grupo, por
+  jornada (orden del enum), como el mock.
+- **Errores**: si fallan los registros o los contadores, `Left`; un
+  documento con formato inesperado es `Left` con su id (nunca se omite).
+  Nunca lanza; sin caché ni reintentos.
 
 ## Jornadas: tabla vieja, tabla nueva y corte
 

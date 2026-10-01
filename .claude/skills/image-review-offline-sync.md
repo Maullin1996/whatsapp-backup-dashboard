@@ -471,9 +471,12 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
   - La primera escritura real (y comprobarla en la consola), que además
     confirma que `registradoEn` llega como texto y que el claim real del
     token se evalúa como en el simulador.
-  - Regla de lectura de `image_reviews` y de `shift_image_counts`; si las
-    reglas deben validar `reviewShifts` o `allowedGroups`; reglas de
-    Storage (no están en el repo).
+  - Regla de lectura de `image_reviews` y de `shift_image_counts`:
+    **decidido** que solo las leen cuentas con claim `admin` o `superAdmin`
+    (Revisor y Sumador no leen nada de `image_reviews`); falta escribirla
+    en `firestore.rules.draft` y publicarla. Si las reglas de escritura
+    deben validar `reviewShifts` o `allowedGroups`; reglas de Storage (no
+    están en el repo).
   - Verificación de conexión antes de subir (el timeout ya existe, ver
     arriba).
   - Si una escritura que el SDK web dejó en cola llega tarde, después de que
@@ -487,9 +490,9 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
   - Nombres definitivos de las colecciones (`image_reviews`, `jornadas`,
     `registros` son provisionales).
   - Cómo lee Coincidencias los registros de todos los grupos: consulta de
-    grupo de colecciones sobre `registros` o una Cloud Function.
-  - Separación por rol en la regla de lectura (hoy los dos roles comparten
-    el documento de jornada).
+    grupo de colecciones sobre `registros` o una Cloud Function. (El
+    Resumen real, sin conectar, ya usa la consulta de grupo por
+    `fechaJornada`.)
   - Si `fechaJornada` sigue con `toLocal()` o pasa a UTC-5
     (`bogotaWallClock`): ahora es parte de la ruta, así que cambiarla
     después mueve los documentos.
