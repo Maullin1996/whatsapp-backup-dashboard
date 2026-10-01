@@ -368,6 +368,38 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
     visor."))`, sin llamar a ningún uploader ni imprimir nada. Para
     `ReviewUploadNotifier` es un fallo más: sigue pendiente. Al re-guardarlo
     desde el visor, `save()` le pone el `messageTimestamp` del mensaje.
+- **Capa 5 — BORRADOR de reglas, NO desplegado**: `firestore.rules.draft`
+  en la raíz del repo. **No está referenciado en `firebase.json`** (que no
+  tiene bloque `firestore`) y no se despliega con la CLI: se publica a mano
+  pegándolo en la consola de Firebase, y esa publicación **reemplaza todo el
+  conjunto de reglas**. Por eso el archivo empieza con una copia exacta de
+  las reglas actuales de la consola (`whatsapp_messages`, `group_stats`,
+  `edit_attempts`: lectura con sesión, escritura negada; `users/{uid}`:
+  lectura solo del propio uid, escritura negada). Antes de publicar hay que
+  confirmar que las de la consola siguen siendo esas.
+  - **Bloque nuevo**, solo para
+    `image_reviews/{chatJid}/jornadas/{jornadaId}/registros/{registroId}`:
+    `create` y `update` con las mismas condiciones, `delete` negado, `get` y
+    `list` sin regla (negados por defecto). Ninguna regla de lectura nueva
+    (tampoco `shift_image_counts`).
+  - **Qué valida** (todo junto): hay sesión; el claim `reviewRole` es
+    `'revisor'` o `'sumador'` (leído con `token.get('reviewRole', null)`:
+    sin claim, niega sin error); `rol` del documento == el claim;
+    `registroId` == `messageId + '_' + rol`; `chatJid` de la ruta ==
+    `chatJid` del documento; `jornadaId` == `fechaJornada + '_' + shiftKey`,
+    con `fechaJornada` en formato `yyyy-MM-dd` y `shiftKey` en `morning`,
+    `afternoon1`, `afternoon2`, `night1`, `night2`, `holiday` (nunca
+    `outOfShift`); las 13 claves del payload actual presentes con su tipo
+    (`messageTimestamp` int, `comprobantes` lista con al menos 1 elemento,
+    `editado` bool, `anotaciones` string o null, el resto string), sin
+    `hasOnly` para no romper al agregar campos; y contra el mensaje real,
+    con **una sola lectura** (`get` de `whatsapp_messages/{messageId}`, al
+    final de la condición): su `messageTimestamp` y su `chatJid` deben ser
+    iguales a los del documento. Si el mensaje no existe, niega.
+  - **Qué NO valida**: `uid`, `reviewShifts`, `allowedGroups`,
+    `registradoPor`, `registradoEn`, el contenido de `comprobantes`, ni
+    tamaños máximos de campos o listas.
+  - No se probó todavía (ni emulador ni zona de pruebas de la consola).
 - **PENDIENTE (no decidido)**:
   - Aviso visible para los registros viejos que no se pueden subir: hoy solo
     cuentan como "no se pudieron subir" en el SnackBar, sin decir cuál ni
@@ -376,8 +408,14 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
   - Si conviene subir el esquema a v2 igual (por ejemplo, para que una
     versión antigua de la app que siga en caché no lea ni reescriba
     registros con un campo que no conoce).
-  - Que las reglas de Firestore comparen `messageTimestamp` con
-    `whatsapp_messages/{messageId}` (hoy nada verifica que coincida).
+  - Probar el borrador de reglas en la zona de pruebas de la consola
+    (incluida la comparación de `messageTimestamp` y `chatJid` con
+    `whatsapp_messages/{messageId}`) y publicarlo: a mano, con autorización
+    explícita del usuario, comprobando antes que las reglas de la consola no
+    cambiaron.
+  - Regla de lectura de `image_reviews` y de `shift_image_counts`; si las
+    reglas deben validar `reviewShifts` o `allowedGroups`; reglas de
+    Storage (no están en el repo).
   - Cableado al provider: construir `FirestoreReviewUploadDatasource` y
     `FirestoreReviewUploader` en `reviewUploaderProvider` (requiere
     autorización explícita; es lo que activa la escritura real).
@@ -400,9 +438,10 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
     (`bogotaWallClock`): ahora es parte de la ruta, así que cambiarla
     después mueve los documentos.
   - Límites de tamaño (comprobantes, números, largo de código y anotaciones,
-    tope de `total`): hoy el código no los impone salvo 12 dígitos en la UI.
-  - Reglas de seguridad de Firestore y cómo se despliegan (`firebase.json`
-    no tiene bloque `firestore` todavía).
+    tope de `total`): hoy el código no los impone salvo 12 dígitos en la UI,
+    y el borrador de reglas tampoco.
+  - Si las reglas pasan a versionarse con despliegue por CLI (`firebase.json`
+    no tiene bloque `firestore`; hoy el borrador se publica a mano).
 
 ### Pendiente de diseño para la integración real (paso 7)
 

@@ -154,19 +154,32 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    cual) viaja del visor al registro (`int?`, esquema sigue en v1) y al
    payload; `registradoEn` se mantiene. Un registro viejo sin el campo no se
    sube hasta re-guardarlo desde el visor.
+   **Capa 5, BORRADOR de reglas, NO desplegado**: `firestore.rules.draft`
+   (raíz del repo, no referenciado en `firebase.json`; se publicaría a mano
+   en la consola, reemplazando todo el conjunto, por eso copia tal cual las
+   reglas actuales). Agrega solo create/update de
+   `image_reviews/.../registros/{registroId}` (delete negado, sin lectura):
+   sesión, claim `reviewRole`, `rol` == claim, ids de registro y de jornada
+   coherentes con el payload, `shiftKey` asignable, tipos de las claves, y
+   `messageTimestamp`/`chatJid` iguales a los de `whatsapp_messages`.
+   Detalle de qué valida y qué no en `image-review-offline-sync` § "Ruta de
+   la subida".
    Siguen **PENDIENTES** (detalle en `image-review-offline-sync` § "Ruta de
    la subida"): aviso visible para los registros viejos que no se pueden
    subir (y que la píldora los sigue contando), si conviene subir el
-   esquema a v2 (versiones antiguas de la app en caché), que las reglas de
-   Firestore comparen `messageTimestamp` con `whatsapp_messages/{messageId}`,
+   esquema a v2 (versiones antiguas de la app en caché), probar el borrador
+   de reglas en la zona de pruebas de la consola y publicarlo (a mano, con
+   autorización del usuario, comprobando antes que las reglas de la consola
+   no cambiaron), regla de lectura de `image_reviews` y `shift_image_counts`,
+   si validar `reviewShifts` o `allowedGroups`, reglas de Storage,
    verificación de conexión antes de subir, si una escritura en
    cola del SDK web llega tarde después de un timeout, cableado al provider,
    mensajes de error visibles en español, nombres definitivos de las
    colecciones, cómo lee
    Coincidencias entre grupos (consulta de grupo de colecciones o Cloud
    Function), separación por rol en la regla de lectura, si `fechaJornada`
-   usa `toLocal()` o UTC-5 (ahora es parte de la ruta), límites de tamaño,
-   y reglas de seguridad y su despliegue.
+   usa `toLocal()` o UTC-5 (ahora es parte de la ruta), límites de tamaño
+   (tampoco los impone el borrador de reglas), primera escritura real.
    **Jornadas — tabla definitiva, código HECHO, corte SIN fijar**: se leyó
    una vez `jornadas` de `whats-apuestas` (2026-09-30) y el usuario decidió
    usar ese horario como tabla fija en código, sin lectura dinámica. Tabla
