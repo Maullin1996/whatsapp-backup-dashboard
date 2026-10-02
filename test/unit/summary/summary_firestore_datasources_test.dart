@@ -86,6 +86,25 @@ void main() {
       expect(_right(await datasource.fetchByFechaJornada('2026-10-05')), []);
     });
 
+    test('payload con código por imagen: comprobantes con loteria (texto y '
+        'null) y SIN codigo se leen sin error', () async {
+      final nuevo = _registro()
+        ..['codigo'] = 'A1'
+        ..['comprobantes'] = [
+          {
+            'numeros': ['0123'],
+            'total': 1000,
+            'loteria': 'Lotería de Medellín',
+          },
+          {'numeros': <String>[], 'total': 2500, 'loteria': null},
+        ];
+      behavior = () async => [(id: 'm1_revisor', data: nuevo)];
+
+      final list = _right(await datasource.fetchByFechaJornada('2026-10-05'));
+
+      expect(list.single.totales, [1000, 2500]);
+    });
+
     group('formato inesperado: Left con el id, sin omitir el documento', () {
       for (final (caso, mutate)
           in <(String, void Function(Map<String, dynamic>))>[

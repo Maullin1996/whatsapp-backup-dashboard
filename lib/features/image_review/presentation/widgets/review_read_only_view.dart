@@ -6,8 +6,10 @@ import 'package:whatsapp_monitor_viewer/helpers/format_pesos.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/widgets/review_section_card.dart';
 
 /// Cuerpo de solo lectura de un registro guardado: las mismas tarjetas y el
-/// mismo orden que el formulario (código, números, total), con texto estático.
-/// El registro del Sumador no tiene números, así que no muestra ese bloque.
+/// mismo orden que el formulario (código de la imagen arriba; por comprobante,
+/// números, total y lotería), con texto estático. El registro del Sumador no
+/// tiene números, así que no muestra ese bloque. La lotería solo aparece si se
+/// anotó.
 class ReviewReadOnlyView extends StatelessWidget {
   final ImageReviewRecord record;
 
@@ -17,26 +19,30 @@ class ReviewReadOnlyView extends StatelessWidget {
   Widget build(BuildContext context) {
     final comprobantes = record.form.comprobantes;
     final anotaciones = record.form.anotaciones;
+    final codigo = record.form.codigo;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          ReviewSectionCard(
+            child: _ReadField(
+              label: 'Código',
+              // null solo en registros anteriores al código por imagen.
+              child: Text(
+                codigo ?? 'Sin código: guárdalo de nuevo',
+                style: AppTypography.tabular,
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
           for (var i = 0; i < comprobantes.length; i++) ...[
             ReviewSectionCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   ComprobanteHeader(number: i + 1),
-                  const SizedBox(height: AppSpacing.md),
-                  _ReadField(
-                    label: 'Código',
-                    child: Text(
-                      comprobantes[i].codigo,
-                      style: AppTypography.tabular,
-                    ),
-                  ),
                   if (record.rol == ReviewRole.revisor) ...[
                     const SizedBox(height: AppSpacing.md),
                     _ReadField(
@@ -64,6 +70,10 @@ class ReviewReadOnlyView extends StatelessWidget {
                       ),
                     ),
                   ),
+                  if (comprobantes[i].loteria case final loteria?) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    _ReadField(label: 'Lotería', child: Text(loteria)),
+                  ],
                 ],
               ),
             ),

@@ -161,9 +161,9 @@ Future<void> _saveRecordFor(
           storagePath: 'img_$messageId.png',
           fechaJornada: '2026-01-15',
           form: ImageReviewForm(
+            codigo: 'A1',
             comprobantes: [
               Comprobante(
-                codigo: 'A1',
                 numeros: rol == ReviewRole.revisor ? const ['0123'] : const [],
                 total: 9000,
               ),
@@ -241,7 +241,7 @@ Future<void> _fillAndSave(
   String numero = '7',
   String total = '500',
 }) async {
-  await tester.enterText(find.byKey(const ValueKey('codigo-0')), codigo);
+  await tester.enterText(find.byKey(const ValueKey('codigo')), codigo);
   await tester.enterText(find.byKey(const ValueKey('numero-0')), numero);
   await tester.tap(find.byKey(const ValueKey('agregar-numero-0')));
   await tester.pump();
@@ -501,7 +501,7 @@ void main() {
     // Editar A y dejar un cambio sin guardar; navegar sigue permitido.
     await tester.tap(find.widgetWithText(ElevatedButton, 'Editar'));
     await _settle(tester);
-    await tester.enterText(find.byKey(const ValueKey('codigo-0')), 'AAA2');
+    await tester.enterText(find.byKey(const ValueKey('codigo')), 'AAA2');
     await tester.pump();
 
     await tester.tap(_chevron(Icons.chevron_left));
@@ -509,7 +509,7 @@ void main() {
     expect(_pos(3), findsOneWidget);
 
     // B muestra su propio borrador (vacío), no el de A.
-    expect(_text(tester, 'codigo-0'), isEmpty);
+    expect(_text(tester, 'codigo'), isEmpty);
     expect(_text(tester, 'total-0'), isEmpty);
 
     // Para salir de B también hay que guardarla.
@@ -522,7 +522,7 @@ void main() {
     // Al volver a A sigue su borrador sin guardar (y el foco volvió al visor).
     await _key(tester, LogicalKeyboardKey.arrowRight);
     expect(_pos(2), findsOneWidget);
-    expect(_text(tester, 'codigo-0'), 'AAA2');
+    expect(_text(tester, 'codigo'), 'AAA2');
   });
 
   group('llega una imagen nueva por tiempo real: el visor se ancla por '
@@ -576,7 +576,7 @@ void main() {
       tester,
     ) async {
       await _openViewer(tester, width: 1200);
-      await tester.enterText(find.byKey(const ValueKey('codigo-0')), 'AAA');
+      await tester.enterText(find.byKey(const ValueKey('codigo')), 'AAA');
       await tester.pump();
       final focusBefore = FocusManager.instance.primaryFocus;
       expect(isTextFieldFocused(), isTrue);
@@ -591,7 +591,7 @@ void main() {
             .messageId,
         'm1',
       );
-      expect(_text(tester, 'codigo-0'), 'AAA');
+      expect(_text(tester, 'codigo'), 'AAA');
       expect(isTextFieldFocused(), isTrue);
       expect(FocusManager.instance.primaryFocus, same(focusBefore));
       expect(
@@ -599,23 +599,19 @@ void main() {
             .read(
               reviewDraftProvider((messageId: 'n1', rol: ReviewRole.revisor)),
             )
-            .comprobantes
-            .single
             .codigo,
         isEmpty,
       );
       expect(_CountingMessagesNotifier.loadMoreCalls, 0);
 
       // Lo que se sigue tecleando queda en el borrador de la imagen actual.
-      await tester.enterText(find.byKey(const ValueKey('codigo-0')), 'AAAB');
+      await tester.enterText(find.byKey(const ValueKey('codigo')), 'AAAB');
       await tester.pump();
       expect(
         _container(tester)
             .read(
               reviewDraftProvider((messageId: 'm1', rol: ReviewRole.revisor)),
             )
-            .comprobantes
-            .single
             .codigo,
         'AAAB',
       );
@@ -624,8 +620,6 @@ void main() {
             .read(
               reviewDraftProvider((messageId: 'n1', rol: ReviewRole.revisor)),
             )
-            .comprobantes
-            .single
             .codigo,
         isEmpty,
       );
@@ -940,7 +934,7 @@ void main() {
       await _openViewer(tester, width: 1200, role: ReviewRole.sumador);
 
       expect(find.byType(ImageReviewPanel), findsOneWidget);
-      expect(find.byKey(const ValueKey('codigo-0')), findsOneWidget);
+      expect(find.byKey(const ValueKey('codigo')), findsOneWidget);
       expect(find.byKey(const ValueKey('total-0')), findsOneWidget);
       expect(find.byKey(const ValueKey('numero-0')), findsNothing);
       expect(find.textContaining('Sumador · '), findsOneWidget);

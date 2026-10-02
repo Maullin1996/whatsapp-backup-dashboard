@@ -5,22 +5,27 @@ import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/im
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
 
 /// Valida y normaliza el formulario según el [rol]. Fail-fast: devuelve solo
-/// el primer error. Orden: al menos un comprobante; luego, por comprobante,
-/// código, números (solo Revisor) y total.
+/// el primer error. Orden: código de la imagen; al menos un comprobante; luego,
+/// por comprobante, números (solo Revisor) y total.
 ///
-/// - **Revisor**: código, al menos un número y total > 0 por comprobante.
-/// - **Sumador**: código y total > 0 por comprobante. No anota números: la
-///   regla de números no aplica y la lista se normaliza a vacía (se descarta
-///   lo que llegue).
+/// - **Los dos roles**: código de la imagen (uno por foto, vale para todos
+///   sus comprobantes) y total > 0 por comprobante.
+/// - **Revisor**: además, al menos un número por comprobante.
+/// - **Sumador**: no anota números: la regla de números no aplica y la lista
+///   se normaliza a vacía (se descarta lo que llegue).
 ///
 /// Normalización: código y números con `trim` (los números vacíos se
-/// descartan, los ceros a la izquierda se conservan); anotaciones vacías o
-/// solo con espacios pasan a null. El código es texto libre: solo es error
-/// si queda vacío, sin validar formato ni cambiar mayúsculas o tildes.
+/// descartan, los ceros a la izquierda se conservan); lotería de cada
+/// comprobante y anotaciones con `trim`, y vacías pasan a null (son
+/// opcionales: nunca dan error). El código es texto libre: solo es error si
+/// falta o queda vacío, sin validar formato ni cambiar mayúsculas o tildes.
 Either<ImageReviewFailure, ImageReviewForm> validateImageReviewForm(
   ImageReviewForm form,
   ReviewRole rol,
 ) {
+  final codigo = form.codigo?.trim() ?? '';
+  if (codigo.isEmpty) return const Left(ImageReviewFailure.codigoVacio());
+
   if (form.comprobantes.isEmpty) {
     return const Left(ImageReviewFailure.sinComprobantes());
   }
@@ -29,9 +34,6 @@ Either<ImageReviewFailure, ImageReviewForm> validateImageReviewForm(
   for (var i = 0; i < form.comprobantes.length; i++) {
     final indice = i + 1;
     final c = form.comprobantes[i];
-
-    final codigo = c.codigo.trim();
-    if (codigo.isEmpty) return Left(ImageReviewFailure.codigoVacio(indice));
 
     final List<String> numeros;
     switch (rol) {
@@ -49,16 +51,22 @@ Either<ImageReviewFailure, ImageReviewForm> validateImageReviewForm(
 
     if (c.total <= 0) return Left(ImageReviewFailure.totalInvalido(indice));
 
-    normalizados.add(c.copyWith(codigo: codigo, numeros: numeros));
+    normalizados.add(
+      c.copyWith(numeros: numeros, loteria: _textoOpcional(c.loteria)),
+    );
   }
 
-  final anotaciones = form.anotaciones?.trim();
   return Right(
     ImageReviewForm(
+      codigo: codigo,
       comprobantes: normalizados,
-      anotaciones: (anotaciones == null || anotaciones.isEmpty)
-          ? null
-          : anotaciones,
+      anotaciones: _textoOpcional(form.anotaciones),
     ),
   );
+}
+
+/// `trim`; vacío o solo espacios -> null.
+String? _textoOpcional(String? value) {
+  final trimmed = value?.trim();
+  return (trimmed == null || trimmed.isEmpty) ? null : trimmed;
 }

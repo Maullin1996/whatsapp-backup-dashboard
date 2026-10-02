@@ -14,9 +14,10 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$ComprobanteDraft {
 
- int get id; String get codigo; List<String> get numeros;/// Texto tipeado en el campo de número que aún no se agregó como chip.
+ int get id; List<String> get numeros;/// Texto tipeado en el campo de número que aún no se agregó como chip.
  String get numeroPendiente;/// Solo dígitos (el input aplica `digitsOnly`).
- String get total;
+ String get total;/// Lotería (dónde se compró el boleto), opcional. Arranca vacía.
+ String get loteria;
 /// Create a copy of ComprobanteDraft
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -27,16 +28,16 @@ $ComprobanteDraftCopyWith<ComprobanteDraft> get copyWith => _$ComprobanteDraftCo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ComprobanteDraft&&(identical(other.id, id) || other.id == id)&&(identical(other.codigo, codigo) || other.codigo == codigo)&&const DeepCollectionEquality().equals(other.numeros, numeros)&&(identical(other.numeroPendiente, numeroPendiente) || other.numeroPendiente == numeroPendiente)&&(identical(other.total, total) || other.total == total));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ComprobanteDraft&&(identical(other.id, id) || other.id == id)&&const DeepCollectionEquality().equals(other.numeros, numeros)&&(identical(other.numeroPendiente, numeroPendiente) || other.numeroPendiente == numeroPendiente)&&(identical(other.total, total) || other.total == total)&&(identical(other.loteria, loteria) || other.loteria == loteria));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,id,codigo,const DeepCollectionEquality().hash(numeros),numeroPendiente,total);
+int get hashCode => Object.hash(runtimeType,id,const DeepCollectionEquality().hash(numeros),numeroPendiente,total,loteria);
 
 @override
 String toString() {
-  return 'ComprobanteDraft(id: $id, codigo: $codigo, numeros: $numeros, numeroPendiente: $numeroPendiente, total: $total)';
+  return 'ComprobanteDraft(id: $id, numeros: $numeros, numeroPendiente: $numeroPendiente, total: $total, loteria: $loteria)';
 }
 
 
@@ -47,7 +48,7 @@ abstract mixin class $ComprobanteDraftCopyWith<$Res>  {
   factory $ComprobanteDraftCopyWith(ComprobanteDraft value, $Res Function(ComprobanteDraft) _then) = _$ComprobanteDraftCopyWithImpl;
 @useResult
 $Res call({
- int id, String codigo, List<String> numeros, String numeroPendiente, String total
+ int id, List<String> numeros, String numeroPendiente, String total, String loteria
 });
 
 
@@ -64,13 +65,13 @@ class _$ComprobanteDraftCopyWithImpl<$Res>
 
 /// Create a copy of ComprobanteDraft
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? codigo = null,Object? numeros = null,Object? numeroPendiente = null,Object? total = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? numeros = null,Object? numeroPendiente = null,Object? total = null,Object? loteria = null,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
-as int,codigo: null == codigo ? _self.codigo : codigo // ignore: cast_nullable_to_non_nullable
-as String,numeros: null == numeros ? _self.numeros : numeros // ignore: cast_nullable_to_non_nullable
+as int,numeros: null == numeros ? _self.numeros : numeros // ignore: cast_nullable_to_non_nullable
 as List<String>,numeroPendiente: null == numeroPendiente ? _self.numeroPendiente : numeroPendiente // ignore: cast_nullable_to_non_nullable
 as String,total: null == total ? _self.total : total // ignore: cast_nullable_to_non_nullable
+as String,loteria: null == loteria ? _self.loteria : loteria // ignore: cast_nullable_to_non_nullable
 as String,
   ));
 }
@@ -156,10 +157,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  String codigo,  List<String> numeros,  String numeroPendiente,  String total)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( int id,  List<String> numeros,  String numeroPendiente,  String total,  String loteria)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ComprobanteDraft() when $default != null:
-return $default(_that.id,_that.codigo,_that.numeros,_that.numeroPendiente,_that.total);case _:
+return $default(_that.id,_that.numeros,_that.numeroPendiente,_that.total,_that.loteria);case _:
   return orElse();
 
 }
@@ -177,10 +178,10 @@ return $default(_that.id,_that.codigo,_that.numeros,_that.numeroPendiente,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  String codigo,  List<String> numeros,  String numeroPendiente,  String total)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( int id,  List<String> numeros,  String numeroPendiente,  String total,  String loteria)  $default,) {final _that = this;
 switch (_that) {
 case _ComprobanteDraft():
-return $default(_that.id,_that.codigo,_that.numeros,_that.numeroPendiente,_that.total);case _:
+return $default(_that.id,_that.numeros,_that.numeroPendiente,_that.total,_that.loteria);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -197,10 +198,10 @@ return $default(_that.id,_that.codigo,_that.numeros,_that.numeroPendiente,_that.
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  String codigo,  List<String> numeros,  String numeroPendiente,  String total)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( int id,  List<String> numeros,  String numeroPendiente,  String total,  String loteria)?  $default,) {final _that = this;
 switch (_that) {
 case _ComprobanteDraft() when $default != null:
-return $default(_that.id,_that.codigo,_that.numeros,_that.numeroPendiente,_that.total);case _:
+return $default(_that.id,_that.numeros,_that.numeroPendiente,_that.total,_that.loteria);case _:
   return null;
 
 }
@@ -212,11 +213,10 @@ return $default(_that.id,_that.codigo,_that.numeros,_that.numeroPendiente,_that.
 
 
 class _ComprobanteDraft extends ComprobanteDraft {
-  const _ComprobanteDraft({required this.id, this.codigo = '', final  List<String> numeros = const [], this.numeroPendiente = '', this.total = ''}): _numeros = numeros,super._();
+  const _ComprobanteDraft({required this.id, final  List<String> numeros = const [], this.numeroPendiente = '', this.total = '', this.loteria = ''}): _numeros = numeros,super._();
   
 
 @override final  int id;
-@override@JsonKey() final  String codigo;
  final  List<String> _numeros;
 @override@JsonKey() List<String> get numeros {
   if (_numeros is EqualUnmodifiableListView) return _numeros;
@@ -228,6 +228,8 @@ class _ComprobanteDraft extends ComprobanteDraft {
 @override@JsonKey() final  String numeroPendiente;
 /// Solo dígitos (el input aplica `digitsOnly`).
 @override@JsonKey() final  String total;
+/// Lotería (dónde se compró el boleto), opcional. Arranca vacía.
+@override@JsonKey() final  String loteria;
 
 /// Create a copy of ComprobanteDraft
 /// with the given fields replaced by the non-null parameter values.
@@ -239,16 +241,16 @@ _$ComprobanteDraftCopyWith<_ComprobanteDraft> get copyWith => __$ComprobanteDraf
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ComprobanteDraft&&(identical(other.id, id) || other.id == id)&&(identical(other.codigo, codigo) || other.codigo == codigo)&&const DeepCollectionEquality().equals(other._numeros, _numeros)&&(identical(other.numeroPendiente, numeroPendiente) || other.numeroPendiente == numeroPendiente)&&(identical(other.total, total) || other.total == total));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ComprobanteDraft&&(identical(other.id, id) || other.id == id)&&const DeepCollectionEquality().equals(other._numeros, _numeros)&&(identical(other.numeroPendiente, numeroPendiente) || other.numeroPendiente == numeroPendiente)&&(identical(other.total, total) || other.total == total)&&(identical(other.loteria, loteria) || other.loteria == loteria));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,id,codigo,const DeepCollectionEquality().hash(_numeros),numeroPendiente,total);
+int get hashCode => Object.hash(runtimeType,id,const DeepCollectionEquality().hash(_numeros),numeroPendiente,total,loteria);
 
 @override
 String toString() {
-  return 'ComprobanteDraft(id: $id, codigo: $codigo, numeros: $numeros, numeroPendiente: $numeroPendiente, total: $total)';
+  return 'ComprobanteDraft(id: $id, numeros: $numeros, numeroPendiente: $numeroPendiente, total: $total, loteria: $loteria)';
 }
 
 
@@ -259,7 +261,7 @@ abstract mixin class _$ComprobanteDraftCopyWith<$Res> implements $ComprobanteDra
   factory _$ComprobanteDraftCopyWith(_ComprobanteDraft value, $Res Function(_ComprobanteDraft) _then) = __$ComprobanteDraftCopyWithImpl;
 @override @useResult
 $Res call({
- int id, String codigo, List<String> numeros, String numeroPendiente, String total
+ int id, List<String> numeros, String numeroPendiente, String total, String loteria
 });
 
 
@@ -276,13 +278,13 @@ class __$ComprobanteDraftCopyWithImpl<$Res>
 
 /// Create a copy of ComprobanteDraft
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? codigo = null,Object? numeros = null,Object? numeroPendiente = null,Object? total = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? numeros = null,Object? numeroPendiente = null,Object? total = null,Object? loteria = null,}) {
   return _then(_ComprobanteDraft(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
-as int,codigo: null == codigo ? _self.codigo : codigo // ignore: cast_nullable_to_non_nullable
-as String,numeros: null == numeros ? _self._numeros : numeros // ignore: cast_nullable_to_non_nullable
+as int,numeros: null == numeros ? _self._numeros : numeros // ignore: cast_nullable_to_non_nullable
 as List<String>,numeroPendiente: null == numeroPendiente ? _self.numeroPendiente : numeroPendiente // ignore: cast_nullable_to_non_nullable
 as String,total: null == total ? _self.total : total // ignore: cast_nullable_to_non_nullable
+as String,loteria: null == loteria ? _self.loteria : loteria // ignore: cast_nullable_to_non_nullable
 as String,
   ));
 }
@@ -293,7 +295,8 @@ as String,
 /// @nodoc
 mixin _$ReviewDraftState {
 
- List<ComprobanteDraft> get comprobantes; String get anotaciones; int get nextId;/// true mientras se edita un registro ya guardado.
+/// Código de la imagen: uno por foto, para todos sus comprobantes.
+ String get codigo; List<ComprobanteDraft> get comprobantes; String get anotaciones; int get nextId;/// true mientras se edita un registro ya guardado.
  bool get isEditing;/// true tras el primer intento fallido de guardar: activa los errores
 /// inline por campo.
  bool get showErrors; bool get isSaving;/// `ImageReviewFailure` (validación) o `Failure` (guardado).
@@ -308,16 +311,16 @@ $ReviewDraftStateCopyWith<ReviewDraftState> get copyWith => _$ReviewDraftStateCo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ReviewDraftState&&const DeepCollectionEquality().equals(other.comprobantes, comprobantes)&&(identical(other.anotaciones, anotaciones) || other.anotaciones == anotaciones)&&(identical(other.nextId, nextId) || other.nextId == nextId)&&(identical(other.isEditing, isEditing) || other.isEditing == isEditing)&&(identical(other.showErrors, showErrors) || other.showErrors == showErrors)&&(identical(other.isSaving, isSaving) || other.isSaving == isSaving)&&const DeepCollectionEquality().equals(other.saveError, saveError));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ReviewDraftState&&(identical(other.codigo, codigo) || other.codigo == codigo)&&const DeepCollectionEquality().equals(other.comprobantes, comprobantes)&&(identical(other.anotaciones, anotaciones) || other.anotaciones == anotaciones)&&(identical(other.nextId, nextId) || other.nextId == nextId)&&(identical(other.isEditing, isEditing) || other.isEditing == isEditing)&&(identical(other.showErrors, showErrors) || other.showErrors == showErrors)&&(identical(other.isSaving, isSaving) || other.isSaving == isSaving)&&const DeepCollectionEquality().equals(other.saveError, saveError));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(comprobantes),anotaciones,nextId,isEditing,showErrors,isSaving,const DeepCollectionEquality().hash(saveError));
+int get hashCode => Object.hash(runtimeType,codigo,const DeepCollectionEquality().hash(comprobantes),anotaciones,nextId,isEditing,showErrors,isSaving,const DeepCollectionEquality().hash(saveError));
 
 @override
 String toString() {
-  return 'ReviewDraftState(comprobantes: $comprobantes, anotaciones: $anotaciones, nextId: $nextId, isEditing: $isEditing, showErrors: $showErrors, isSaving: $isSaving, saveError: $saveError)';
+  return 'ReviewDraftState(codigo: $codigo, comprobantes: $comprobantes, anotaciones: $anotaciones, nextId: $nextId, isEditing: $isEditing, showErrors: $showErrors, isSaving: $isSaving, saveError: $saveError)';
 }
 
 
@@ -328,7 +331,7 @@ abstract mixin class $ReviewDraftStateCopyWith<$Res>  {
   factory $ReviewDraftStateCopyWith(ReviewDraftState value, $Res Function(ReviewDraftState) _then) = _$ReviewDraftStateCopyWithImpl;
 @useResult
 $Res call({
- List<ComprobanteDraft> comprobantes, String anotaciones, int nextId, bool isEditing, bool showErrors, bool isSaving, Object? saveError
+ String codigo, List<ComprobanteDraft> comprobantes, String anotaciones, int nextId, bool isEditing, bool showErrors, bool isSaving, Object? saveError
 });
 
 
@@ -345,9 +348,10 @@ class _$ReviewDraftStateCopyWithImpl<$Res>
 
 /// Create a copy of ReviewDraftState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? comprobantes = null,Object? anotaciones = null,Object? nextId = null,Object? isEditing = null,Object? showErrors = null,Object? isSaving = null,Object? saveError = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? codigo = null,Object? comprobantes = null,Object? anotaciones = null,Object? nextId = null,Object? isEditing = null,Object? showErrors = null,Object? isSaving = null,Object? saveError = freezed,}) {
   return _then(_self.copyWith(
-comprobantes: null == comprobantes ? _self.comprobantes : comprobantes // ignore: cast_nullable_to_non_nullable
+codigo: null == codigo ? _self.codigo : codigo // ignore: cast_nullable_to_non_nullable
+as String,comprobantes: null == comprobantes ? _self.comprobantes : comprobantes // ignore: cast_nullable_to_non_nullable
 as List<ComprobanteDraft>,anotaciones: null == anotaciones ? _self.anotaciones : anotaciones // ignore: cast_nullable_to_non_nullable
 as String,nextId: null == nextId ? _self.nextId : nextId // ignore: cast_nullable_to_non_nullable
 as int,isEditing: null == isEditing ? _self.isEditing : isEditing // ignore: cast_nullable_to_non_nullable
@@ -438,10 +442,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( List<ComprobanteDraft> comprobantes,  String anotaciones,  int nextId,  bool isEditing,  bool showErrors,  bool isSaving,  Object? saveError)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String codigo,  List<ComprobanteDraft> comprobantes,  String anotaciones,  int nextId,  bool isEditing,  bool showErrors,  bool isSaving,  Object? saveError)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ReviewDraftState() when $default != null:
-return $default(_that.comprobantes,_that.anotaciones,_that.nextId,_that.isEditing,_that.showErrors,_that.isSaving,_that.saveError);case _:
+return $default(_that.codigo,_that.comprobantes,_that.anotaciones,_that.nextId,_that.isEditing,_that.showErrors,_that.isSaving,_that.saveError);case _:
   return orElse();
 
 }
@@ -459,10 +463,10 @@ return $default(_that.comprobantes,_that.anotaciones,_that.nextId,_that.isEditin
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( List<ComprobanteDraft> comprobantes,  String anotaciones,  int nextId,  bool isEditing,  bool showErrors,  bool isSaving,  Object? saveError)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String codigo,  List<ComprobanteDraft> comprobantes,  String anotaciones,  int nextId,  bool isEditing,  bool showErrors,  bool isSaving,  Object? saveError)  $default,) {final _that = this;
 switch (_that) {
 case _ReviewDraftState():
-return $default(_that.comprobantes,_that.anotaciones,_that.nextId,_that.isEditing,_that.showErrors,_that.isSaving,_that.saveError);case _:
+return $default(_that.codigo,_that.comprobantes,_that.anotaciones,_that.nextId,_that.isEditing,_that.showErrors,_that.isSaving,_that.saveError);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -479,10 +483,10 @@ return $default(_that.comprobantes,_that.anotaciones,_that.nextId,_that.isEditin
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( List<ComprobanteDraft> comprobantes,  String anotaciones,  int nextId,  bool isEditing,  bool showErrors,  bool isSaving,  Object? saveError)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String codigo,  List<ComprobanteDraft> comprobantes,  String anotaciones,  int nextId,  bool isEditing,  bool showErrors,  bool isSaving,  Object? saveError)?  $default,) {final _that = this;
 switch (_that) {
 case _ReviewDraftState() when $default != null:
-return $default(_that.comprobantes,_that.anotaciones,_that.nextId,_that.isEditing,_that.showErrors,_that.isSaving,_that.saveError);case _:
+return $default(_that.codigo,_that.comprobantes,_that.anotaciones,_that.nextId,_that.isEditing,_that.showErrors,_that.isSaving,_that.saveError);case _:
   return null;
 
 }
@@ -494,9 +498,11 @@ return $default(_that.comprobantes,_that.anotaciones,_that.nextId,_that.isEditin
 
 
 class _ReviewDraftState extends ReviewDraftState {
-  const _ReviewDraftState({required final  List<ComprobanteDraft> comprobantes, this.anotaciones = '', this.nextId = 1, this.isEditing = false, this.showErrors = false, this.isSaving = false, this.saveError}): _comprobantes = comprobantes,super._();
+  const _ReviewDraftState({this.codigo = '', required final  List<ComprobanteDraft> comprobantes, this.anotaciones = '', this.nextId = 1, this.isEditing = false, this.showErrors = false, this.isSaving = false, this.saveError}): _comprobantes = comprobantes,super._();
   
 
+/// Código de la imagen: uno por foto, para todos sus comprobantes.
+@override@JsonKey() final  String codigo;
  final  List<ComprobanteDraft> _comprobantes;
 @override List<ComprobanteDraft> get comprobantes {
   if (_comprobantes is EqualUnmodifiableListView) return _comprobantes;
@@ -525,16 +531,16 @@ _$ReviewDraftStateCopyWith<_ReviewDraftState> get copyWith => __$ReviewDraftStat
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ReviewDraftState&&const DeepCollectionEquality().equals(other._comprobantes, _comprobantes)&&(identical(other.anotaciones, anotaciones) || other.anotaciones == anotaciones)&&(identical(other.nextId, nextId) || other.nextId == nextId)&&(identical(other.isEditing, isEditing) || other.isEditing == isEditing)&&(identical(other.showErrors, showErrors) || other.showErrors == showErrors)&&(identical(other.isSaving, isSaving) || other.isSaving == isSaving)&&const DeepCollectionEquality().equals(other.saveError, saveError));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ReviewDraftState&&(identical(other.codigo, codigo) || other.codigo == codigo)&&const DeepCollectionEquality().equals(other._comprobantes, _comprobantes)&&(identical(other.anotaciones, anotaciones) || other.anotaciones == anotaciones)&&(identical(other.nextId, nextId) || other.nextId == nextId)&&(identical(other.isEditing, isEditing) || other.isEditing == isEditing)&&(identical(other.showErrors, showErrors) || other.showErrors == showErrors)&&(identical(other.isSaving, isSaving) || other.isSaving == isSaving)&&const DeepCollectionEquality().equals(other.saveError, saveError));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_comprobantes),anotaciones,nextId,isEditing,showErrors,isSaving,const DeepCollectionEquality().hash(saveError));
+int get hashCode => Object.hash(runtimeType,codigo,const DeepCollectionEquality().hash(_comprobantes),anotaciones,nextId,isEditing,showErrors,isSaving,const DeepCollectionEquality().hash(saveError));
 
 @override
 String toString() {
-  return 'ReviewDraftState(comprobantes: $comprobantes, anotaciones: $anotaciones, nextId: $nextId, isEditing: $isEditing, showErrors: $showErrors, isSaving: $isSaving, saveError: $saveError)';
+  return 'ReviewDraftState(codigo: $codigo, comprobantes: $comprobantes, anotaciones: $anotaciones, nextId: $nextId, isEditing: $isEditing, showErrors: $showErrors, isSaving: $isSaving, saveError: $saveError)';
 }
 
 
@@ -545,7 +551,7 @@ abstract mixin class _$ReviewDraftStateCopyWith<$Res> implements $ReviewDraftSta
   factory _$ReviewDraftStateCopyWith(_ReviewDraftState value, $Res Function(_ReviewDraftState) _then) = __$ReviewDraftStateCopyWithImpl;
 @override @useResult
 $Res call({
- List<ComprobanteDraft> comprobantes, String anotaciones, int nextId, bool isEditing, bool showErrors, bool isSaving, Object? saveError
+ String codigo, List<ComprobanteDraft> comprobantes, String anotaciones, int nextId, bool isEditing, bool showErrors, bool isSaving, Object? saveError
 });
 
 
@@ -562,9 +568,10 @@ class __$ReviewDraftStateCopyWithImpl<$Res>
 
 /// Create a copy of ReviewDraftState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? comprobantes = null,Object? anotaciones = null,Object? nextId = null,Object? isEditing = null,Object? showErrors = null,Object? isSaving = null,Object? saveError = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? codigo = null,Object? comprobantes = null,Object? anotaciones = null,Object? nextId = null,Object? isEditing = null,Object? showErrors = null,Object? isSaving = null,Object? saveError = freezed,}) {
   return _then(_ReviewDraftState(
-comprobantes: null == comprobantes ? _self._comprobantes : comprobantes // ignore: cast_nullable_to_non_nullable
+codigo: null == codigo ? _self.codigo : codigo // ignore: cast_nullable_to_non_nullable
+as String,comprobantes: null == comprobantes ? _self._comprobantes : comprobantes // ignore: cast_nullable_to_non_nullable
 as List<ComprobanteDraft>,anotaciones: null == anotaciones ? _self.anotaciones : anotaciones // ignore: cast_nullable_to_non_nullable
 as String,nextId: null == nextId ? _self.nextId : nextId // ignore: cast_nullable_to_non_nullable
 as int,isEditing: null == isEditing ? _self.isEditing : isEditing // ignore: cast_nullable_to_non_nullable

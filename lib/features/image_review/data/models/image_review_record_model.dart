@@ -42,9 +42,12 @@ class ImageReviewRecordModel {
     'fechaJornada': record.fechaJornada,
     // Tal cual (ms); null solo en registros guardados antes de este campo.
     'messageTimestamp': record.messageTimestamp,
+    // Uno por imagen; null solo en registros guardados antes de este campo.
+    'codigo': record.form.codigo,
     'comprobantes': [
       for (final c in record.form.comprobantes)
-        {'codigo': c.codigo, 'numeros': c.numeros, 'total': c.total},
+        // `loteria` siempre presente (null si quedó vacía).
+        {'numeros': c.numeros, 'total': c.total, 'loteria': c.loteria},
     ],
     'anotaciones': record.form.anotaciones,
     // UTC en ISO-8601; al leer se devuelve en hora local.
@@ -65,9 +68,9 @@ class ImageReviewRecordModel {
   /// `shiftKey` es el nombre del enum [Shift] de la etiqueta guardada en el
   /// registro. `Left` si la etiqueta no es de una jornada asignable
   /// (desconocida o [Shift.outOfShift]), si el registro no tiene
-  /// `messageTimestamp` (guardado antes de ese campo) o si algún segmento de
-  /// la ruta queda vacío o con "/". El id lleva el rol: Revisor y Sumador de
-  /// la misma imagen comparten jornada y no se pisan.
+  /// `messageTimestamp` o `codigo` (guardado antes de esos campos) o si algún
+  /// segmento de la ruta queda vacío o con "/". El id lleva el rol: Revisor y
+  /// Sumador de la misma imagen comparten jornada y no se pisan.
   Either<Failure, ReviewUploadDocument> toUploadDocument() {
     final shift = shiftFromLabel(record.shift);
     if (shift == null || shift == Shift.outOfShift) {
@@ -86,6 +89,16 @@ class ImageReviewRecordModel {
               'El registro de la imagen ${record.messageId} es anterior a '
               'este cambio y no se puede subir: guárdalo de nuevo desde el '
               'visor.',
+        ),
+      );
+    }
+    if (record.form.codigo == null) {
+      return Left(
+        Failure.unknown(
+          message:
+              'El registro de la imagen ${record.messageId} es anterior al '
+              'código por imagen y no se puede subir: guárdalo de nuevo desde '
+              'el visor.',
         ),
       );
     }
@@ -123,10 +136,13 @@ class ImageReviewRecordModel {
     final comprobantes = (map['comprobantes'] as List)
         .map((c) => c as Map)
         .map(
+          // Un `codigo` dentro del comprobante (registro anterior al código
+          // por imagen) se ignora.
           (c) => Comprobante(
-            codigo: c['codigo'] as String,
             numeros: (c['numeros'] as List).cast<String>().toList(),
             total: c['total'] as int,
+            // Ausente -> null; con otro tipo, falla.
+            loteria: c['loteria'] as String?,
           ),
         )
         .toList();
@@ -143,6 +159,8 @@ class ImageReviewRecordModel {
         // presente con otro tipo -> falla como los demás campos.
         messageTimestamp: map['messageTimestamp'] as int?,
         form: ImageReviewForm(
+          // Ausente (registro anterior) -> null; con otro tipo, falla.
+          codigo: map['codigo'] as String?,
           comprobantes: comprobantes,
           anotaciones: map['anotaciones'] as String?,
         ),

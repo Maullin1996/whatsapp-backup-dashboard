@@ -170,7 +170,7 @@ void main() {
       bool withNumbers = true,
     }) async {
       final draft = container.read(reviewDraftProvider(_key(rol, id)).notifier);
-      draft.setCodigo(0, codigo);
+      draft.setCodigo(codigo);
       if (rol == ReviewRole.revisor && withNumbers) {
         draft.setNumeroPendiente(0, '0123');
       }
@@ -191,6 +191,50 @@ void main() {
         expect(saved.messageTimestamp, 1788489942000);
       }
     });
+
+    test(
+      'save() guarda el código de la imagen (con trim) y la lotería de '
+      'cada comprobante (con trim; vacía -> null), en los dos roles',
+      () async {
+        for (final rol in ReviewRole.values) {
+          final draft = container.read(reviewDraftProvider(_key(rol)).notifier);
+          draft.setCodigo('  0457 ');
+          if (rol == ReviewRole.revisor) draft.setNumeroPendiente(0, '0123');
+          draft.setTotal(0, '9000');
+          draft.setLoteria(0, ' Lotería de Medellín ');
+          draft.addComprobante();
+          final second = container
+              .read(reviewDraftProvider(_key(rol)))
+              .comprobantes
+              .last
+              .id;
+          // Al agregar un comprobante, su lotería arranca vacía.
+          expect(
+            container
+                .read(reviewDraftProvider(_key(rol)))
+                .comprobantes
+                .last
+                .loteria,
+            isEmpty,
+          );
+          if (rol == ReviewRole.revisor) {
+            draft.setNumeroPendiente(second, '5311');
+          }
+          draft.setTotal(second, '3000');
+          draft.setLoteria(second, '   ');
+          await draft.save(_target);
+
+          final saved = await container.read(
+            savedRecordProvider(_key(rol)).future,
+          );
+          expect(saved!.form.codigo, '0457', reason: rol.name);
+          expect(saved.form.comprobantes.map((c) => c.loteria), [
+            'Lotería de Medellín',
+            null,
+          ], reason: rol.name);
+        }
+      },
+    );
 
     test('lo guardado como Revisor no aparece como Sumador', () async {
       await saveAs(ReviewRole.revisor);
@@ -292,7 +336,7 @@ void main() {
     test('cada rol tiene su propio borrador de la misma imagen', () {
       container
           .read(reviewDraftProvider(_key(ReviewRole.revisor)).notifier)
-          .setCodigo(0, 'REV');
+          .setCodigo('REV');
       container
           .read(reviewDraftProvider(_key(ReviewRole.sumador)).notifier)
           .setTotal(0, '777');
@@ -303,9 +347,9 @@ void main() {
       final sumador = container.read(
         reviewDraftProvider(_key(ReviewRole.sumador)),
       );
-      expect(revisor.comprobantes.single.codigo, 'REV');
+      expect(revisor.codigo, 'REV');
       expect(revisor.comprobantes.single.total, isEmpty);
-      expect(sumador.comprobantes.single.codigo, isEmpty);
+      expect(sumador.codigo, isEmpty);
       expect(sumador.comprobantes.single.total, '777');
     });
 
@@ -327,7 +371,7 @@ void main() {
       final draft = container.read(
         reviewDraftProvider(_key(ReviewRole.sumador)).notifier,
       );
-      draft.setCodigo(0, 'A1');
+      draft.setCodigo('A1');
       draft.setNumeroPendiente(0, '5311'); // no debería pasar por la UI
       draft.setTotal(0, '500');
       await draft.save(_target);

@@ -14,7 +14,11 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$ImageReviewForm {
 
- List<Comprobante> get comprobantes;/// Único campo opcional del formulario.
+/// Código de la imagen: UNO por foto, vale para todos sus comprobantes.
+/// Obligatorio al guardar (`validateImageReviewForm`); null solo en
+/// registros guardados antes de este campo, que no se pueden subir
+/// hasta volver a guardarlos.
+ String? get codigo; List<Comprobante> get comprobantes;/// Opcional, igual que `Comprobante.loteria`.
  String? get anotaciones;
 /// Create a copy of ImageReviewForm
 /// with the given fields replaced by the non-null parameter values.
@@ -26,16 +30,16 @@ $ImageReviewFormCopyWith<ImageReviewForm> get copyWith => _$ImageReviewFormCopyW
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ImageReviewForm&&const DeepCollectionEquality().equals(other.comprobantes, comprobantes)&&(identical(other.anotaciones, anotaciones) || other.anotaciones == anotaciones));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ImageReviewForm&&(identical(other.codigo, codigo) || other.codigo == codigo)&&const DeepCollectionEquality().equals(other.comprobantes, comprobantes)&&(identical(other.anotaciones, anotaciones) || other.anotaciones == anotaciones));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(comprobantes),anotaciones);
+int get hashCode => Object.hash(runtimeType,codigo,const DeepCollectionEquality().hash(comprobantes),anotaciones);
 
 @override
 String toString() {
-  return 'ImageReviewForm(comprobantes: $comprobantes, anotaciones: $anotaciones)';
+  return 'ImageReviewForm(codigo: $codigo, comprobantes: $comprobantes, anotaciones: $anotaciones)';
 }
 
 
@@ -46,7 +50,7 @@ abstract mixin class $ImageReviewFormCopyWith<$Res>  {
   factory $ImageReviewFormCopyWith(ImageReviewForm value, $Res Function(ImageReviewForm) _then) = _$ImageReviewFormCopyWithImpl;
 @useResult
 $Res call({
- List<Comprobante> comprobantes, String? anotaciones
+ String? codigo, List<Comprobante> comprobantes, String? anotaciones
 });
 
 
@@ -63,9 +67,10 @@ class _$ImageReviewFormCopyWithImpl<$Res>
 
 /// Create a copy of ImageReviewForm
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? comprobantes = null,Object? anotaciones = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? codigo = freezed,Object? comprobantes = null,Object? anotaciones = freezed,}) {
   return _then(_self.copyWith(
-comprobantes: null == comprobantes ? _self.comprobantes : comprobantes // ignore: cast_nullable_to_non_nullable
+codigo: freezed == codigo ? _self.codigo : codigo // ignore: cast_nullable_to_non_nullable
+as String?,comprobantes: null == comprobantes ? _self.comprobantes : comprobantes // ignore: cast_nullable_to_non_nullable
 as List<Comprobante>,anotaciones: freezed == anotaciones ? _self.anotaciones : anotaciones // ignore: cast_nullable_to_non_nullable
 as String?,
   ));
@@ -152,10 +157,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( List<Comprobante> comprobantes,  String? anotaciones)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String? codigo,  List<Comprobante> comprobantes,  String? anotaciones)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ImageReviewForm() when $default != null:
-return $default(_that.comprobantes,_that.anotaciones);case _:
+return $default(_that.codigo,_that.comprobantes,_that.anotaciones);case _:
   return orElse();
 
 }
@@ -173,10 +178,10 @@ return $default(_that.comprobantes,_that.anotaciones);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( List<Comprobante> comprobantes,  String? anotaciones)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String? codigo,  List<Comprobante> comprobantes,  String? anotaciones)  $default,) {final _that = this;
 switch (_that) {
 case _ImageReviewForm():
-return $default(_that.comprobantes,_that.anotaciones);case _:
+return $default(_that.codigo,_that.comprobantes,_that.anotaciones);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -193,10 +198,10 @@ return $default(_that.comprobantes,_that.anotaciones);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( List<Comprobante> comprobantes,  String? anotaciones)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String? codigo,  List<Comprobante> comprobantes,  String? anotaciones)?  $default,) {final _that = this;
 switch (_that) {
 case _ImageReviewForm() when $default != null:
-return $default(_that.comprobantes,_that.anotaciones);case _:
+return $default(_that.codigo,_that.comprobantes,_that.anotaciones);case _:
   return null;
 
 }
@@ -208,9 +213,14 @@ return $default(_that.comprobantes,_that.anotaciones);case _:
 
 
 class _ImageReviewForm implements ImageReviewForm {
-  const _ImageReviewForm({required final  List<Comprobante> comprobantes, this.anotaciones}): _comprobantes = comprobantes;
+  const _ImageReviewForm({this.codigo, required final  List<Comprobante> comprobantes, this.anotaciones}): _comprobantes = comprobantes;
   
 
+/// Código de la imagen: UNO por foto, vale para todos sus comprobantes.
+/// Obligatorio al guardar (`validateImageReviewForm`); null solo en
+/// registros guardados antes de este campo, que no se pueden subir
+/// hasta volver a guardarlos.
+@override final  String? codigo;
  final  List<Comprobante> _comprobantes;
 @override List<Comprobante> get comprobantes {
   if (_comprobantes is EqualUnmodifiableListView) return _comprobantes;
@@ -218,7 +228,7 @@ class _ImageReviewForm implements ImageReviewForm {
   return EqualUnmodifiableListView(_comprobantes);
 }
 
-/// Único campo opcional del formulario.
+/// Opcional, igual que `Comprobante.loteria`.
 @override final  String? anotaciones;
 
 /// Create a copy of ImageReviewForm
@@ -231,16 +241,16 @@ _$ImageReviewFormCopyWith<_ImageReviewForm> get copyWith => __$ImageReviewFormCo
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ImageReviewForm&&const DeepCollectionEquality().equals(other._comprobantes, _comprobantes)&&(identical(other.anotaciones, anotaciones) || other.anotaciones == anotaciones));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ImageReviewForm&&(identical(other.codigo, codigo) || other.codigo == codigo)&&const DeepCollectionEquality().equals(other._comprobantes, _comprobantes)&&(identical(other.anotaciones, anotaciones) || other.anotaciones == anotaciones));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_comprobantes),anotaciones);
+int get hashCode => Object.hash(runtimeType,codigo,const DeepCollectionEquality().hash(_comprobantes),anotaciones);
 
 @override
 String toString() {
-  return 'ImageReviewForm(comprobantes: $comprobantes, anotaciones: $anotaciones)';
+  return 'ImageReviewForm(codigo: $codigo, comprobantes: $comprobantes, anotaciones: $anotaciones)';
 }
 
 
@@ -251,7 +261,7 @@ abstract mixin class _$ImageReviewFormCopyWith<$Res> implements $ImageReviewForm
   factory _$ImageReviewFormCopyWith(_ImageReviewForm value, $Res Function(_ImageReviewForm) _then) = __$ImageReviewFormCopyWithImpl;
 @override @useResult
 $Res call({
- List<Comprobante> comprobantes, String? anotaciones
+ String? codigo, List<Comprobante> comprobantes, String? anotaciones
 });
 
 
@@ -268,9 +278,10 @@ class __$ImageReviewFormCopyWithImpl<$Res>
 
 /// Create a copy of ImageReviewForm
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? comprobantes = null,Object? anotaciones = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? codigo = freezed,Object? comprobantes = null,Object? anotaciones = freezed,}) {
   return _then(_ImageReviewForm(
-comprobantes: null == comprobantes ? _self._comprobantes : comprobantes // ignore: cast_nullable_to_non_nullable
+codigo: freezed == codigo ? _self.codigo : codigo // ignore: cast_nullable_to_non_nullable
+as String?,comprobantes: null == comprobantes ? _self._comprobantes : comprobantes // ignore: cast_nullable_to_non_nullable
 as List<Comprobante>,anotaciones: freezed == anotaciones ? _self.anotaciones : anotaciones // ignore: cast_nullable_to_non_nullable
 as String?,
   ));

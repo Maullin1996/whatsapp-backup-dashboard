@@ -13,7 +13,6 @@ abstract class ComprobanteDraft with _$ComprobanteDraft {
 
   const factory ComprobanteDraft({
     required int id,
-    @Default('') String codigo,
     @Default([]) List<String> numeros,
 
     /// Texto tipeado en el campo de número que aún no se agregó como chip.
@@ -21,13 +20,16 @@ abstract class ComprobanteDraft with _$ComprobanteDraft {
 
     /// Solo dígitos (el input aplica `digitsOnly`).
     @Default('') String total,
+
+    /// Lotería (dónde se compró el boleto), opcional. Arranca vacía.
+    @Default('') String loteria,
   }) = _ComprobanteDraft;
 
   bool get hasData =>
-      codigo.trim().isNotEmpty ||
       numeros.isNotEmpty ||
       numeroPendiente.trim().isNotEmpty ||
-      total.isNotEmpty;
+      total.isNotEmpty ||
+      loteria.trim().isNotEmpty;
 
   int get totalValue => int.tryParse(total) ?? 0;
 }
@@ -37,6 +39,8 @@ abstract class ReviewDraftState with _$ReviewDraftState {
   const ReviewDraftState._();
 
   const factory ReviewDraftState({
+    /// Código de la imagen: uno por foto, para todos sus comprobantes.
+    @Default('') String codigo,
     required List<ComprobanteDraft> comprobantes,
     @Default('') String anotaciones,
     @Default(1) int nextId,
@@ -57,17 +61,19 @@ abstract class ReviewDraftState with _$ReviewDraftState {
   factory ReviewDraftState.empty() =>
       const ReviewDraftState(comprobantes: [ComprobanteDraft(id: 0)]);
 
-  /// Borrador para "Editar": copia del registro guardado.
+  /// Borrador para "Editar": copia del registro guardado. Un registro
+  /// anterior al código por imagen (`codigo` null) abre con el código vacío.
   factory ReviewDraftState.fromRecord(ImageReviewRecord record) {
     final comprobantes = record.form.comprobantes;
     return ReviewDraftState(
+      codigo: record.form.codigo ?? '',
       comprobantes: [
         for (var i = 0; i < comprobantes.length; i++)
           ComprobanteDraft(
             id: i,
-            codigo: comprobantes[i].codigo,
             numeros: comprobantes[i].numeros,
             total: comprobantes[i].total.toString(),
+            loteria: comprobantes[i].loteria ?? '',
           ),
       ],
       anotaciones: record.form.anotaciones ?? '',
@@ -77,18 +83,24 @@ abstract class ReviewDraftState with _$ReviewDraftState {
   }
 
   /// Convierte el borrador en el formulario del dominio (sin validar).
+  /// Los textos van con `trim` y, vacíos, como null.
   ImageReviewForm toForm() {
-    final notes = anotaciones.trim();
     return ImageReviewForm(
+      codigo: _orNull(codigo),
       comprobantes: [
         for (final c in comprobantes)
           Comprobante(
-            codigo: c.codigo.trim(),
             numeros: c.numeros,
             total: c.totalValue,
+            loteria: _orNull(c.loteria),
           ),
       ],
-      anotaciones: notes.isEmpty ? null : notes,
+      anotaciones: _orNull(anotaciones),
     );
+  }
+
+  static String? _orNull(String value) {
+    final trimmed = value.trim();
+    return trimmed.isEmpty ? null : trimmed;
   }
 }

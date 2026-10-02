@@ -38,8 +38,9 @@ ImageReviewRecord _record(
   storagePath: 'img_$id.png',
   fechaJornada: fecha,
   form: const ImageReviewForm(
+    codigo: 'A1',
     comprobantes: [
-      Comprobante(codigo: 'A1', numeros: ['1'], total: 1000),
+      Comprobante(numeros: ['1'], total: 1000),
     ],
   ),
   registradoEn: DateTime(2026, 1, 15, 8),
@@ -194,7 +195,7 @@ void main() {
 
     Future<void> saveValid() async {
       final draft = container.read(reviewDraftProvider(key).notifier);
-      draft.setCodigo(0, 'A1');
+      draft.setCodigo('A1');
       draft.setNumeroPendiente(0, '0123');
       draft.setTotal(0, '9000');
       await draft.save(target);

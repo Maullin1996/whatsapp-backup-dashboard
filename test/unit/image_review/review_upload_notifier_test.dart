@@ -30,6 +30,7 @@ ImageReviewRecord _record(
   DateTime? registradoEn,
   int total = 1000,
   int? messageTimestamp = 1788489942000,
+  String? codigo = 'A1',
 }) => ImageReviewRecord(
   messageId: id,
   chatJid: 'c1',
@@ -39,9 +40,9 @@ ImageReviewRecord _record(
   fechaJornada: fecha,
   messageTimestamp: messageTimestamp,
   form: ImageReviewForm(
+    codigo: codigo,
     comprobantes: [
       Comprobante(
-        codigo: 'A1',
         numeros: rol == ReviewRole.revisor ? const ['0123'] : const [],
         total: total,
       ),
@@ -171,11 +172,12 @@ void main() {
         'storagePath': 'img_m1.png',
         'fechaJornada': '2026-01-15',
         'messageTimestamp': 1788489942000,
+        'codigo': 'A1',
         'comprobantes': [
           {
-            'codigo': 'A1',
             'numeros': ['0123'],
             'total': 1000,
+            'loteria': null,
           },
         ],
         'anotaciones': null,
@@ -189,6 +191,16 @@ void main() {
         'nada', () async {
       final result = await const SimulatedReviewUploader().upload(
         _record('m4', messageTimestamp: null),
+      );
+
+      expect(result.isLeft(), isTrue);
+      expect(printed, isEmpty);
+    });
+
+    test('sin código de la imagen (registro anterior): Left y no imprime '
+        'nada', () async {
+      final result = await const SimulatedReviewUploader().upload(
+        _record('m5', codigo: null),
       );
 
       expect(result.isLeft(), isTrue);

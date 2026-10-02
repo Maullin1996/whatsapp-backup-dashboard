@@ -1,4 +1,5 @@
 import 'package:dartz/dartz.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:whatsapp_monitor_viewer/core/errors/failure.dart';
@@ -24,6 +25,7 @@ ImageReviewRecord _record(
   ReviewRole rol = ReviewRole.revisor,
   String shift = _shift,
   int? messageTimestamp = 1788489942000,
+  String? codigo = 'A1',
 }) => ImageReviewRecord(
   messageId: id,
   chatJid: 'c1@g.us',
@@ -33,9 +35,9 @@ ImageReviewRecord _record(
   fechaJornada: '2026-01-15',
   messageTimestamp: messageTimestamp,
   form: ImageReviewForm(
+    codigo: codigo,
     comprobantes: [
       Comprobante(
-        codigo: 'A1',
         numeros: rol == ReviewRole.revisor ? const ['0123'] : const [],
         total: 1000,
       ),
@@ -115,6 +117,32 @@ void main() {
     expect(failure.message, contains('m1'));
     expect(datasource.calls, isEmpty);
     expect(datasource.documents, isEmpty);
+  });
+
+  group('sin código de la imagen (registro anterior al código por imagen)', () {
+    late DebugPrintCallback original;
+    late List<String> printed;
+
+    setUp(() {
+      original = debugPrint;
+      printed = [];
+      debugPrint = (message, {wrapWidth}) => printed.add(message ?? '');
+    });
+    tearDown(() => debugPrint = original);
+
+    test('Left(Failure.unknown) con el messageId, sin llamar al datasource; '
+        'lo único impreso es la línea de fallo de siempre (messageId y '
+        'tipo), sin el payload', () async {
+      final result = await uploader.upload(_record('m1', codigo: null));
+
+      final failure = result.fold((f) => f, (_) => fail('se esperaba Left'));
+      expect(failure, isA<UnknownFailure>());
+      expect(failure.message, contains('m1'));
+      expect(failure.message, contains('guárdalo de nuevo'));
+      expect(datasource.calls, isEmpty);
+      expect(datasource.documents, isEmpty);
+      expect(printed, ['[SUBIDA] falló m1: unknown']);
+    });
   });
 
   test('idempotente: subir el mismo registro dos veces deja un solo '

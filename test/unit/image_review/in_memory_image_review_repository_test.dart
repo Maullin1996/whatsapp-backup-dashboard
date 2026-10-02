@@ -20,9 +20,9 @@ ImageReviewRecord _record({
   storagePath: 'img_$messageId.png',
   fechaJornada: '2026-01-15',
   form: ImageReviewForm(
+    codigo: 'A1',
     comprobantes: [
       Comprobante(
-        codigo: 'A1',
         numeros: rol == ReviewRole.revisor ? const ['0123'] : const [],
         total: total,
       ),
