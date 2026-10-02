@@ -1,8 +1,9 @@
-// BORRADOR. No referenciado en firebase.json, no se despliega. Se publica a
-// mano pegándolo en la consola de Firebase; esa publicación REEMPLAZA todo el
-// conjunto de reglas, por eso incluye los bloques existentes. Antes de
-// publicar, confirmar que las reglas de la consola siguen siendo las del
-// bloque existente.
+// Copia de las reglas PUBLICADAS a mano en la consola de Firebase (2026-10-01,
+// 7:37 p.m.) MÁS el bloque de winning_numbers, que todavía NO está publicado.
+// No referenciado en firebase.json: se publica a mano pegándolo en la
+// consola; esa publicación REEMPLAZA todo el conjunto de reglas. Antes de
+// publicar, confirmar que las reglas de la consola siguen siendo las de esta
+// copia (sin el bloque de winning_numbers).
 //
 // Bloques existentes (copia exacta de las reglas actuales de la consola, sin
 // cambios): whatsapp_messages, group_stats, edit_attempts y users.
@@ -16,6 +17,9 @@
 //   Sumador no leen nada de image_reviews.
 // - shift_image_counts: lectura solo para admin o superAdmin; escritura
 //   negada (el bot escribe con el Admin SDK, que no pasa por estas reglas).
+// - winning_numbers (SIN PUBLICAR): lectura solo para admin o superAdmin
+//   (Coincidencias); escritura negada (la escribirá la función puente con el
+//   Admin SDK). La colección todavía no existe.
 
 rules_version = '2';
 service cloud.firestore {
@@ -37,7 +41,7 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // ─── Nuevo: registros de Revisor/Sumador (BORRADOR) ──────────────────
+    // ─── Nuevo: registros de Revisor/Sumador (PUBLICADO 2026-10-01) ──────────────────
     // Ruta que arma ImageReviewRecordModel.toUploadDocument():
     // image_reviews/{chatJid}/jornadas/{fechaJornada}_{shiftKey}/registros/{messageId}_{rol}
     // get/list de esta ruta: solo los permite la regla recursiva de lectura
@@ -47,7 +51,7 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // ─── Nuevo: lectura solo para admin o superAdmin (BORRADOR) ──────────
+    // ─── Nuevo: lectura solo para admin o superAdmin (PUBLICADO 2026-10-01) ──────────
     // Claims booleanos: `admin` puede faltar o valer false; `superAdmin` vale
     // true o no existe. Se leen con get() para que un claim ausente dé false
     // sin error.
@@ -69,6 +73,13 @@ service cloud.firestore {
 
     // Contadores que publica el bot (lo lee el Resumen).
     match /shift_image_counts/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // Números ganadores del día, un documento por fecha (lo lee
+    // Coincidencias). Nombre PROVISIONAL; SIN PUBLICAR todavía.
+    match /winning_numbers/{docId} {
       allow read: if isAdmin();
       allow write: if false;
     }
