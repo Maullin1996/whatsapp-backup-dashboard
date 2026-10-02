@@ -314,7 +314,7 @@ recomendación de diseño es:
     desde el 2026-10-01** (copia en `firestore.rules.draft`). En la zona de
     pruebas, un usuario sin claim de admin no puede leerlo; la lectura de
     un admin real no está verificada. El datasource ya
-    existe (Resumen real, capa 1, sin conectar).
+    existe y el Resumen real ya está conectado (sin ejecutar todavía).
   - **Historial**: la colección existe desde el deploy del 2026-09-28
     (01:34 UTC). Según `BOT_DOCUMENTATION.md`, ese primer ciclo publicó
     también las filas de 2026-09-26 y 2026-09-27; no hay contadores de días
@@ -325,10 +325,20 @@ recomendación de diseño es:
   - **Confirmar en el bot** que un mensaje real se procesa bien con el
     publicador (primera jornada tras el deploy).
 
-### Cómo se arma el Resumen real (pieza d, capa 1 — sin conectar)
+### Cómo se arma el Resumen real (pieza d, capa 1 — CONECTADO)
 
 `FirestoreSummaryRepository` (`features/summary/data/repositories/`,
-nombre provisional; `summaryRepositoryProvider` sigue en el mock):
+nombre provisional) es el repositorio de `summaryRepositoryProvider`: el
+Resumen lee datos reales (solo admin y superAdmin, con la caché de 5
+minutos; el mock quedó sin cablear). **No se ejecutó todavía** contra
+Firestore. **PENDIENTE (no decidido)**: la primera lectura real y el
+índice de grupo de colecciones sobre `fechaJornada` (se crea desde la
+consola con el enlace del error, que queda en el log `[RESUMEN] falló
+(firestore): ...`); que un admin real puede leer (no verificado hasta
+ejecutar); borrar los 4 documentos de prueba antes de desplegar o de que
+otra persona use el Resumen; `lastIndex` puede ser mayor que las imágenes
+reales; el costo en lecturas por consulta (hasta unas 3600; la caché de 5
+minutos evita repetirla).
 
 - **Día**: `fechaJornadaDe` de la medianoche local de la fecha elegida (el
   mismo helper que los mocks). Con ese texto se piden los registros

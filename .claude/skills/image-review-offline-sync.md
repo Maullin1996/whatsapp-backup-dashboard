@@ -571,7 +571,7 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
     `registros` son provisionales).
   - Cómo lee Coincidencias los registros de todos los grupos: consulta de
     grupo de colecciones sobre `registros` o una Cloud Function. (El
-    Resumen real, sin conectar, ya usa la consulta de grupo por
+    Resumen real, ya conectado, usa la consulta de grupo por
     `fechaJornada`.)
   - Si `fechaJornada` sigue con `toLocal()` o pasa a UTC-5
     (`bogotaWallClock`): ahora es parte de la ruta, así que cambiarla

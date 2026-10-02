@@ -113,15 +113,13 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    en el indicador de subida. El detector de imágenes sin registrar usa
    el contador que publica el bot en `shift_image_counts`, no `count()` ni
    el máximo de `whatsapp_messages` (ver `image-review-domain.md`).
-   **UI ya hecha con datos INVENTADOS** (menú "Resumen" en `ChatList` +
+   **UI hecha** (menú "Resumen" en `ChatList` +
    ruta `/summary`, **solo para admin y superAdmin** — `canViewSummary`,
    decidido; Revisor y Sumador no la ven, ver `image-review-roles`;
    `SummaryPage` con selector de fecha y
-   tarjetas por grupo y jornada, alimentada por `MockSummaryRepository`,
-   determinista por fecha, en `features/summary/`). **Sigue pendiente
-   conectar datos reales** (reemplazar el mock por un `SummaryRepository`
-   real: subida real a Firestore, paso 7, o el mecanismo de lectura
-   cruzada). **El Resumen mockeado ya incluye el aviso de imágenes sin
+   tarjetas por grupo y jornada, en `features/summary/`). Empezó con datos
+   inventados (`MockSummaryRepository`, hoy sin cablear); **desde el paso
+   7, pieza d, lee datos reales** (ver "Pieza (d)" más abajo). **El Resumen mockeado ya incluye el aviso de imágenes sin
    registrar** (línea bajo cada rol, con `imagenesEnJornada` inventado en el
    mock con el formato real de `shift_image_counts`); falta cambiar solo la
    fuente por un `get` por id a esa colección.
@@ -254,7 +252,7 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    cuentas con claim `admin` o `superAdmin`; Revisor y Sumador no leen nada
    de `image_reviews` (sus registros siguen en local). La regla está
    publicada desde el 2026-10-01 (ver más abajo).
-   **Pieza (d), Resumen real — capa 1 HECHA, NO conectada**: capa de datos
+   **Pieza (d), Resumen real — capa 1 HECHA y CONECTADA**: capa de datos
    en `features/summary/data/` (nombres provisionales), probada con
    datasources falsos. Tres datasources en Dart puro con su clase Firestore
    (constructor con `FirebaseFirestore` y `.withReader` para tests; nunca
@@ -268,9 +266,21 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    (grupo, jornada) con contador o registros ese día (ver
    `image-review-domain`, "Cómo se arma el Resumen real"). Providers en
    `real_summary_providers.dart` (`realSummaryRepositoryProvider` y los tres
-   datasources) que **ningún código lee**: `summaryRepositoryProvider` sigue
-   en `MockSummaryRepository`.
-   **Caché del Resumen — HECHA** (funciona ya con el mock): `SummaryCache`
+   datasources).
+   **Conexión — HECHA (decisión del usuario)**: `summaryRepositoryProvider`
+   devuelve `ref.watch(realSummaryRepositoryProvider)`: el Resumen lee
+   datos reales (registros de `image_reviews`, contadores de
+   `shift_image_counts` y nombres de `group_stats`), solo para admin y
+   superAdmin, con la caché de 5 minutos. `MockSummaryRepository` queda sin
+   cablear ("No cableado; solo tests y referencia; candidato a borrar").
+   Un `Left` deja un `debugPrint` en `jornadaSummariesProvider`: los errores
+   de Firestore y de permisos con su texto completo (si falta un índice,
+   trae el enlace para crearlo), los demás solo con el tipo (su texto puede
+   nombrar un registro). `SummaryPage` no cambió: muestra el texto completo
+   del `Failure` con "Reintentar". **No se ejecutó**: nada de esto se probó
+   todavía contra Firestore. Coincidencias **sigue con datos inventados**,
+   así que el hosting sigue sin desplegarse con esa pantalla visible.
+   **Caché del Resumen — HECHA** (hoy sobre el repositorio real): `SummaryCache`
    en memoria, por fecha (`fechaJornadaDe`), TTL de 5 minutos
    (`summaryCacheTtl`), solo éxitos (un `Left` nunca se guarda), una sola
    lectura por fecha a la vez, máximo 10 fechas (sale la más antigua).
@@ -289,17 +299,10 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    /{path=**}/registros/{registroId}` solo lectura (sirve a la consulta de
    grupo; el nombre `registros` aplica a toda colección con ese nombre) y
    `shift_image_counts` con lectura de admin y escritura negada.
-   **PENDIENTES (no decididos)**: probar la lectura de un admin real
-   conectando el Resumen; borrar antes los 4 documentos de prueba; la
-   consulta de grupo de colecciones real; crear el índice de grupo de
-   colecciones sobre
-   `fechaJornada` en `registros` desde la consola cuando falle la primera
-   consulta real; el desfase de claims (se leen solo al iniciar sesión);
-   qué hacer con `functions/set-admin.js`, que reemplaza los claims sin
-   fusionarlos (borraría `reviewRole`); cambiar
-   `summaryRepositoryProvider` al repositorio real (una línea, con
-   autorización); costo en lecturas (hasta unas 3600 por consulta real; la
-   caché de 5 minutos evita repetirla); `lastIndex` puede ser mayor que las imágenes reales; no hay
+   **PENDIENTES (no decididos)**: la primera lectura real y el índice de grupo de colecciones sobre `fechaJornada` (se crea desde la consola con el enlace del error, que queda en el log `[RESUMEN] falló (firestore): ...`); que un admin real puede leer (no verificado hasta ejecutar); borrar los 4 documentos de prueba antes de desplegar o de que otra persona use el Resumen; `lastIndex` puede ser mayor que las imágenes reales; el costo en lecturas por consulta (hasta unas 3600; la caché de 5 minutos evita repetirla); el desfase de claims
+   (se leen solo al iniciar sesión); qué hacer con
+   `functions/set-admin.js`, que reemplaza los claims sin fusionarlos
+   (borraría `reviewRole`); no hay
    contadores de días anteriores a la publicación inicial (ver
    `image-review-domain`); el día se arma con `fechaJornadaDe` (`toLocal()`)
    y `shiftDate` es UTC-5 fijo; qué colección de resultados manda para las
