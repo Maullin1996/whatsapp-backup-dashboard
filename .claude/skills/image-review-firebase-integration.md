@@ -207,19 +207,20 @@ horario (mientras `pendingApproval` sea `true` rigen `startTime`/`endTime`).
 - Ese horario es el DEFINITIVO. La app usa una **tabla fija en código**
   (`lib/core/time/shifts.dart`), **sin lectura dinámica** de `jornadas`:
   reemplaza, para las jornadas, la meta de leerlas del otro proyecto
-  (sección de abajo, que queda como antecedente). Rige en toda la app desde
-  el despliegue; el usuario solo despliega con todas las jornadas cerradas.
-- Tabla nueva (fin INCLUSIVO, último minuto completo; se trunca al
-  minuto): `morning` 05:30–10:51, `afternoon1` 10:58–13:55, `afternoon2`
-  14:01–15:20, `night1` 15:28–22:15, `holiday` 06:00–19:15 (solo domingos,
-  como hoy). Todo lo demás es `outOfShift`. **night2 no existe en la tabla
-  nueva**; se conserva en el enum solo por la tabla vieja y sus etiquetas.
+  (sección de abajo, que queda como antecedente).
+- **Tabla ÚNICA (paso 7, pieza e)**: rige en toda la app, para todas las
+  fechas y todos los mensajes; la tabla vieja y el corte
+  (`newShiftsEffectiveFromMs`) se retiraron. Fin INCLUSIVO, último minuto
+  completo; se trunca al minuto: `morning` 05:30–10:51, `afternoon1`
+  10:58–13:55, `afternoon2` 14:01–15:20, `night1` 15:28–22:15, `holiday`
+  06:00–19:15 (solo domingos, como hoy). Todo lo demás es `outOfShift`.
+- **night2** queda solo como valor del enum y en etiquetas legacy;
+  `getCurrentShift` nunca lo devuelve.
 - Las claves del enum NO cambian (no cambian ids de `shift_image_counts`,
   de `reviewShifts` ni de la ruta de subida).
-- Tabla vieja y nueva coexisten; el corte es `newShiftsEffectiveFromMs`
-  (ms UTC, hoy `null` = tabla vieja en toda la app). Lo ya guardado se queda
-  tal cual. Detalle de la regla en `image-review-domain` ("Jornadas: tabla
-  vieja, tabla nueva y corte").
+- `shiftNames` tiene las etiquetas ACTUALES; las viejas están en
+  `legacyShiftNames` (solo para reconocer lo ya guardado). Detalle en
+  `image-review-domain` ("Jornadas: una sola tabla").
 - Los huecos entre jornadas (10:52–10:57, 13:56–14:00, 15:21–15:27) **se
   ven en el visor** agrupados junto a su jornada ("Fuera de jornada
   Mañana/Tarde 1/Tarde 2") pero **no cuentan para reportes** (son
@@ -229,12 +230,18 @@ horario (mientras `pendingApproval` sea `true` rigen `startTime`/`endTime`).
   su propio repo.
 
 **PENDIENTE** (no decidido):
-- Fecha fija del corte y despliegue coordinado con el bot.
-- Actualizar el bot (rangos y claves de `shift_image_counts`) en su repo.
+- Actualizar el BOT con los mismos rangos y sin night2 (en su repo). Hasta
+  entonces los contadores de `shift_image_counts` siguen la tabla vieja y
+  el "imágenes en la jornada" del Resumen puede estar desfasado en los
+  bordes.
 - Retirar night2 de `ASSIGNABLE_SHIFTS` en `functions/` (el cliente ya no
-  la ofrece con la tabla nueva, pero el servidor todavía la acepta).
+  la ofrece, el servidor todavía la acepta).
 - Fuente de festivos (hoy solo se detectan domingos).
-- Caché de la PWA tras el despliegue (versiones viejas con la tabla vieja).
+- El horario del ERP (`jornadas` de `whats-apuestas`) puede cambiar sin
+  aviso: la tabla está fija en código.
+- Caché de la PWA tras desplegar (versiones viejas con la tabla vieja).
+- Consecuencia a tener presente: los mensajes ya guardados se reclasifican
+  con la tabla única (su etiqueta del visor se calcula al cargarlos).
 - Mecanismo de recepción de números ganadores y contrato de la Cloud
   Function puente (ver "Zona gris" al final).
 
@@ -243,8 +250,8 @@ horario (mientras `pendingApproval` sea `true` rigen `startTime`/`endTime`).
 - **Antes** (hasta la tabla definitiva): las jornadas eran un enum local y
   fijo, `lib/core/time/shifts.dart` (`Shift`: mañana 06:00–10:54, tarde 1
   10:55–13:58, tarde 2 13:59–15:23, noche 1 15:24–22:24, noche 2
-  22:25–22:30, domingo/festivo 06:00–19:20, fuera de jornada) — hoy es la
-  tabla VIEJA. Cada mensaje se clasifica en una jornada al mapearse a
+  22:25–22:30, domingo/festivo 06:00–19:20, fuera de jornada) — la tabla
+  VIEJA, ya retirada (sus etiquetas quedan en `legacyShiftNames`). Cada mensaje se clasifica en una jornada al mapearse a
   dominio.
 - **Meta original** (superada para las jornadas por la tabla fija de
   arriba): reemplazar esos rangos fijos por datos que vienen de **otro

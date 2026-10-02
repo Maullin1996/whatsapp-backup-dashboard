@@ -228,11 +228,14 @@ limpio (sin migración de datos).
     `holiday`), no la etiqueta en español; `outOfShift` NO es
     asignable. La lista de jornadas asignables está espejada a mano en
     `ASSIGNABLE_SHIFTS` (`functions/index.js`) y debe mantenerse
-    sincronizada con `lib/core/time/shifts.dart` hasta que las jornadas
-    vengan del Firebase externo (`image-review-firebase-integration`).
+    sincronizada con `lib/core/time/shifts.dart`. Con la tabla única
+    (paso 7, pieza e) el cliente ya no ofrece `night2`, pero
+    `ASSIGNABLE_SHIFTS` todavía la acepta (PENDIENTE retirarla).
     Ojo: los registros de `image_review` guardan `shift` como la
-    **etiqueta** (`shiftNames`), así que al comparar una asignación con
-    un registro/mensaje habrá que traducir enum ↔ etiqueta.
+    **etiqueta** (`shiftNames`, las actuales; los registros viejos pueden
+    traer una de `legacyShiftNames`), así que al comparar una asignación
+    con un registro/mensaje habrá que traducir enum ↔ etiqueta
+    (`shiftFromLabel` reconoce las dos).
 - **Cloud Functions — backend ✅ HECHO y probado, sin desplegar
   todavía** (reemplazan a la extinta `setReviewAssignment`, que
   guardaba un solo `{role, chatJid, shift}` combinado):
@@ -304,8 +307,9 @@ limpio (sin migración de datos).
     agregar un segundo control) tiene un botón "Horarios" que aparece
     SOLO si el checkbox de ese grupo está marcado Y el usuario tiene
     `reviewRole` activo. Abre `GroupShiftsDialog` (diálogo anidado,
-    `showDialog` sobre `showDialog`) con las 6 jornadas asignables como
-    checkboxes (`shortShiftName(shiftNames[shift]!)`). Las jornadas ya
+    `showDialog` sobre `showDialog`) con las 5 jornadas asignables
+    (`assignableShifts`: sin `night2` ni `outOfShift`) como checkboxes
+    (`shortShiftName(shiftNames[shift]!)`). Las jornadas ya
     cubiertas por OTRA persona del MISMO rol llegan deshabilitadas, con
     su email como subtítulo — calculado del lado del cliente con
     `AdminState.users` (ya trae `reviewRole`+`reviewShifts` de todos,
@@ -357,8 +361,9 @@ limpio (sin migración de datos).
     excepción para lo ya guardado.
   - **Implementado** en `image_detail_page.dart`: la jornada de la
     imagen es una etiqueta en español (`ImageViewItem.shift`,
-    p. ej. "Jornada Mañana (06:00 – 10:54)"), traducida al enum con
-    `shiftFromLabel` (`core/time/shifts.dart`, inverso de `shiftNames`)
+    p. ej. "Jornada Mañana (05:30 – 10:51)"), traducida al enum con
+    `shiftFromLabel` (`core/time/shifts.dart`, inverso de `shiftNames` y
+    de `legacyShiftNames`)
     antes de comparar contra `reviewShifts`. Existen dos copias de la
     condición completa (ancho + rol + asignación), como ya pasaba antes
     con ancho + rol: `_showReviewPanelFor(item)` (usa `ref.read`, para

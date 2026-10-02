@@ -228,8 +228,7 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    esquema a v2 (versiones antiguas de la app en caché), borrar los 4
    documentos de prueba, corregir el encabezado de `firestore.rules.draft`
    y republicar cuando cambie otra regla, los casos de escritura nunca
-   probados en la zona de pruebas, probar la lectura de un admin real
-   conectando el Resumen,
+   probados en la zona de pruebas,
    si validar `reviewShifts` o `allowedGroups`, reglas de Storage,
    verificación de conexión antes de subir, si una escritura en
    cola del SDK web llega tarde después de un timeout,
@@ -273,8 +272,13 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    de Firestore y de permisos con su texto completo (si falta un índice,
    trae el enlace para crearlo), los demás solo con el tipo (su texto puede
    nombrar un registro). `SummaryPage` no cambió: muestra el texto completo
-   del `Failure` con "Reintentar". **No se ejecutó**: nada de esto se probó
-   todavía contra Firestore. Coincidencias lee datos reales desde la
+   del `Failure` con "Reintentar". **HECHO (verificado por el usuario el
+   2026-10-02)**: el Resumen real FUNCIONA con una cuenta admin (leyó los
+   registros, los contadores y los nombres); un admin real puede leer los
+   registros y la consulta de grupo de colecciones funciona. El índice de
+   grupo de colecciones sobre `fechaJornada` (ascendente) se creó desde la
+   consola, como exención de `registros.fechaJornada`, con el enlace que
+   trajo el error. Coincidencias lee datos reales desde la
    pieza c (ver más abajo).
    **Caché del Resumen — HECHA** (hoy sobre el repositorio real): `SummaryCache`
    en memoria, por fecha (`fechaJornadaDe`), TTL de 5 minutos
@@ -290,12 +294,13 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    aparecer (el botón "Actualizar" lo evita).
    **Reglas de lectura de admin — PUBLICADAS el 2026-10-01** (en la zona de
    pruebas, un usuario sin claim de admin no lee `registros` ni
-   `shift_image_counts`; la lectura de un admin real no está verificada):
+   `shift_image_counts`; la lectura de un admin real quedó verificada el
+   2026-10-02 con el Resumen):
    `isAdmin()` (claims `admin` o `superAdmin` leídos con `get`), `match
    /{path=**}/registros/{registroId}` solo lectura (sirve a la consulta de
    grupo; el nombre `registros` aplica a toda colección con ese nombre) y
    `shift_image_counts` con lectura de admin y escritura negada.
-   **PENDIENTES (no decididos)**: la primera lectura real y el índice de grupo de colecciones sobre `fechaJornada` (se crea desde la consola con el enlace del error, que queda en el log `[RESUMEN] falló (firestore): ...`); que un admin real puede leer (no verificado hasta ejecutar); borrar los 4 documentos de prueba antes de desplegar o de que otra persona use el Resumen; `lastIndex` puede ser mayor que las imágenes reales; el costo en lecturas por consulta (hasta unas 3600; la caché de 5 minutos evita repetirla); el desfase de claims
+   **PENDIENTES (no decididos)**: borrar los 4 documentos de prueba antes de desplegar o de que otra persona use el Resumen; `lastIndex` puede ser mayor que las imágenes reales; el costo en lecturas por consulta (hasta unas 3600; la caché de 5 minutos evita repetirla); el desfase de claims
    (se leen solo al iniciar sesión); qué hacer con
    `functions/set-admin.js`, que reemplaza los claims sin fusionarlos
    (borraría `reviewRole`); no hay
@@ -358,19 +363,33 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    real (las reglas de Storage no están en el repo); borrar los mocks y el
    uploader simulado; borrar los 4 documentos de prueba antes de desplegar
    el hosting; y lo ya pendiente.
-   **Jornadas — tabla definitiva, código HECHO, corte SIN fijar**: se leyó
-   una vez `jornadas` de `whats-apuestas` (2026-09-30) y el usuario decidió
-   usar ese horario como tabla fija en código, sin lectura dinámica. Tabla
-   vieja y nueva coexisten en `shifts.dart`; `newShiftsEffectiveFromMs`
-   sigue en `null` (tabla vieja en toda la app) hasta que el usuario lo fije
-   el día del despliegue. night2 retirado de la tabla nueva; los huecos se
-   ven en el visor ("Fuera de jornada X") pero no cuentan para reportes.
-   Detalle en `image-review-domain` ("Jornadas: tabla vieja, tabla nueva y
-   corte") y en `image-review-firebase-integration` ("Tabla definitiva").
-   **PENDIENTES**: fecha fija del corte y despliegue coordinado con el bot;
-   actualizar el bot (rangos y claves de `shift_image_counts`) en su repo;
-   retirar night2 de `ASSIGNABLE_SHIFTS` en `functions/`; fuente de
-   festivos; caché de la PWA tras el despliegue.
+   **Pieza (e), tabla de jornadas ÚNICA — HECHA** (decisión del usuario):
+   el horario de `jornadas` de `whats-apuestas` (leído el 2026-09-30) rige
+   en toda la app, para todas las fechas y todos los mensajes; la tabla
+   vieja y el corte (`newShiftsEffectiveFromMs`, `usesNewShiftTable`,
+   `shiftNamesAt`, `effectiveFromMs`) se retiraron. `shiftNames` tiene
+   ahora las etiquetas ACTUALES y las viejas están en `legacyShiftNames`
+   (solo para reconocer lo guardado y como respaldo de night2). night2 solo
+   queda como valor del enum: `getCurrentShift` nunca lo devuelve, el
+   diálogo de horarios no lo ofrece y el panel de control no tiene su fila.
+   Los huecos se ven en el visor ("Fuera de jornada X") pero no cuentan
+   para reportes. Detalle en `image-review-domain` ("Jornadas: una sola
+   tabla") y en `image-review-firebase-integration` ("Tabla definitiva").
+   **HECHOS verificados por el usuario el 2026-10-02**: la regla de
+   `winning_numbers` está publicada; Coincidencias abre sin error con la
+   cuenta admin y muestra "Todavía no hay ganadores"; el Resumen real
+   funciona con la cuenta admin (ver "Pieza (d)").
+   **PENDIENTES (no decididos)**: actualizar el BOT con los mismos rangos y
+   sin night2 (en su repo; hasta entonces `shift_image_counts` sigue la
+   tabla vieja y el "imágenes en la jornada" del Resumen puede estar
+   desfasado en los bordes); retirar night2 de `ASSIGNABLE_SHIFTS` en
+   `functions/`; fuente de festivos; el horario del ERP puede cambiar sin
+   aviso; caché de la PWA tras desplegar; los mensajes ya guardados se
+   reclasifican con la tabla única; que Coincidencias, cuando haya
+   ganadores, probablemente pida un índice sobre `rol`; la función puente
+   de ganadores (toca `functions/`, autorización aparte); borrar los 4
+   documentos de prueba antes de desplegar el hosting; borrar los mocks y
+   el uploader simulado; y lo ya pendiente.
 
 ## Checklist antes de pasar a la siguiente pieza
 
@@ -424,11 +443,10 @@ de aquí y de la skill correspondiente cuando el usuario confirme):
   Function puente. El usuario dijo que los revisamos juntos — no intentar
   adivinarlos antes. (El formato de las jornadas ya se vio y se decidió
   una tabla fija en código, 2026-09-30.)
-- **Corte de la tabla de jornadas** (`image-review-domain`): fecha fija de
-  `newShiftsEffectiveFromMs` y despliegue coordinado con el bot (rangos y
-  claves de `shift_image_counts` en su repo), retirar night2 de
-  `ASSIGNABLE_SHIFTS` en `functions/`, fuente de festivos y caché de la PWA
-  tras el despliegue.
+- **Tabla única de jornadas** (`image-review-domain`): actualizar el bot
+  con los mismos rangos y sin night2 (en su repo), retirar night2 de
+  `ASSIGNABLE_SHIFTS` en `functions/`, fuente de festivos, horario del ERP
+  que puede cambiar sin aviso y caché de la PWA tras desplegar.
 - **Calidad de conexión en la subida real** (`image-review-offline-sync`,
   paso 7) — el timeout por registro ya existe (15 s, capa 3); falta decidir
   si además se verifica la conexión antes de subir, y qué pasa si una
