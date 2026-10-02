@@ -455,9 +455,12 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
     **Probado en la zona de pruebas con las reglas ya publicadas (HECHO,
     2026-10-01)**: un usuario sin claim de admin NO puede leer un registro
     de `image_reviews` ni un documento de `shift_image_counts` (`get`
-    denegado). **NO verificado**: que un admin real pueda leer (se prueba
-    al conectar el Resumen), la consulta de grupo de colecciones real y el
-    índice.
+    denegado). **HECHO (verificado por el usuario el 2026-10-02)**: un
+    admin real puede leer: el Resumen real leyó los registros, los
+    contadores y los nombres con la cuenta admin, y la consulta de grupo de
+    colecciones real funciona. El índice de grupo de colecciones sobre
+    `fechaJornada` (ascendente) se creó desde la consola, como exención de
+    `registros.fechaJornada`, con el enlace que trajo el error.
   - **Antecedente: probado en la zona de pruebas de la consola
     (2026-10-01), antes de publicar, en parte** (solo la escritura). El
     claim se simuló cambiando a mano la línea del claim en el editor de
@@ -473,7 +476,9 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
       después con la primera escritura real); `jornadaId` mal armado,
       `shiftKey` `outOfShift`, id sin sufijo de rol, `chatJid` distinto,
       mensaje inexistente y `delete` (siguen sin probar); `get` (probado
-      después para un usuario sin admin, ver "Lectura de admin"); el
+      después: denegado para un usuario sin admin en la zona de pruebas y
+      leído por un admin real con el Resumen el 2026-10-02, ver "Lectura de
+      admin"); el
       cliente real de la app (verificado después).
     - Nota: el simulador convirtió `registradoEn` en fecha cuando se
       escribió como ISO (`"...T12:00:00.000Z"`) y la regla lo rechazó por
@@ -549,9 +554,8 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
     (`jornadaId` mal armado, `shiftKey` `outOfShift`, id sin sufijo de rol,
     `chatJid` distinto, mensaje inexistente, `delete`).
   - Lectura de `image_reviews` y de `shift_image_counts` (solo admin y
-    superAdmin, publicada): probar la lectura de un admin real conectando
-    el Resumen; crear el índice de grupo de colecciones sobre
-    `fechaJornada` desde la consola cuando falle la primera consulta real;
+    superAdmin, publicada; la lectura de un admin real y el índice sobre
+    `fechaJornada` quedaron HECHOS el 2026-10-02, ver "Lectura de admin"):
     el desfase de claims (se leen solo al iniciar sesión); qué hacer con
     `functions/set-admin.js`, que reemplaza los claims sin fusionarlos
     (borraría `reviewRole`).
