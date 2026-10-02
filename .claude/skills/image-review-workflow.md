@@ -349,14 +349,29 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    - **Coincidencias abrió sin error con una cuenta admin** (HECHO,
      verificado por el usuario el 2026-10-02), mostrando "Todavía no hay
      ganadores".
-   **Función puente (pieza b) — DECIDIDO por el usuario, NO implementada**:
+   **Función puente (pieza b) — DECIDIDO por el usuario**:
    el número de `manual_lotteries` reemplaza al de `resultados_loterias`
    cuando es la misma lotería y la misma fecha; una lotería que solo está
-   en la manual cuenta como un número más; la función normaliza tildes y
-   mayúsculas entre colecciones (a confirmar con datos reales); relee una
-   ventana de días recientes porque la manual se corrige después.
-   **PENDIENTES (no decididos)**: la función puente (toca `functions/`,
-   autorización aparte); el índice de grupo de colecciones sobre
+   en la manual cuenta como un número más; solo importa el número (la serie
+   se ignora); la función normaliza tildes y mayúsculas entre colecciones
+   (a confirmar con datos reales). Función programada **cada hora**, que
+   procesa **hoy y ayer en hora de Bogotá** (la manual se corrige después),
+   **sin historial** y **sin bot**. El usuario **autorizó** trabajar en
+   `functions/` para esta función y desplegarla cuando esté lista.
+   **Pieza b1 — HECHA**: la mezcla, como función pura sin Firebase
+   (`mergeWinningNumbers` en `functions/winningNumbers.js`, con tests
+   `node:test`; no exportada en `index.js`). Devuelve `{numbers,
+   discarded}`: `numbers` son textos de 4 cifras, ceros a la izquierda
+   conservados, sin duplicados, en orden ascendente; `discarded`, lo que no
+   lo es, con su lotería y el motivo. La forma de las entradas es
+   SUPOSICIÓN y la clave de emparejamiento (`lotteryKey`) es PROVISIONAL.
+   Detalle en `image-review-firebase-integration` ("Función puente de
+   ganadores (pieza b)").
+   **PENDIENTES de la función puente (no decididos)**: la clave de
+   emparejamiento con datos reales; qué hacer con `discarded`; escribir
+   siempre o solo si cambió; el handler programado (pieza b2); el secreto
+   con las credenciales de `whats-apuestas`; el deploy.
+   **PENDIENTES (no decididos)**: el índice de grupo de colecciones sobre
    `fechaJornada` y `rol` (el enlace sale del error de la primera consulta
    con ganadores, en el log `[COINCIDENCIAS] falló (firestore): ...`);
    caché; costo en lecturas; que "Ver imagen" no se probó con una imagen
@@ -386,8 +401,9 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    `functions/`; fuente de festivos; el horario del ERP puede cambiar sin
    aviso; caché de la PWA tras desplegar; los mensajes ya guardados se
    reclasifican con la tabla única; que Coincidencias, cuando haya
-   ganadores, probablemente pida un índice sobre `rol`; la función puente
-   de ganadores (toca `functions/`, autorización aparte); borrar los 4
+   ganadores, probablemente pida un índice sobre `rol`; el handler, el
+   secreto y el deploy de la función puente de ganadores (ver "Función
+   puente (pieza b)" arriba); borrar los 4
    documentos de prueba antes de desplegar el hosting; borrar los mocks y
    el uploader simulado; y lo ya pendiente.
 
@@ -437,12 +453,14 @@ de aquí y de la skill correspondiente cuando el usuario confirme):
 - **`sqflite`/`drift` vs. `Hive`** (`image-review-offline-sync`) —
   decisión libre, a tomar en Claude Code; no hay nada existente que
   condicione la elección.
-- **Dos puntos diferidos del proyecto externo de Firebase**
-  (`image-review-firebase-integration`): mecanismo de recepción de números
-  ganadores (webhook vs. polling) y el contrato completo de la Cloud
-  Function puente. El usuario dijo que los revisamos juntos — no intentar
-  adivinarlos antes. (El formato de las jornadas ya se vio y se decidió
-  una tabla fija en código, 2026-09-30.)
+- **Función puente de ganadores** (`image-review-firebase-integration`):
+  el mecanismo ya está decidido (polling programado cada hora, hoy y ayer
+  en hora de Bogotá, sin historial) y la mezcla está hecha (pieza b1).
+  Falta: la forma real de las entradas y la clave de emparejamiento
+  (`lotteryKey`, PROVISIONAL), qué hacer con `discarded`, escribir siempre
+  o solo si cambió, el handler programado, el secreto y el deploy. (El
+  formato de las jornadas ya se vio y se decidió una tabla fija en código,
+  2026-09-30.)
 - **Tabla única de jornadas** (`image-review-domain`): actualizar el bot
   con los mismos rangos y sin night2 (en su repo), retirar night2 de
   `ASSIGNABLE_SHIFTS` en `functions/`, fuente de festivos, horario del ERP

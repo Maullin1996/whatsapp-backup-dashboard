@@ -153,18 +153,62 @@ encabezado todavía la da como no publicada. El nombre y la forma de
 existe**. Coincidencias **abrió sin error con una cuenta admin** el
 2026-10-02 (verificado por el usuario) y mostró "Todavía no hay ganadores".
 
-**DECIDIDO por el usuario — regla de la función puente (pieza b), NO
-implementada**:
+### Función puente de ganadores (pieza b)
+
+**DECIDIDO por el usuario**:
 - El número de `manual_lotteries` **reemplaza** al de
   `resultados_loterias` cuando es la misma lotería y la misma fecha.
 - Una lotería que solo está en la manual cuenta como un número más.
+- Solo importa el número: la serie se ignora.
 - La función normaliza tildes y mayúsculas entre colecciones (a confirmar
   con datos reales).
-- Relee una ventana de días recientes, porque la manual se corrige
-  después.
+- **Función programada (polling), cada hora**: consulta las dos
+  colecciones de `whats-apuestas`; no es un webhook.
+- **Procesa hoy y ayer, en hora de Bogotá** (la ventana de días recientes,
+  porque la manual se corrige después). **Sin historial**: no se rellenan
+  fechas anteriores.
+- **Sin bot**: la función no depende del bot ni lo modifica.
+- **Autorizado** por el usuario: trabajar en `functions/` para esta
+  función y desplegarla cuando esté lista (el deploy todavía no se hizo).
+
+**Pieza b1 — HECHA: la mezcla, función pura** (`functions/winningNumbers.js`,
+tests en `functions/test/winningNumbers.test.js`, `npm test`). No lee ni
+escribe nada, no usa Firebase y no está exportada en `index.js`.
+- `mergeWinningNumbers(automaticDoc, manualList)` →
+  `{ numbers, discarded }`.
+- **Forma de las entradas — SUPOSICIÓN** (no hay ejemplos en el repo, a
+  confirmar con datos reales): `automaticDoc` = documento de
+  `resultados_loterias` con `resultados: [{nombreLoteria, slug, numero,
+  serie}]`; `manualList` = documentos de `manual_lotteries` con
+  `{lottery, slug, date, result, series}`. El llamador pasa solo las
+  entradas de **una misma fecha**: la función no mira `date` (su formato
+  no se conoce).
+- **Clave de emparejamiento — PROVISIONAL**, aislada en `lotteryKey(slug)`:
+  el slug en minúsculas, sin tildes y sin espacios sobrantes. Es el único
+  lugar que decide si dos entradas son la misma lotería. Una entrada sin
+  slug no se empareja: cuenta sola.
+- Por cada clave presente en la manual cuentan TODAS sus entradas
+  manuales y se ignoran las automáticas de esa clave. Una automática
+  reemplazada no se evalúa (no aparece en `discarded`).
+- `numbers`: textos de exactamente 4 cifras, con `trim`, ceros a la
+  izquierda conservados, sin duplicados, en orden ascendente (el mismo
+  resultado sin importar el orden de entrada). Es la forma que espera
+  Coincidencias (`numbers`, lista de texto).
+- `discarded`: `{lottery, source ('automatica' | 'manual'), value,
+  reason}` de lo que no es un texto de 4 cifras. Motivos: `no-es-texto`
+  (p. ej. un entero, aunque tenga 4 cifras), `vacio` (vacío, solo
+  espacios, `null` o ausente), `no-son-cifras` y `longitud-distinta`. La
+  función solo lo devuelve; qué hacer con él no está decidido.
 
 **PENDIENTE (no decidido)**:
-- La función puente (toca `functions/`; necesita autorización aparte).
+- Confirmar con datos reales la forma de las entradas y la clave de
+  emparejamiento (`lotteryKey`).
+- Qué hacer con `discarded` (log, alerta, guardarlo).
+- Escribir `winning_numbers/{fecha}` siempre o solo si cambió.
+- El handler programado (pieza b2: `onSchedule`, lectura de las dos
+  colecciones, filtro por fecha, escritura), con su zona horaria.
+- El secreto con las credenciales de `whats-apuestas` (hoy `functions/` no
+  usa ningún secreto) y el deploy.
 - El índice de grupo de colecciones sobre `fechaJornada` y `rol` (el enlace
   sale del error de la primera consulta con ganadores, en el log
   `[COINCIDENCIAS] falló (firestore): ...`).
@@ -312,11 +356,9 @@ juntos con acceso al proyecto externo. El formato de las jornadas ya se
 vio (ver "Tabla definitiva" arriba) y se decidió usar una tabla fija, así
 que ese punto ya no bloquea:
 
-- **Mecanismo exacto de "recepción" de números ganadores**: ¿es un
-  endpoint HTTP al que algo externo hace push (webhook), o la Cloud
-  Function puente consulta activamente al otro proyecto (polling
-  programado)? Cambia bastante el diseño (trigger HTTP vs. Cloud
-  Scheduler).
+- ~~**Mecanismo exacto de "recepción" de números ganadores**~~ —
+  **resuelto**: polling programado cada hora, hoy y ayer en hora de Bogotá
+  (ver "Función puente de ganadores (pieza b)").
 - ~~Formato exacto de la lista de jornadas por fecha~~ — **resuelto**: ya
   se vio la colección `jornadas` y se decidió una tabla fija en código
   (ver "Tabla definitiva"). Queda pendiente solo cómo se marcan los
