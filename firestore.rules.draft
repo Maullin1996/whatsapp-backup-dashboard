@@ -1,9 +1,9 @@
-// Copia de las reglas PUBLICADAS a mano en la consola de Firebase (2026-10-01,
-// 7:37 p.m.) MÁS el bloque de winning_numbers, que todavía NO está publicado.
-// No referenciado en firebase.json: se publica a mano pegándolo en la
-// consola; esa publicación REEMPLAZA todo el conjunto de reglas. Antes de
-// publicar, confirmar que las reglas de la consola siguen siendo las de esta
-// copia (sin el bloque de winning_numbers).
+// Copia de las reglas PUBLICADAS a mano en la consola de Firebase: la versión
+// del 2026-10-01 (7:37 p.m.) más el bloque de winning_numbers, PUBLICADO el
+// 2026-10-02. No referenciado en firebase.json: se publica a mano pegándolo
+// en la consola; esa publicación REEMPLAZA todo el conjunto de reglas. Antes
+// de publicar un cambio, confirmar que las reglas de la consola siguen
+// siendo las de esta copia.
 //
 // Bloques existentes (copia exacta de las reglas actuales de la consola, sin
 // cambios): whatsapp_messages, group_stats, edit_attempts y users.
@@ -17,7 +17,7 @@
 //   Sumador no leen nada de image_reviews.
 // - shift_image_counts: lectura solo para admin o superAdmin; escritura
 //   negada (el bot escribe con el Admin SDK, que no pasa por estas reglas).
-// - winning_numbers (SIN PUBLICAR): lectura solo para admin o superAdmin
+// - winning_numbers (PUBLICADO 2026-10-02): lectura solo para admin o superAdmin
 //   (Coincidencias); escritura negada (la escribirá la función puente con el
 //   Admin SDK). La colección todavía no existe.
 
@@ -78,7 +78,7 @@ service cloud.firestore {
     }
 
     // Números ganadores del día, un documento por fecha (lo lee
-    // Coincidencias). Nombre PROVISIONAL; SIN PUBLICAR todavía.
+    // Coincidencias). Nombre PROVISIONAL; PUBLICADO 2026-10-02.
     match /winning_numbers/{docId} {
       allow read: if isAdmin();
       allow write: if false;
