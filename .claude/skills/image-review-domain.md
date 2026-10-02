@@ -310,8 +310,10 @@ recomendación de diseño es:
     sin días anteriores, o mostrar esos días sin comparación. La
     comparación arranca en la primera jornada posterior al deploy.
   - **Reglas de Firestore**: decidido que solo admin y superAdmin leen
-    `shift_image_counts` (y `image_reviews`); la regla ya está en
-    `firestore.rules.draft`, sin probar en la consola ni publicar. El datasource ya
+    `shift_image_counts` (y `image_reviews`); la regla está **publicada
+    desde el 2026-10-01** (copia en `firestore.rules.draft`). En la zona de
+    pruebas, un usuario sin claim de admin no puede leerlo; la lectura de
+    un admin real no está verificada. El datasource ya
     existe (Resumen real, capa 1, sin conectar).
   - **Historial**: la colección existe desde el deploy del 2026-09-28
     (01:34 UTC). Según `BOT_DOCUMENTATION.md`, ese primer ciclo publicó

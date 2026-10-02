@@ -158,10 +158,13 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    cual) viaja del visor al registro (`int?`, esquema sigue en v1) y al
    payload; `registradoEn` se mantiene. Un registro viejo sin el campo no se
    sube hasta re-guardarlo desde el visor.
-   **Capa 5, BORRADOR de reglas, NO desplegado**: `firestore.rules.draft`
-   (raíz del repo, no referenciado en `firebase.json`; se publicaría a mano
-   en la consola, reemplazando todo el conjunto, por eso copia tal cual las
-   reglas actuales). Agrega create/update de
+   **Capa 5, reglas de Firestore — PUBLICADAS el 2026-10-01** (HECHO,
+   verificado por el usuario; empezaron como borrador):
+   `firestore.rules.draft` (raíz del repo, no referenciado en
+   `firebase.json`) es la copia de lo publicado a mano en la consola, que
+   reemplaza todo el conjunto (por eso copia tal cual las reglas que ya
+   había). Su comentario de encabezado todavía dice "BORRADOR... no se
+   despliega" (también en lo publicado): hay que corregirlo. Agrega create/update de
    `image_reviews/.../registros/{registroId}` (delete negado; la lectura
    de admin se agregó después, ver más abajo):
    sesión, claim `reviewRole`, `rol` == claim, ids de registro y de jornada
@@ -169,7 +172,8 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    `messageTimestamp`/`chatJid` iguales a los de `whatsapp_messages`.
    Detalle de qué valida y qué no en `image-review-offline-sync` § "Ruta de
    la subida".
-   **Probado en la zona de pruebas de la consola el 2026-10-01, en parte**
+   **Antecedente: probado en la zona de pruebas de la consola el
+   2026-10-01, antes de publicar, en parte**
    (claim simulado editando a mano la línea del claim en el editor; el
    simulador no deja editar la carga útil del token). PERMITIDO: create de
    un revisor con el documento correcto. RECHAZADO: `messageTimestamp`
@@ -178,18 +182,18 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    `outOfShift`, id sin sufijo de rol, `chatJid` distinto, mensaje
    inexistente, `delete`, `get` y el cliente real de la app. Nota: el
    simulador convirtió `registradoEn` ISO en fecha y la regla lo rechazó
-   por `is string`; se asume, sin verificar, que la app lo manda como
-   texto (se confirma en la primera escritura real). **Las reglas AÚN NO
-   ESTÁN PUBLICADAS.**
+   por `is string`; la primera escritura real confirmó después que la app
+   lo manda como texto, y también verificó el claim real y el cliente real
+   de la app.
    **Capa 6, subida REAL cableada** (decisión del usuario, sin bandera):
    `reviewUploadDatasourceProvider` construye
    `FirestoreReviewUploadDatasource` con el `firestoreProvider` de la app y
    `reviewUploaderProvider` devuelve siempre `FirestoreReviewUploader`. Solo
    se construye al confirmar "Subir" (`ReviewUploadNotifier._upload`). Cada
    fallo deja un `debugPrint` con el messageId y el tipo de `Failure`, sin
-   payload ni chatJid. **Hoy las reglas de producción rechazan la escritura
-   en `image_reviews`** (`permission-denied`): el registro queda pendiente
-   hasta que se publique el borrador de la capa 5. `SimulatedReviewUploader`
+   payload ni chatJid. Hasta la publicación de las reglas (2026-10-01) la
+   escritura se rechazaba con `permission-denied` y el registro quedaba
+   pendiente. `SimulatedReviewUploader`
    queda sin cablear (candidato a borrar).
    **Cambio del modelo del registro — HECHO** (antes de la primera
    escritura real; decisión del usuario): el `codigo` pasa a ser **uno por
@@ -203,20 +207,33 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    (abre con el código vacío). Reglas, Resumen y Coincidencias sin
    cambios. Detalle en `image-review-domain` (vocabulario y regla 6) y
    `image-review-offline-sync`.
-   **PENDIENTES (no decididos)**: validar `codigo` en las reglas de
-   Firestore (hoy el borrador no lo valida y las reglas publicadas no
-   cambian); si la lotería pasa a ser una lista cerrada; un aviso visible
+   **PENDIENTES (no decididos)**: validar `codigo` y `loteria` en las
+   reglas (hoy no se validan); si la lotería pasa a ser una lista cerrada;
+   un aviso visible
    para los registros viejos que no se pueden subir (la píldora los sigue
    contando).
+   **Reglas publicadas y primera escritura real — HECHO (verificado por el
+   usuario el 2026-10-01)**: reglas vigentes desde ese día, 7:37 p.m., con
+   el contenido de `firestore.rules.draft`. Primera escritura real: 4
+   documentos de **PRUEBA** en producción (jornadas `2026-10-01_afternoon2`
+   y `2026-10-01_night1`, Revisor y Sumador en cada una, dos cuentas
+   distintas); formato confirmado en la consola (`codigo` arriba,
+   comprobantes `{numeros, total, loteria}`, `registradoEn` texto, `total`
+   int64, `messageTimestamp` entero, ceros a la izquierda conservados,
+   `fechaJornada`/`shiftKey` coherentes con la hora de Colombia); claim
+   `reviewRole` real y comparación contra `whatsapp_messages` verificados.
+   En la zona de pruebas, un usuario sin claim de admin no lee `registros`
+   ni `shift_image_counts`. **Hay que BORRAR los 4 documentos de prueba
+   desde la consola** antes de desplegar el hosting o de que otra persona
+   use el Resumen. Detalle en `image-review-offline-sync` (capas 5 y 6).
    Siguen **PENDIENTES** (detalle en `image-review-offline-sync` § "Ruta de
    la subida"): aviso visible para los registros viejos que no se pueden
    subir (y que la píldora los sigue contando), si conviene subir el
-   esquema a v2 (versiones antiguas de la app en caché), terminar de probar
-   el borrador (casos no probados) y publicarlo (a mano, con
-   el contenido limpio de `firestore.rules.draft`, autorización del usuario
-   y comprobando antes que las reglas de la consola no cambiaron; la regla
-   de lectura de admin de `image_reviews` y `shift_image_counts` ya está en
-   el borrador, sin probar),
+   esquema a v2 (versiones antiguas de la app en caché), borrar los 4
+   documentos de prueba, corregir el encabezado de `firestore.rules.draft`
+   y republicar cuando cambie otra regla, los casos de escritura nunca
+   probados en la zona de pruebas, probar la lectura de un admin real
+   conectando el Resumen,
    si validar `reviewShifts` o `allowedGroups`, reglas de Storage,
    verificación de conexión antes de subir, si una escritura en
    cola del SDK web llega tarde después de un timeout,
@@ -225,7 +242,7 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    Coincidencias entre grupos (consulta de grupo de colecciones o Cloud
    Function), si `fechaJornada`
    usa `toLocal()` o UTC-5 (ahora es parte de la ruta), límites de tamaño
-   (tampoco los impone el borrador de reglas), primera escritura real.
+   (tampoco los imponen las reglas).
    **Acceso al Resumen — HECHO**: `/summary` y su entrada "Resumen" del
    menú solo para admin y superAdmin (`canViewSummary`, misma regla que
    `canViewMatches` pero separada); el resto va a `/home`. **PENDIENTES**:
@@ -235,8 +252,8 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    que se renueve el token).
    **Lectura de `image_reviews` — DECIDIDO por el usuario**: solo la leen
    cuentas con claim `admin` o `superAdmin`; Revisor y Sumador no leen nada
-   de `image_reviews` (sus registros siguen en local). La regla todavía no
-   está escrita.
+   de `image_reviews` (sus registros siguen en local). La regla está
+   publicada desde el 2026-10-01 (ver más abajo).
    **Pieza (d), Resumen real — capa 1 HECHA, NO conectada**: capa de datos
    en `features/summary/data/` (nombres provisionales), probada con
    datasources falsos. Tres datasources en Dart puro con su clase Firestore
@@ -265,14 +282,17 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    **PENDIENTES (no decididos)**: la caché no se comparte entre pestañas ni
    sesiones; un registro subido después puede tardar hasta 5 minutos en
    aparecer (el botón "Actualizar" lo evita).
-   **Reglas de lectura de admin — EN EL BORRADOR, sin publicar ni probar**:
+   **Reglas de lectura de admin — PUBLICADAS el 2026-10-01** (en la zona de
+   pruebas, un usuario sin claim de admin no lee `registros` ni
+   `shift_image_counts`; la lectura de un admin real no está verificada):
    `isAdmin()` (claims `admin` o `superAdmin` leídos con `get`), `match
    /{path=**}/registros/{registroId}` solo lectura (sirve a la consulta de
    grupo; el nombre `registros` aplica a toda colección con ese nombre) y
    `shift_image_counts` con lectura de admin y escritura negada.
-   **PENDIENTES (no decididos)**: probar el borrador en la zona de pruebas
-   y publicarlo (a mano, con el contenido limpio del repo y autorización
-   del usuario); crear el índice de grupo de colecciones sobre
+   **PENDIENTES (no decididos)**: probar la lectura de un admin real
+   conectando el Resumen; borrar antes los 4 documentos de prueba; la
+   consulta de grupo de colecciones real; crear el índice de grupo de
+   colecciones sobre
    `fechaJornada` en `registros` desde la consola cuando falle la primera
    consulta real; el desfase de claims (se leen solo al iniciar sesión);
    qué hacer con `functions/set-admin.js`, que reemplaza los claims sin

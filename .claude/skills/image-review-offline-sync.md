@@ -397,19 +397,27 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
   `messageTimestamp`, sin llamar al datasource y sin imprimir el payload
   (`FirestoreReviewUploader` deja, como con todo `Left`, solo su línea
   `[SUBIDA] falló <messageId>: unknown`; el simulado no imprime nada). Las
-  reglas del borrador **no** cambiaron: usan `hasAll` sin `hasOnly` sobre
+  reglas (`firestore.rules.draft`, hoy publicadas) **no** cambiaron: usan
+  `hasAll` sin `hasOnly` sobre
   las 13 claves y no miran el interior de `comprobantes`, así que aceptan
   `codigo` arriba y `loteria` en cada comprobante sin validarlos. El
   Resumen real lee de cada comprobante solo `total`.
-- **Capa 5 — BORRADOR de reglas, NO desplegado**: `firestore.rules.draft`
-  en la raíz del repo. **No está referenciado en `firebase.json`** (que no
-  tiene bloque `firestore`) y no se despliega con la CLI: se publica a mano
+- **Capa 5 — reglas de Firestore, PUBLICADAS en la consola (HECHO,
+  verificado por el usuario el 2026-10-01; empezaron como borrador)**: la
+  versión vigente es la de ese día, 7:37 p.m., y su contenido es el de
+  `firestore.rules.draft` (raíz del repo), que queda como **copia de lo
+  publicado**. **No está referenciado en `firebase.json`** (que no tiene
+  bloque `firestore`) y no se despliega con la CLI: se publica a mano
   pegándolo en la consola de Firebase, y esa publicación **reemplaza todo el
   conjunto de reglas**. Por eso el archivo empieza con una copia exacta de
-  las reglas actuales de la consola (`whatsapp_messages`, `group_stats`,
+  las reglas que ya había en la consola (`whatsapp_messages`, `group_stats`,
   `edit_attempts`: lectura con sesión, escritura negada; `users/{uid}`:
-  lectura solo del propio uid, escritura negada). Antes de publicar hay que
-  confirmar que las de la consola siguen siendo esas.
+  lectura solo del propio uid, escritura negada), que siguen sin cambios.
+  Antes de cada nueva publicación hay que confirmar que las de la consola
+  siguen siendo las del archivo. **El comentario del encabezado (en el repo
+  y en lo publicado) todavía dice "BORRADOR... no se despliega"**: está
+  desactualizado y debe corregirse en el repo, para publicarlo cuando
+  cambie otra regla.
   - **Bloque nuevo**, solo para
     `image_reviews/{chatJid}/jornadas/{jornadaId}/registros/{registroId}`:
     `create` y `update` con las mismas condiciones, `delete` negado. La
@@ -431,8 +439,8 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
   - **Qué NO valida**: `uid`, `reviewShifts`, `allowedGroups`,
     `registradoPor`, `registradoEn`, el contenido de `comprobantes`, ni
     tamaños máximos de campos o listas.
-  - **Lectura de admin (agregada después, SIN publicar y SIN probar en la
-    consola)**: función `isAdmin()` = sesión y
+  - **Lectura de admin (agregada después; publicada con el resto el
+    2026-10-01)**: función `isAdmin()` = sesión y
     (`token.get('admin', false) == true` o
     `token.get('superAdmin', false) == true`; `admin` puede faltar o valer
     false, `superAdmin` vale true o no existe). `match
@@ -444,26 +452,34 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
     `rules_version = '2'`. `match /shift_image_counts/{docId}`: lectura
     solo `isAdmin()`, escritura negada (el bot escribe con el Admin SDK).
     Revisor y Sumador no leen nada de `image_reviews`.
-  - **Probado en la zona de pruebas de la consola (2026-10-01), parcial**
-    (solo la escritura; la lectura de admin es posterior y no se probó).
-    El claim se simuló cambiando a mano la línea del claim en el editor de
+    **Probado en la zona de pruebas con las reglas ya publicadas (HECHO,
+    2026-10-01)**: un usuario sin claim de admin NO puede leer un registro
+    de `image_reviews` ni un documento de `shift_image_counts` (`get`
+    denegado). **NO verificado**: que un admin real pueda leer (se prueba
+    al conectar el Resumen), la consulta de grupo de colecciones real y el
+    índice.
+  - **Antecedente: probado en la zona de pruebas de la consola
+    (2026-10-01), antes de publicar, en parte** (solo la escritura). El
+    claim se simuló cambiando a mano la línea del claim en el editor de
     reglas (el simulador no deja editar la carga útil del token); sin
-    emulador. **Las reglas AÚN NO ESTÁN PUBLICADAS en producción.**
+    emulador. Después se publicaron (ver arriba) y la primera escritura
+    real verificó el claim real y el cliente de la app (ver capa 6).
     - PERMITIDO: create de un revisor con el documento correcto (13 claves,
       ids coherentes, `messageTimestamp` y `chatJid` iguales a los del
       mensaje real).
     - RECHAZADO: `messageTimestamp` distinto del del mensaje real; sin
       sesión; `rol` del documento distinto del claim.
-    - NO PROBADO: el claim real de un token (solo se simuló); `jornadaId`
-      mal armado, `shiftKey` `outOfShift`, id sin sufijo de rol, `chatJid`
-      distinto, mensaje inexistente, `delete` y `get`; el comportamiento con
-      el cliente real de la app.
+    - NO PROBADO en el simulador: el claim real de un token (verificado
+      después con la primera escritura real); `jornadaId` mal armado,
+      `shiftKey` `outOfShift`, id sin sufijo de rol, `chatJid` distinto,
+      mensaje inexistente y `delete` (siguen sin probar); `get` (probado
+      después para un usuario sin admin, ver "Lectura de admin"); el
+      cliente real de la app (verificado después).
     - Nota: el simulador convirtió `registradoEn` en fecha cuando se
       escribió como ISO (`"...T12:00:00.000Z"`) y la regla lo rechazó por
-      `is string`; con un texto cualquiera pasó. **SUPOSICIÓN, sin
-      verificar**: el cliente real de la app lo envía como texto
-      (`toIso8601String()` en `toMap()`). Se confirma en la primera
-      escritura real.
+      `is string`; con un texto cualquiera pasó. Se suponía que el cliente
+      real lo envía como texto (`toIso8601String()` en `toMap()`):
+      **HECHO (2026-10-01)**, la primera escritura real lo confirmó.
 - **Capa 6 — HECHA: subida REAL cableada** (decisión del usuario, sin
   bandera de compilación):
   - `reviewUploadDatasourceProvider` =
@@ -479,12 +495,29 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
     `debugPrint('[SUBIDA] falló <messageId>: <tipo>')`, con el tipo
     `firestore` / `unauthorized` / `storage` / `unknown`; sin payload ni
     `chatJid`. Ni `ReviewUploader` ni el notifier cambiaron.
-  - **Hoy las reglas de producción rechazan la escritura** en
-    `image_reviews` (no tienen regla para esa colección, así que todo se
-    niega): cada registro vuelve `permission-denied` → `unauthorized`, cuenta
-    como fallido en el SnackBar ("no se pudieron subir; siguen pendientes")
-    y **queda pendiente**, sin perder nada. Empieza a escribir recién cuando
-    se publique el borrador de la capa 5.
+  - **Antecedente**: hasta la publicación de las reglas (2026-10-01),
+    producción no tenía regla para `image_reviews` y todo se negaba: cada
+    registro volvía `permission-denied` → `unauthorized`, contaba como
+    fallido en el SnackBar ("no se pudieron subir; siguen pendientes") y
+    quedaba pendiente, sin perder nada. Un fallo de reglas sigue
+    comportándose así.
+  - **Primera escritura real — HECHA (verificado por el usuario el
+    2026-10-01)**: 4 documentos de **PRUEBA** en la base de producción, en
+    2 jornadas del 2026-10-01 (`2026-10-01_afternoon2` y
+    `2026-10-01_night1`), con Revisor y Sumador en cada una, escritos con
+    dos cuentas distintas. Confirmado en la consola: la ruta
+    `image_reviews/{chatJid}/jornadas/{fecha}_{shiftKey}/registros/{messageId}_{rol}`;
+    `codigo` arriba; cada comprobante `{numeros, total, loteria}` (`loteria`
+    null cuando quedó vacía); el Sumador con `numeros` vacío; `registradoEn`
+    como texto; `total` como int64; `messageTimestamp` como entero; los
+    ceros a la izquierda de los números se conservaron; `fechaJornada` y
+    `shiftKey` coinciden con la hora del mensaje en hora de Colombia.
+    También verificado: el claim `reviewRole` real se evalúa bien para los
+    dos roles, y la comparación de `messageTimestamp` y `chatJid` contra
+    `whatsapp_messages` funciona con mensajes reales.
+  - **Hay que BORRAR esos 4 documentos de prueba (desde la consola)** antes
+    de desplegar el hosting o de que otra persona use el Resumen: son
+    números de prueba y contarían en el Resumen y en Coincidencias.
   - `SimulatedReviewUploader` **no se borró**: queda sin cablear ("No
     cableado en producción; solo tests y referencia; candidato a borrar"),
     con el mismo contrato.
@@ -502,28 +535,25 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
     pudieron subir" en el SnackBar, sin decir cuál ni por qué, y **la
     píldora los sigue contando** (el índice de pendientes no sabe que les
     falta el campo).
-  - Validar `codigo` en las reglas de Firestore (hoy el borrador no lo
-    valida; las reglas publicadas no cambian). Si la lotería pasa a ser
-    una lista cerrada.
+  - Borrar los 4 documentos de prueba (ver capa 6) antes de desplegar el
+    hosting o de que otra persona use el Resumen.
+  - Validar `codigo` y `loteria` en las reglas (hoy no se validan). Si la
+    lotería pasa a ser una lista cerrada.
+  - Corregir el comentario del encabezado de `firestore.rules.draft`
+    ("BORRADOR... no se despliega") y republicarlo cuando cambie otra
+    regla.
   - Si conviene subir el esquema a v2 igual (por ejemplo, para que una
     versión antigua de la app que siga en caché no lea ni reescriba
     registros con un campo que no conoce).
-  - Terminar de probar el borrador en la zona de pruebas (los casos NO
-    PROBADOS de arriba) y publicarlo: a mano, con el contenido
-    limpio de `firestore.rules.draft` y autorización explícita del usuario,
-    comprobando antes que las reglas de la consola no cambiaron. Hasta
-    entonces toda subida falla con `permission-denied`.
-  - La primera escritura real (y comprobarla en la consola), que además
-    confirma que `registradoEn` llega como texto y que el claim real del
-    token se evalúa como en el simulador.
-  - Regla de lectura de `image_reviews` y de `shift_image_counts` (solo
-    admin y superAdmin, decidido): **ya está en `firestore.rules.draft`**,
-    sin probar en la consola ni publicar. Falta probarla en la zona de
-    pruebas y publicarla (a mano, con el contenido limpio del repo y
-    autorización del usuario); crear el índice de grupo de colecciones
-    sobre `fechaJornada` desde la consola cuando falle la primera consulta
-    real; el desfase de claims (se leen solo al iniciar sesión); qué hacer
-    con `functions/set-admin.js`, que reemplaza los claims sin fusionarlos
+  - Casos de escritura que nunca se probaron en la zona de pruebas
+    (`jornadaId` mal armado, `shiftKey` `outOfShift`, id sin sufijo de rol,
+    `chatJid` distinto, mensaje inexistente, `delete`).
+  - Lectura de `image_reviews` y de `shift_image_counts` (solo admin y
+    superAdmin, publicada): probar la lectura de un admin real conectando
+    el Resumen; crear el índice de grupo de colecciones sobre
+    `fechaJornada` desde la consola cuando falle la primera consulta real;
+    el desfase de claims (se leen solo al iniciar sesión); qué hacer con
+    `functions/set-admin.js`, que reemplaza los claims sin fusionarlos
     (borraría `reviewRole`).
   - Si las reglas de escritura deben validar `reviewShifts` o
     `allowedGroups`; reglas de Storage (no están en el repo).
@@ -548,9 +578,9 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
     después mueve los documentos.
   - Límites de tamaño (comprobantes, números, largo de código y anotaciones,
     tope de `total`): hoy el código no los impone salvo 12 dígitos en la UI,
-    y el borrador de reglas tampoco.
+    y las reglas tampoco.
   - Si las reglas pasan a versionarse con despliegue por CLI (`firebase.json`
-    no tiene bloque `firestore`; hoy el borrador se publica a mano).
+    no tiene bloque `firestore`; hoy se publica a mano desde la consola).
 
 ### Pendiente de diseño para la integración real (paso 7)
 
