@@ -13,7 +13,8 @@ import 'package:whatsapp_monitor_viewer/helpers/map_failure_to_message.dart';
 
 /// Resumen por grupo y jornada de un día: qué registró cada rol y si cuadra.
 ///
-/// Por ahora con datos inventados (ver `MockSummaryRepository`).
+/// Lee datos reales de Firestore (ver `summaryRepositoryProvider`); solo para
+/// admin y superAdmin.
 class SummaryPage extends ConsumerWidget {
   const SummaryPage({super.key});
 
@@ -60,6 +61,11 @@ class _SummaryScaffold extends ConsumerWidget {
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
         ),
         actions: [
+          IconButton(
+            tooltip: 'Actualizar',
+            icon: const Icon(Icons.refresh_rounded),
+            onPressed: () => ref.read(reloadJornadaSummariesProvider)(),
+          ),
           IconButton(
             tooltip: 'Elegir fecha',
             icon: const Icon(Icons.calendar_month_rounded),
@@ -146,7 +152,8 @@ class _SummaryContent extends ConsumerWidget {
             icon: Icons.error_outline_rounded,
             message: mapFailureToMessage(error),
             actionLabel: 'Reintentar',
-            onAction: () => ref.invalidate(jornadaSummariesProvider),
+            // A la fuente, nunca a la caché.
+            onAction: () => ref.read(reloadJornadaSummariesProvider)(),
           ),
         ),
         data: (list) => list.isEmpty

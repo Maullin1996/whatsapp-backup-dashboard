@@ -14,10 +14,14 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$Comprobante {
 
- String get codigo;/// Se guardan como String para conservar ceros a la izquierda
+/// Se guardan como String para conservar ceros a la izquierda
 /// ("0123" != "123").
  List<String> get numeros;/// Pesos, sin decimales.
- int get total;
+ int get total;/// Dónde se compró el boleto: texto libre, opcional (null si quedó
+/// vacío). Puede variar entre los boletos de una misma foto. No tiene
+/// relación con las loterías de los números ganadores ni entra en la
+/// reconciliación.
+ String? get loteria;
 /// Create a copy of Comprobante
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +32,16 @@ $ComprobanteCopyWith<Comprobante> get copyWith => _$ComprobanteCopyWithImpl<Comp
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Comprobante&&(identical(other.codigo, codigo) || other.codigo == codigo)&&const DeepCollectionEquality().equals(other.numeros, numeros)&&(identical(other.total, total) || other.total == total));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Comprobante&&const DeepCollectionEquality().equals(other.numeros, numeros)&&(identical(other.total, total) || other.total == total)&&(identical(other.loteria, loteria) || other.loteria == loteria));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,codigo,const DeepCollectionEquality().hash(numeros),total);
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(numeros),total,loteria);
 
 @override
 String toString() {
-  return 'Comprobante(codigo: $codigo, numeros: $numeros, total: $total)';
+  return 'Comprobante(numeros: $numeros, total: $total, loteria: $loteria)';
 }
 
 
@@ -48,7 +52,7 @@ abstract mixin class $ComprobanteCopyWith<$Res>  {
   factory $ComprobanteCopyWith(Comprobante value, $Res Function(Comprobante) _then) = _$ComprobanteCopyWithImpl;
 @useResult
 $Res call({
- String codigo, List<String> numeros, int total
+ List<String> numeros, int total, String? loteria
 });
 
 
@@ -65,12 +69,12 @@ class _$ComprobanteCopyWithImpl<$Res>
 
 /// Create a copy of Comprobante
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? codigo = null,Object? numeros = null,Object? total = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? numeros = null,Object? total = null,Object? loteria = freezed,}) {
   return _then(_self.copyWith(
-codigo: null == codigo ? _self.codigo : codigo // ignore: cast_nullable_to_non_nullable
-as String,numeros: null == numeros ? _self.numeros : numeros // ignore: cast_nullable_to_non_nullable
+numeros: null == numeros ? _self.numeros : numeros // ignore: cast_nullable_to_non_nullable
 as List<String>,total: null == total ? _self.total : total // ignore: cast_nullable_to_non_nullable
-as int,
+as int,loteria: freezed == loteria ? _self.loteria : loteria // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 
@@ -155,10 +159,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String codigo,  List<String> numeros,  int total)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( List<String> numeros,  int total,  String? loteria)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Comprobante() when $default != null:
-return $default(_that.codigo,_that.numeros,_that.total);case _:
+return $default(_that.numeros,_that.total,_that.loteria);case _:
   return orElse();
 
 }
@@ -176,10 +180,10 @@ return $default(_that.codigo,_that.numeros,_that.total);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String codigo,  List<String> numeros,  int total)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( List<String> numeros,  int total,  String? loteria)  $default,) {final _that = this;
 switch (_that) {
 case _Comprobante():
-return $default(_that.codigo,_that.numeros,_that.total);case _:
+return $default(_that.numeros,_that.total,_that.loteria);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -196,10 +200,10 @@ return $default(_that.codigo,_that.numeros,_that.total);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String codigo,  List<String> numeros,  int total)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( List<String> numeros,  int total,  String? loteria)?  $default,) {final _that = this;
 switch (_that) {
 case _Comprobante() when $default != null:
-return $default(_that.codigo,_that.numeros,_that.total);case _:
+return $default(_that.numeros,_that.total,_that.loteria);case _:
   return null;
 
 }
@@ -211,10 +215,9 @@ return $default(_that.codigo,_that.numeros,_that.total);case _:
 
 
 class _Comprobante implements Comprobante {
-  const _Comprobante({required this.codigo, required final  List<String> numeros, required this.total}): _numeros = numeros;
+  const _Comprobante({required final  List<String> numeros, required this.total, this.loteria}): _numeros = numeros;
   
 
-@override final  String codigo;
 /// Se guardan como String para conservar ceros a la izquierda
 /// ("0123" != "123").
  final  List<String> _numeros;
@@ -228,6 +231,11 @@ class _Comprobante implements Comprobante {
 
 /// Pesos, sin decimales.
 @override final  int total;
+/// Dónde se compró el boleto: texto libre, opcional (null si quedó
+/// vacío). Puede variar entre los boletos de una misma foto. No tiene
+/// relación con las loterías de los números ganadores ni entra en la
+/// reconciliación.
+@override final  String? loteria;
 
 /// Create a copy of Comprobante
 /// with the given fields replaced by the non-null parameter values.
@@ -239,16 +247,16 @@ _$ComprobanteCopyWith<_Comprobante> get copyWith => __$ComprobanteCopyWithImpl<_
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Comprobante&&(identical(other.codigo, codigo) || other.codigo == codigo)&&const DeepCollectionEquality().equals(other._numeros, _numeros)&&(identical(other.total, total) || other.total == total));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Comprobante&&const DeepCollectionEquality().equals(other._numeros, _numeros)&&(identical(other.total, total) || other.total == total)&&(identical(other.loteria, loteria) || other.loteria == loteria));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,codigo,const DeepCollectionEquality().hash(_numeros),total);
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_numeros),total,loteria);
 
 @override
 String toString() {
-  return 'Comprobante(codigo: $codigo, numeros: $numeros, total: $total)';
+  return 'Comprobante(numeros: $numeros, total: $total, loteria: $loteria)';
 }
 
 
@@ -259,7 +267,7 @@ abstract mixin class _$ComprobanteCopyWith<$Res> implements $ComprobanteCopyWith
   factory _$ComprobanteCopyWith(_Comprobante value, $Res Function(_Comprobante) _then) = __$ComprobanteCopyWithImpl;
 @override @useResult
 $Res call({
- String codigo, List<String> numeros, int total
+ List<String> numeros, int total, String? loteria
 });
 
 
@@ -276,12 +284,12 @@ class __$ComprobanteCopyWithImpl<$Res>
 
 /// Create a copy of Comprobante
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? codigo = null,Object? numeros = null,Object? total = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? numeros = null,Object? total = null,Object? loteria = freezed,}) {
   return _then(_Comprobante(
-codigo: null == codigo ? _self.codigo : codigo // ignore: cast_nullable_to_non_nullable
-as String,numeros: null == numeros ? _self._numeros : numeros // ignore: cast_nullable_to_non_nullable
+numeros: null == numeros ? _self._numeros : numeros // ignore: cast_nullable_to_non_nullable
 as List<String>,total: null == total ? _self.total : total // ignore: cast_nullable_to_non_nullable
-as int,
+as int,loteria: freezed == loteria ? _self.loteria : loteria // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 

@@ -17,6 +17,7 @@ const _target = ImageReviewTarget(
   shift: 'Jornada Mañana',
   storagePath: 'img_m1.png',
   fechaJornada: '2026-01-15',
+  messageTimestamp: 1788489942000,
   localTime: '10:03',
   shiftImageIndex: 4,
 );
@@ -97,7 +98,7 @@ Future<void> _fill(
   String codigo = 'A1',
   String total = '9000',
 }) async {
-  await tester.enterText(_key('codigo-0'), codigo);
+  await tester.enterText(_key('codigo'), codigo);
   await tester.enterText(_key('total-0'), total);
   await tester.pump();
 }
@@ -145,7 +146,7 @@ void main() {
     ) async {
       await _pumpPanel(tester);
 
-      expect(_key('codigo-0'), findsOneWidget);
+      expect(_key('codigo'), findsOneWidget);
       expect(_key('total-0'), findsOneWidget);
       expect(_key('numero-0'), findsNothing);
       expect(_key('agregar-numero-0'), findsNothing);
@@ -171,9 +172,9 @@ void main() {
     testWidgets('Tab va de Código a Total', (tester) async {
       await _pumpPanel(tester);
 
-      await tester.tap(_key('codigo-0'));
+      await tester.tap(_key('codigo'));
       await tester.pump();
-      expect(_focusOf(tester, 'codigo-0').hasFocus, isTrue);
+      expect(_focusOf(tester, 'codigo').hasFocus, isTrue);
 
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.pump();
@@ -205,7 +206,7 @@ void main() {
 
       await _tapButton(tester, 'Guardar');
 
-      expect(find.text('Comprobante 1: ingresa el código'), findsOneWidget);
+      expect(find.text('Ingresa el código de la imagen'), findsOneWidget);
       expect(find.text('Obligatorio'), findsNWidgets(2)); // código y total
       expect(find.text('Agrega al menos un número'), findsNothing);
       expect(await _saved(container, ReviewRole.sumador), isNull);
@@ -240,7 +241,7 @@ void main() {
       expect(record!.rol, ReviewRole.sumador);
       expect(record.registradoPor, _email);
       expect(record.editado, isFalse);
-      expect(record.form.comprobantes.single.codigo, 'Antioquia');
+      expect(record.form.codigo, 'Antioquia');
       expect(record.form.comprobantes.single.total, 9000);
       expect(record.form.comprobantes.single.numeros, isEmpty);
       expect(record.form.anotaciones, 'no se lee');
@@ -276,7 +277,7 @@ void main() {
 
       await _tapButton(tester, 'Editar');
       expect(_status(tester), ReviewStatus.editing);
-      expect(_text(tester, 'codigo-0'), 'A1');
+      expect(_text(tester, 'codigo'), 'A1');
       expect(_text(tester, 'total-0'), '9.000');
       expect(_key('numero-0'), findsNothing);
 
@@ -302,7 +303,7 @@ void main() {
         find.text('Revisor · Jornada Mañana · 10:03 · Imagen #4'),
         findsOneWidget,
       );
-      await tester.enterText(_key('codigo-0'), 'REV');
+      await tester.enterText(_key('codigo'), 'REV');
       await tester.enterText(_key('numero-0'), '0123');
       await tester.tap(_key('agregar-numero-0'));
       await tester.pump();
@@ -318,7 +319,7 @@ void main() {
       // Formulario vacío del Sumador: no ve el registro del Revisor.
       expect(_status(tester), ReviewStatus.unsaved);
       expect(find.text('REV'), findsNothing);
-      expect(_text(tester, 'codigo-0'), isEmpty);
+      expect(_text(tester, 'codigo'), isEmpty);
       expect(_text(tester, 'total-0'), isEmpty);
       expect(_key('numero-0'), findsNothing);
       expect(
@@ -340,7 +341,7 @@ void main() {
 
       expect(_status(tester), ReviewStatus.unsaved);
       expect(find.text('SUM'), findsNothing);
-      expect(_text(tester, 'codigo-0'), isEmpty);
+      expect(_text(tester, 'codigo'), isEmpty);
       expect(_key('numero-0'), findsOneWidget);
     });
 
@@ -348,22 +349,22 @@ void main() {
       tester,
     ) async {
       final container = await _pumpPanel(tester, role: ReviewRole.revisor);
-      await tester.enterText(_key('codigo-0'), 'DEL-REVISOR');
+      await tester.enterText(_key('codigo'), 'DEL-REVISOR');
       await tester.pump();
 
       container.read(_roleProvider.notifier).set(ReviewRole.sumador);
       await tester.pumpAndSettle();
-      expect(_text(tester, 'codigo-0'), isEmpty);
-      await tester.enterText(_key('codigo-0'), 'DEL-SUMADOR');
+      expect(_text(tester, 'codigo'), isEmpty);
+      await tester.enterText(_key('codigo'), 'DEL-SUMADOR');
       await tester.pump();
 
       container.read(_roleProvider.notifier).set(ReviewRole.revisor);
       await tester.pumpAndSettle();
-      expect(_text(tester, 'codigo-0'), 'DEL-REVISOR');
+      expect(_text(tester, 'codigo'), 'DEL-REVISOR');
 
       container.read(_roleProvider.notifier).set(ReviewRole.sumador);
       await tester.pumpAndSettle();
-      expect(_text(tester, 'codigo-0'), 'DEL-SUMADOR');
+      expect(_text(tester, 'codigo'), 'DEL-SUMADOR');
     });
   });
 }

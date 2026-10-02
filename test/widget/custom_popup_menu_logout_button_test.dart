@@ -12,17 +12,22 @@ import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/aut
 import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_providers.dart';
 import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_session_state.dart';
 import 'package:whatsapp_monitor_viewer/features/chats/presentation/widgets/custom_popup_menu_logout_button.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/presentation/pages/matches_page.dart';
+import 'package:whatsapp_monitor_viewer/features/summary/data/mock_summary_repository.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/presentation/pages/summary_page.dart';
+import 'package:whatsapp_monitor_viewer/features/summary/presentation/providers/summary_providers.dart';
 
 class _FakeAuth extends AuthSessionNotifier {
   final bool isAdmin;
   final bool isSuperAdmin;
   final bool noSession;
+  final ReviewRole? reviewRole;
   _FakeAuth({
     this.isAdmin = false,
     this.isSuperAdmin = false,
     this.noSession = false,
+    this.reviewRole,
   });
 
   @override
@@ -34,6 +39,7 @@ class _FakeAuth extends AuthSessionNotifier {
         email: 'a@x.com',
         isAdmin: isAdmin,
         isSuperAdmin: isSuperAdmin,
+        reviewRole: reviewRole,
       ),
     );
   }
@@ -46,6 +52,7 @@ Future<void> pumpMenu(
   bool isAdmin = false,
   bool isSuperAdmin = false,
   bool noSession = false,
+  ReviewRole? reviewRole,
 }) async {
   final router = GoRouter(
     routes: [
@@ -62,11 +69,16 @@ Future<void> pumpMenu(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        // El Resumen real leería Firestore: en el test, el mock sin latencia.
+        summaryRepositoryProvider.overrideWithValue(
+          const MockSummaryRepository(latency: Duration.zero),
+        ),
         authSessionProvider.overrideWith(
           () => _FakeAuth(
             isAdmin: isAdmin,
             isSuperAdmin: isSuperAdmin,
             noSession: noSession,
+            reviewRole: reviewRole,
           ),
         ),
       ],
@@ -129,7 +141,7 @@ void main() {
     testWidgets('"Resumen" usa AppColors.primaryGreen, no rojo', (
       tester,
     ) async {
-      await pumpMenu(tester, isAdmin: false);
+      await pumpMenu(tester, isAdmin: true);
       await hover(tester, 'Resumen');
 
       expect(textColor(tester, 'Resumen'), AppColors.primaryGreen);
@@ -178,11 +190,11 @@ void main() {
   });
 
   group('items y orden', () {
-    testWidgets('un usuario no-admin ve "Resumen" pero no el panel de '
+    testWidgets('un usuario no-admin no ve "Resumen" ni el panel de '
         'administración', (tester) async {
       await pumpMenu(tester, isAdmin: false);
 
-      expect(find.text('Resumen'), findsOneWidget);
+      expect(find.text('Resumen'), findsNothing);
       expect(find.text('Panel de administración'), findsNothing);
       expect(find.text('Cerrar sesión'), findsOneWidget);
     });
@@ -202,19 +214,17 @@ void main() {
       expect(divider, lessThan(logout));
     });
 
-    testWidgets('no-admin: Resumen → divisor → Cerrar sesión', (tester) async {
+    testWidgets('no-admin: divisor → Cerrar sesión', (tester) async {
       await pumpMenu(tester, isAdmin: false);
 
-      final summary = tester.getCenter(find.text('Resumen')).dy;
       final divider = tester.getCenter(find.byType(PopupMenuDivider)).dy;
       final logout = tester.getCenter(find.text('Cerrar sesión')).dy;
 
-      expect(summary, lessThan(divider));
       expect(divider, lessThan(logout));
     });
 
     testWidgets('el icono de "Resumen" es fact_check_rounded', (tester) async {
-      await pumpMenu(tester, isAdmin: false);
+      await pumpMenu(tester, isAdmin: true);
 
       expect(
         find.descendant(
@@ -227,13 +237,42 @@ void main() {
   });
 
   testWidgets('tocar "Resumen" navega a /summary', (tester) async {
-    await pumpMenu(tester, isAdmin: false);
+    await pumpMenu(tester, isAdmin: true);
 
     await tester.tap(find.text('Resumen'));
     await tester.pumpAndSettle();
 
     expect(find.byType(SummaryPage), findsOneWidget);
     expect(find.text('Resumen'), findsOneWidget);
+  });
+
+  group('"Resumen" (canViewSummary: admin o superAdmin)', () {
+    testWidgets('aparece con isAdmin', (tester) async {
+      await pumpMenu(tester, isAdmin: true);
+      expect(find.text('Resumen'), findsOneWidget);
+    });
+
+    testWidgets('aparece con solo isSuperAdmin (sin isAdmin)', (tester) async {
+      await pumpMenu(tester, isSuperAdmin: true);
+      expect(find.text('Resumen'), findsOneWidget);
+    });
+
+    for (final rol in ReviewRole.values) {
+      testWidgets('NO aparece para ${rol.name} sin admin', (tester) async {
+        await pumpMenu(tester, reviewRole: rol);
+        expect(find.text('Resumen'), findsNothing);
+      });
+    }
+
+    testWidgets('NO aparece con un usuario sin claims', (tester) async {
+      await pumpMenu(tester);
+      expect(find.text('Resumen'), findsNothing);
+    });
+
+    testWidgets('NO aparece sin sesión', (tester) async {
+      await pumpMenu(tester, noSession: true);
+      expect(find.text('Resumen'), findsNothing);
+    });
   });
 
   group('"Coincidencias" (canViewMatches: admin o superAdmin)', () {
@@ -251,6 +290,13 @@ void main() {
       await pumpMenu(tester);
       expect(find.text('Coincidencias'), findsNothing);
     });
+
+    for (final rol in ReviewRole.values) {
+      testWidgets('NO aparece para ${rol.name} sin admin', (tester) async {
+        await pumpMenu(tester, reviewRole: rol);
+        expect(find.text('Coincidencias'), findsNothing);
+      });
+    }
 
     testWidgets('NO aparece sin sesión', (tester) async {
       await pumpMenu(tester, noSession: true);

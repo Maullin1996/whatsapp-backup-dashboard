@@ -11,9 +11,10 @@ import 'package:whatsapp_monitor_viewer/features/image_review/presentation/provi
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/widgets/review_field_hints.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/widgets/review_section_card.dart';
 
-/// Tarjeta editable de un comprobante, en una columna y en el orden del
-/// ticket: código, números y total. El Sumador no anota números: su tarjeta
-/// solo tiene código y total.
+/// Tarjeta editable de un comprobante, en una columna: números, total y
+/// lotería (opcional). El Sumador no anota números: su tarjeta solo tiene
+/// total y lotería. El código no va aquí: es uno por imagen, arriba de las
+/// tarjetas.
 class ComprobanteCard extends ConsumerStatefulWidget {
   /// Imagen y rol del borrador al que pertenece.
   final ReviewKey reviewKey;
@@ -25,7 +26,8 @@ class ComprobanteCard extends ConsumerStatefulWidget {
   final bool canRemove;
 
   /// true si la tarjeta acaba de agregarse: al crearse hace scroll hasta ella
-  /// y enfoca su código. Solo se lee al crear el estado.
+  /// y enfoca su primer campo (números del Revisor, total del Sumador). Solo
+  /// se lee al crear el estado.
   final bool focusOnCreate;
 
   const ComprobanteCard({
@@ -43,10 +45,10 @@ class ComprobanteCard extends ConsumerStatefulWidget {
 }
 
 class _ComprobanteCardState extends ConsumerState<ComprobanteCard> {
-  late final TextEditingController _codigo;
   late final TextEditingController _total;
   late final TextEditingController _numero;
-  final FocusNode _codigoFocus = FocusNode();
+  late final TextEditingController _loteria;
+  final FocusNode _totalFocus = FocusNode();
   late final FocusNode _numeroFocus = FocusNode(onKeyEvent: _onNumeroKey);
 
   ReviewDraftNotifier get _notifier =>
@@ -55,14 +57,14 @@ class _ComprobanteCardState extends ConsumerState<ComprobanteCard> {
   @override
   void initState() {
     super.initState();
-    _codigo = TextEditingController(text: widget.draft.codigo);
     _total = TextEditingController(text: formatThousands(widget.draft.total));
     _numero = TextEditingController(text: widget.draft.numeroPendiente);
+    _loteria = TextEditingController(text: widget.draft.loteria);
     if (widget.focusOnCreate) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         Scrollable.ensureVisible(context, duration: AppDurations.quick);
-        _codigoFocus.requestFocus();
+        (_showNumeros ? _numeroFocus : _totalFocus).requestFocus();
       });
     }
   }
@@ -79,17 +81,15 @@ class _ComprobanteCardState extends ConsumerState<ComprobanteCard> {
 
   @override
   void dispose() {
-    _codigo.dispose();
     _total.dispose();
     _numero.dispose();
-    _codigoFocus.dispose();
+    _loteria.dispose();
+    _totalFocus.dispose();
     _numeroFocus.dispose();
     super.dispose();
   }
 
-  String? get _codigoError => widget.showErrors && _isBlank(widget.draft.codigo)
-      ? ReviewFieldHints.required
-      : null;
+  bool get _showNumeros => widget.reviewKey.rol == ReviewRole.revisor;
 
   String? get _numerosError =>
       widget.showErrors &&
@@ -161,7 +161,7 @@ class _ComprobanteCardState extends ConsumerState<ComprobanteCard> {
   Widget build(BuildContext context) {
     final id = widget.draft.id;
     final numeros = widget.draft.numeros;
-    final showNumeros = widget.reviewKey.rol == ReviewRole.revisor;
+    final showNumeros = _showNumeros;
 
     return ReviewSectionCard(
       child: Column(
@@ -179,21 +179,8 @@ class _ComprobanteCardState extends ConsumerState<ComprobanteCard> {
               icon: const Icon(Icons.delete_outline_rounded),
             ),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          TextField(
-            key: ValueKey('codigo-$id'),
-            controller: _codigo,
-            focusNode: _codigoFocus,
-            textInputAction: TextInputAction.next,
-            style: AppTypography.tabular,
-            decoration: InputDecoration(
-              labelText: 'Código',
-              errorText: _codigoError,
-            ),
-            onChanged: (value) => _notifier.setCodigo(id, value),
-          ),
           if (showNumeros) ...[
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.sm),
             TextField(
               key: ValueKey('numero-$id'),
               controller: _numero,
@@ -237,10 +224,11 @@ class _ComprobanteCardState extends ConsumerState<ComprobanteCard> {
               ),
             ],
           ],
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: showNumeros ? AppSpacing.md : AppSpacing.sm),
           TextField(
             key: ValueKey('total-$id'),
             controller: _total,
+            focusNode: _totalFocus,
             keyboardType: TextInputType.number,
             textAlign: TextAlign.end,
             style: AppTypography.tabular.copyWith(fontWeight: FontWeight.bold),
@@ -252,6 +240,14 @@ class _ComprobanteCardState extends ConsumerState<ComprobanteCard> {
             ),
             // El controller muestra "9.000"; el borrador guarda "9000".
             onChanged: (value) => _notifier.setTotal(id, onlyDigits(value)),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          TextField(
+            key: ValueKey('loteria-$id'),
+            controller: _loteria,
+            textInputAction: TextInputAction.next,
+            decoration: const InputDecoration(labelText: 'Lotería (opcional)'),
+            onChanged: (value) => _notifier.setLoteria(id, value),
           ),
         ],
       ),

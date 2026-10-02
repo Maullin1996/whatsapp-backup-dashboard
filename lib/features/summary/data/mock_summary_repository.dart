@@ -34,7 +34,10 @@ enum _Scenario {
   ninguno,
 }
 
-/// TEMPORAL — el día que exista subida real a Firestore (paso 7) o el
+/// No cableado; solo tests y referencia; candidato a borrar
+/// (`summaryRepositoryProvider` usa el repositorio real).
+///
+/// Historia: el día que exista subida real a Firestore (paso 7) o el
 /// mecanismo de lectura cruzada que se descartó en esta sesión, esta clase se
 /// reemplaza por un `SummaryRepository` real. No asumas que los datos de acá
 /// reflejan la app de verdad. El dato real de `imagenesEnJornada` es un `get`
@@ -80,6 +83,8 @@ class MockSummaryRepository implements SummaryRepository {
     final day = DateTime(fecha.year, fecha.month, fecha.day);
     final random = Random(day.year * 10000 + day.month * 100 + day.day);
     final fechaJornada = fechaJornadaDe(day.millisecondsSinceEpoch);
+    // Etiquetas de la tabla que rige ese día (vieja o nueva, según el corte).
+    final names = shiftNamesAt(day.millisecondsSinceEpoch);
 
     // Los casos de siempre, más 0-2 al azar; repartidos entre los grupos.
     final scenarios = [
@@ -115,7 +120,7 @@ class MockSummaryRepository implements SummaryRepository {
           chatJid: group.chatJid,
           groupName: group.name,
           fechaJornada: fechaJornada,
-          shift: shiftNames[shift]!,
+          shift: names[shift]!,
           revisor: revisor,
           sumador: sumador,
           imagenesEnJornada: imagenesEnJornada,

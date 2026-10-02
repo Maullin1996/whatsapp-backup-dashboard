@@ -37,17 +37,25 @@ cada vez. Antes de tocar código de este feature, lee esta skill completa.
 - **Comprobante** ("Bono Paga Diario" en la foto física): unidad dentro de
   una imagen. **Una imagen puede tener 1 o varios comprobantes** (en el
   ejemplo real que definió esta skill, una imagen traía 4 comprobantes).
-  Cada comprobante tiene su propio código impreso (`COD`). El código es
-  **texto libre** (dígitos como "0123", o el nombre de una región) y es
-  **obligatorio**: se le aplica `trim` y es error solo si queda vacío;
-  no se valida el formato ni se normalizan mayúsculas o tildes. **Lo
-  anotan ambos roles, Revisor y Sumador, cada uno por su cuenta** (igual
-  que el total). **El código
-  identifica a la persona que registró el ticket, no al ticket en sí** —
-  por eso el mismo código puede repetirse en varios comprobantes (de la
-  misma imagen o de imágenes distintas). **Nunca se suman entre sí dos
-  comprobantes solo por compartir código** — cada ticket es una unidad
-  independiente aunque el código coincida.
+- **Código** (`COD`): **UNO por imagen** (decidido por el usuario, paso
+  7, antes de la primera escritura real): es el mismo para todos los
+  boletos de la foto, así que se escribe **una sola vez** y vale para
+  todos sus comprobantes (antes era uno por comprobante). Es **texto
+  libre** (dígitos como "0123", o el nombre de una región) y es
+  **obligatorio**: se le aplica `trim` y es error solo si falta o queda
+  vacío; no se valida el formato ni se normalizan mayúsculas o tildes.
+  **Lo anotan ambos roles, Revisor y Sumador, cada uno por su cuenta**
+  (igual que el total). **El código identifica a la persona que registró
+  el ticket, no al ticket en sí** — por eso se repite entre imágenes.
+  **Nunca se suman entre sí comprobantes por compartir código** — cada
+  ticket es una unidad independiente.
+- **Lotería** (de un comprobante): el nombre de **dónde se compró el
+  boleto**. **Por comprobante**, porque puede variar entre los boletos de
+  una misma foto. Texto libre, con `trim`; vacía o solo espacios = `null`;
+  **OPCIONAL**. **No tiene relación con las loterías de los números
+  ganadores**: no entra en la comparación con los ganadores ni en la
+  reconciliación. La pueden llenar los dos roles (valor por defecto, no
+  una decisión de negocio: se puede restringir después).
 - **Número**: cada entrada escrita a mano dentro de un comprobante (en el
   ejemplo, cosas como `5311`, `1111`, `2023`...). Un comprobante tiene
   **N números** (cantidad variable, no fija). **Solo los anota el
@@ -61,9 +69,10 @@ cada vez. Antes de tocar código de este feature, lee esta skill completa.
   **la app no los pide como dato de entrada**: sumados entre sí no dan
   el total del comprobante, así que no sirven para calcular ni validar
   nada — son ruido visual del papel, no un dato del formulario.
-- **Jornada**: turno laboral (mañana, tarde 1, tarde 2, noche 1, noche 2,
-  domingo/festivo, fuera de jornada — ver `lib/core/time/shifts.dart`
-  en el repo). Todo el feature de revisión se agrupa por jornada.
+- **Jornada**: turno laboral (mañana, tarde 1, tarde 2, noche 1,
+  domingo/festivo, fuera de jornada; noche 2 solo en la tabla vieja — ver
+  `lib/core/time/shifts.dart` y "Jornadas: tabla vieja, tabla nueva y
+  corte" más abajo). Todo el feature de revisión se agrupa por jornada.
 - **Números ganadores**: lista externa (hoy local/mock, más adelante vía
   Cloud Function) contra la que se comparan los números registrados por
   el Revisor, para detectar coincidencias.
@@ -72,15 +81,18 @@ cada vez. Antes de tocar código de este feature, lee esta skill completa.
 
 ```
 Imagen (1)
+ ├── código — UNO por imagen, OBLIGATORIO, texto libre, anotado por
+ │    Revisor y por Sumador (identifica a quien registró los tickets;
+ │    vale para todos los comprobantes de la foto; nunca implica que dos
+ │    comprobantes se sumen)
  └── Comprobantes (1..N)
-      ├── código — OBLIGATORIO, texto libre, anotado por Revisor y por
-      │    Sumador (identifica a quien registró el ticket; se puede
-      │    repetir, nunca implica que dos comprobantes se sumen)
       ├── Números (1..N) — SOLO Revisor (el valor del número en sí, para
       │    poder cruzarlos contra números ganadores)
-      └── Total del comprobante
-           ├── anotado por el Revisor
-           └── anotado por el Sumador (independiente, para verificación)
+      ├── Total del comprobante
+      │    ├── anotado por el Revisor
+      │    └── anotado por el Sumador (independiente, para verificación)
+      └── lotería — OPCIONAL, texto libre (dónde se compró el boleto; sin
+           relación con las loterías ganadoras ni con la reconciliación)
 
 Registro de imagen (lo que se guarda por imagen Y POR ROL, ver
 image-review-roles: cada imagen tiene DOS registros independientes, uno del
@@ -94,10 +106,16 @@ toca al otro y ninguno lee al otro)
  │    chat y la jornada permite listar los pendientes de una jornada.
  │    OJO: NO es `Message.messageDate` (a pesar del nombre guarda la
  │    hora "HH:mm"); por eso el campo se llama distinto.
+ ├── messageTimestamp = `messageTimestamp` del mensaje de WhatsApp (int,
+ │    epoch en milisegundos UTC, tal cual viene de `whatsapp_messages`, sin
+ │    convertir ni redondear). Lo copia `save()` desde el target. Es `int?`:
+ │    null solo en registros guardados antes de agregar el campo, que no se
+ │    pueden subir hasta volver a guardarlos (ver image-review-offline-sync).
  ├── storagePath = referencia de la imagen (nunca la imagen ni una URL)
  ├── estadoSync = `pendiente` | `sincronizado` (nace pendiente; re-guardar
- │    lo devuelve a pendiente; hoy nada lo pasa a sincronizado, no hay
- │    subida — ver image-review-offline-sync)
+ │    lo devuelve a pendiente; pasa a sincronizado con la subida por
+ │    jornada, `ReviewUploadNotifier` — hoy SIMULADA, ver
+ │    image-review-offline-sync). Es solo local: no viaja en la subida.
  ├── fecha del registro (`registradoEn`) = momento en que se diligenció
  │    el formulario (NO la fecha del mensaje: esa es `fechaJornada` —
  │    ver nota abajo)
@@ -111,8 +129,21 @@ toca al otro y ninguno lee al otro)
       image-review-roles, punto de redirección)
 ```
 
+**Dónde vive un registro subido (nombres PROVISIONALES)**: la subida
+agrupa por grupo -> jornada -> registros:
+`image_reviews/{chatJid}/jornadas/{fechaJornada}_{shiftKey}/registros/{messageId}_{rol}`.
+`shiftKey` es el **nombre del enum** `Shift` (`morning`, `afternoon1`,
+...), obtenido de la etiqueta guardada con `shiftFromLabel`; el registro
+sube también la etiqueta en español (`shift`). Una etiqueta desconocida o
+`outOfShift` no tiene ruta y no se sube. El id lleva el rol porque Revisor
+y Sumador de la misma imagen comparten el mismo documento de jornada y así
+no se pisan. Detalle y pendientes en `image-review-offline-sync`
+(§ "Ruta de la subida").
+
 **Nota sobre la fecha**: hay DOS fechas distintas en el registro y no se
-confunden. `registradoEn` es el momento en que el Revisor/Sumador
+confunden (tres datos de tiempo contando `messageTimestamp`, que es el
+instante exacto del mensaje y no reemplaza a ninguna de las dos:
+`registradoEn` se mantiene igual, también en la subida). `registradoEn` es el momento en que el Revisor/Sumador
 diligencia el formulario (no la metadata original del mensaje).
 `fechaJornada` sí sale del mensaje: es el día de la jornada a la que
 pertenece la imagen (decisión confirmada al implementar la persistencia
@@ -246,7 +277,10 @@ recomendación de diseño es:
     la app lo trata como 0.
   - El bot solo publica hoy y ayer (fecha UTC-5) y no borra nada. Antes
     del 2026-09-26 no hay documentos.
-  - App y bot usan los mismos rangos horarios, truncan a minutos con
+  - App y bot usan los mismos rangos horarios (hoy los de la tabla VIEJA;
+    al fijar el corte, el bot tiene que pasar a la tabla nueva de forma
+    coordinada — PENDIENTE, ver "Jornadas: tabla vieja, tabla nueva y
+    corte"), truncan a minutos con
     límites inclusivos y detectan solo domingos. Diferencia: la app
     calcula la jornada con `toLocal()`; el bot, con `America/Bogota`, y
     su `shift_date` usa UTC-5 fijo.
@@ -275,14 +309,129 @@ recomendación de diseño es:
   - **Fecha de corte.** Mecanismo por definir: constante y calendario
     sin días anteriores, o mostrar esos días sin comparación. La
     comparación arranca en la primera jornada posterior al deploy.
-  - **Reglas de Firestore**: no están en el repo. Confirmar en la
-    consola que la app puede leer `shift_image_counts` antes de escribir
-    el datasource.
+  - **Reglas de Firestore**: decidido que solo admin y superAdmin leen
+    `shift_image_counts` (y `image_reviews`); la regla está **publicada
+    desde el 2026-10-01** (copia en `firestore.rules.draft`). En la zona de
+    pruebas, un usuario sin claim de admin no puede leerlo; la lectura de
+    un admin real no está verificada. El datasource ya
+    existe y el Resumen real ya está conectado (sin ejecutar todavía).
+  - **Historial**: la colección existe desde el deploy del 2026-09-28
+    (01:34 UTC). Según `BOT_DOCUMENTATION.md`, ese primer ciclo publicó
+    también las filas de 2026-09-26 y 2026-09-27; no hay contadores de días
+    anteriores.
   - **Verificar que `toDomain` use la misma conversión que
     `fechaJornadaDe`** (el comentario del código lo afirma; no está
     verificado).
   - **Confirmar en el bot** que un mensaje real se procesa bien con el
     publicador (primera jornada tras el deploy).
+
+### Cómo se arma el Resumen real (pieza d, capa 1 — CONECTADO)
+
+`FirestoreSummaryRepository` (`features/summary/data/repositories/`,
+nombre provisional) es el repositorio de `summaryRepositoryProvider`: el
+Resumen lee datos reales (solo admin y superAdmin, con la caché de 5
+minutos; el mock quedó sin cablear). **No se ejecutó todavía** contra
+Firestore. **PENDIENTE (no decidido)**: la primera lectura real y el
+índice de grupo de colecciones sobre `fechaJornada` (se crea desde la
+consola con el enlace del error, que queda en el log `[RESUMEN] falló
+(firestore): ...`); que un admin real puede leer (no verificado hasta
+ejecutar); borrar los 4 documentos de prueba antes de desplegar o de que
+otra persona use el Resumen; `lastIndex` puede ser mayor que las imágenes
+reales; el costo en lecturas por consulta (hasta unas 3600; la caché de 5
+minutos evita repetirla).
+
+- **Día**: `fechaJornadaDe` de la medianoche local de la fecha elegida (el
+  mismo helper que los mocks). Con ese texto se piden los registros
+  (`fechaJornada`) y los contadores del bot (`shiftDate`, que el bot calcula
+  con UTC-5 fijo: en un dispositivo fuera de UTC-5 podrían no coincidir;
+  pendiente, igual que el id de arriba).
+- **Universo**: un `JornadaSummary` por cada (grupo, jornada) que tenga
+  contador o registros ese día. Cada jornada por separado, nunca combinadas
+  por día (reglas 4 y 5).
+- **`RoleSummary` de cada rol** (los registros de ese rol en esa jornada):
+  - `registrado`: hay al menos un registro del rol;
+  - `cantidadImagenes`: cantidad de registros del rol (uno por imagen: el id
+    es `${messageId}_${rol}`);
+  - `cantidadTickets`: cantidad total de comprobantes. **SUPOSICIÓN**: las
+    skills no definen "ticket"; se toma como comprobante;
+  - `totalSuma`: suma de los `total` de todos sus comprobantes;
+  - sin registros: `RoleSummary.sinRegistrar`.
+  - Los números no cuentan (el Sumador los sube vacíos); el estado
+    (cuadra / descuadre / pendiente) sigue saliendo de `JornadaSummary.estado`.
+- **`imagenesEnJornada`**: `lastIndex` del contador, o 0 si no hay
+  documento. Puede ser mayor que las imágenes reales (ver arriba).
+- **`groupName`**: `group_stats/{chatJid}.groupName`; si el documento falta
+  o la lectura falla, el `chatJid` (el Resumen sigue).
+- **`shift`**: la etiqueta larga de `shiftNamesAt` del día (la tabla que
+  rige ese día); un `night2` en un día de tabla nueva usa su etiqueta vieja.
+- **Orden**: por grupo (nombre, luego `chatJid`) y, dentro del grupo, por
+  jornada (orden del enum), como el mock.
+- **Errores**: si fallan los registros o los contadores, `Left`; un
+  documento con formato inesperado es `Left` con su id (nunca se omite).
+  Nunca lanza; el repositorio en sí no tiene caché ni reintentos.
+- **Caché (encima del repositorio)**: `SummaryCache`
+  (`features/summary/data/cache/`), en memoria, por fecha
+  (`fechaJornadaDe`): TTL de 5 minutos, solo resultados correctos, una sola
+  lectura por fecha a la vez, máximo 10 fechas (sale la más antigua). La usa
+  `jornadaSummariesProvider`; "Actualizar" y "Reintentar" invalidan la fecha
+  elegida y van a la fuente. Los nombres de grupo se guardan toda la sesión
+  con `CachedGroupNameDatasource` (solo los encontrados: un documento
+  ausente o un error se vuelve a pedir). No se comparte entre pestañas ni
+  sesiones; un registro subido después puede tardar hasta 5 minutos en
+  aparecer si no se toca "Actualizar".
+
+## Jornadas: tabla vieja, tabla nueva y corte
+
+**DECIDIDO** por el usuario (2026-09-30). El horario de la colección
+`jornadas` de `whats-apuestas` es el definitivo y la app lo usa como una
+tabla fija en código (hechos de esa lectura y pendientes de integración en
+`image-review-firebase-integration`, "Tabla definitiva").
+
+| Clave (`Shift`) | Tabla VIEJA | Tabla NUEVA |
+|---|---|---|
+| `morning` | 06:00–10:54 | 05:30–10:51 |
+| `afternoon1` | 10:55–13:58 | 10:58–13:55 |
+| `afternoon2` | 13:59–15:23 | 14:01–15:20 |
+| `night1` | 15:24–22:24 | 15:28–22:15 |
+| `night2` | 22:25–22:30 | **no existe (retirada)** |
+| `holiday` (solo domingos) | 06:00–19:20 | 06:00–19:15 |
+| `outOfShift` | todo lo demás | todo lo demás, incluidos los huecos |
+
+- **Bordes**: se trunca al minuto y el fin es INCLUSIVO (el último minuto
+  completo): con la tabla nueva 10:51:59 es mañana y 10:52:00 no.
+- **Claves sin cambios**: el enum `Shift` sigue igual (ids de
+  `shift_image_counts`, `reviewShifts` y ruta de subida). `night2` queda en
+  el enum solo por la tabla vieja y sus etiquetas ya guardadas.
+- **Regla del corte**: `newShiftsEffectiveFromMs` (ms UTC, en
+  `shifts.dart`; hoy `null` = tabla vieja en toda la app). Un mensaje se
+  clasifica con la tabla nueva si la constante no es `null` y su
+  `messageTimestamp` es >= la constante; si no, con la vieja
+  (`getCurrentShift` aplica lo mismo al instante que recibe; comparación de
+  enteros, sin conversión de zona nueva). Se fija el día del despliegue, a
+  una medianoche sin jornada abierta, así que un día nunca mezcla tablas.
+  `jornadaTerminada` elige la tabla por el día de la jornada contra el
+  corte (llevado a hora de Bogotá con `bogotaWallClock`).
+- **Lo ya guardado se queda tal cual**: los mensajes anteriores al corte
+  conservan la etiqueta vieja y los registros guardados con etiquetas
+  viejas se siguen traduciendo a su clave (`shiftFromLabel` reconoce las
+  dos tablas).
+- **Etiquetas**: cada tabla tiene las suyas con sus horas (`shiftNames` la
+  vieja, `newShiftNames` la nueva, p. ej. "Jornada Mañana (05:30 –
+  10:51)").
+- **Huecos (tabla nueva): dos lecturas de la misma hora.**
+  - **Reportes** (panel de formulario, `toUploadDocument`, reconciliación,
+    aviso de imágenes sin registrar, pendientes): solo cuenta lo que está
+    dentro de los rangos; un hueco es `Shift.outOfShift`.
+  - **Visor**: un mensaje en un hueco de día se etiqueta "Fuera de jornada
+    Mañana" (10:52–10:57), "Fuera de jornada Tarde 1" (13:56–14:00) o
+    "Fuera de jornada Tarde 2" (15:21–15:27) y se agrupa junto a esa
+    jornada (fila propia en "Imágenes por jornada" del panel de control,
+    solo si tiene imágenes). La madrugada (22:16–05:29) y lo fuera de
+    horario en domingo siguen siendo "Fuera de las jornadas", sin grupo.
+  - `shiftFromLabel` de "Fuera de jornada X" da `outOfShift`: el panel de
+    formulario no aparece en un hueco y `toUploadDocument` lo rechaza.
+- **Festivos**: sin cambios, solo se detectan domingos (PENDIENTE: fuente
+  de festivos).
 
 ## Reglas de negocio (no negociables sin confirmación explícita del usuario)
 
@@ -290,9 +439,9 @@ recomendación de diseño es:
    un comprobante puede tener 1 número o varios. Nunca asumir cantidad
    fija ni deshabilitar "agregar otro" después de cierto número.
 2. **Doble verificación por captura independiente, no por cálculo**:
-   Revisor y Sumador anotan **los mismos datos — el código y el total de
-   cada comprobante — cada uno por su cuenta**, sin ver lo que anotó el
-   otro. **Solo el Revisor anota los números.** No es que uno calcule y
+   Revisor y Sumador anotan **los mismos datos — el código de la imagen
+   y el total de cada comprobante — cada uno por su cuenta**, sin ver lo
+   que anotó el otro. **Solo el Revisor anota los números.** No es que uno calcule y
    el otro registre partes; ambos ven la misma foto y ambos escriben el
    código y el total que leen. El propósito es detectar errores de
    transcripción de uno de los dos (por eso el Sumador existe: para
@@ -324,22 +473,25 @@ recomendación de diseño es:
    día es una unidad de reporte independiente. Si se necesita histórico,
    es una vista de "varios reportes diarios lado a lado", nunca una
    suma acumulada.
-6. **Anotaciones son siempre opcionales, para los dos roles, y son el
-   ÚNICO campo opcional del formulario** (texto libre; vacías o solo
-   espacios se normalizan a `null`). No tienen estructura ni afectan la
-   reconciliación numérica; sirven para que un humano revise después
-   ("este número no se ve bien", "esta suma no me da"). Todo lo demás es
-   obligatorio, y varía por rol:
-   - **Revisor**: al menos un comprobante; y por comprobante, código
-     (texto libre, `trim`, no vacío), al menos un número (String, con
+6. **Anotaciones y lotería son los ÚNICOS campos opcionales del
+   formulario, para los dos roles** (texto libre; vacías o solo espacios
+   se normalizan a `null`; las anotaciones son una por imagen, la lotería
+   una por comprobante). No afectan la reconciliación numérica; las
+   anotaciones sirven para que un humano revise después ("este número no
+   se ve bien", "esta suma no me da"). Todo lo demás es obligatorio, y
+   varía por rol:
+   - **Los dos roles**: el código de la imagen (uno por foto, texto
+     libre, `trim`, no vacío) y al menos un comprobante.
+   - **Revisor**: por comprobante, al menos un número (String, con
      `trim`, conservando ceros a la izquierda) y total entero > 0.
-   - **Sumador**: al menos un comprobante; y por comprobante, código
-     (mismas reglas) y total entero > 0. **Sin números.**
+   - **Sumador**: por comprobante, total entero > 0. **Sin números.**
 
-   `validateImageReviewForm(form, rol)` (fail-fast; orden: comprobantes,
-   código, números —solo Revisor—, total) aplica las reglas del rol. Para
-   el Sumador la lista de números se normaliza siempre a vacía (lo que
-   llegue se descarta).
+   `validateImageReviewForm(form, rol)` (fail-fast; orden: código de la
+   imagen, comprobantes, números —solo Revisor—, total) aplica las reglas
+   del rol. Para el Sumador la lista de números se normaliza siempre a
+   vacía (lo que llegue se descarta). El error de código no lleva índice
+   ("Ingresa el código de la imagen"). **PENDIENTE (no decidido)**: si la
+   lotería pasa a ser una lista cerrada.
 7. **Coincidencia con números ganadores**: se busca solo contra los
    **números** que registró el Revisor, porque el Sumador no anota
    números. Si un número coincide con un número ganador, debe

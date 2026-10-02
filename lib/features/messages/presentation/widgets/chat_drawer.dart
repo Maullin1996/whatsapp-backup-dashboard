@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:whatsapp_monitor_viewer/core/shared/widget/pick_single_date.dart';
 import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
-import 'package:whatsapp_monitor_viewer/core/time/shifts.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/domain/entities/date_filter.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/providers/date_filter_provider.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/providers/shift_stats_provider.dart';
@@ -110,12 +109,11 @@ class ChatDrawer extends ConsumerWidget {
               style: AppTypography.timestamp(context),
             ),
             const SizedBox(height: AppSpacing.md),
-            ...Shift.values.map(
-              (shift) => _ShiftStatRow(
-                label: shiftNames[shift]!,
-                count: shiftStats[shift] ?? 0,
-              ),
-            ),
+            for (final row in shiftStatRows(
+              shiftStats,
+              nowMs: DateTime.now().millisecondsSinceEpoch,
+            ))
+              _ShiftStatRow(label: row.label, count: row.count),
           ],
         ),
       ),

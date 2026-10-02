@@ -59,11 +59,14 @@ class ReviewDraftNotifier extends Notifier<ReviewDraftState> {
     );
   }
 
-  void setCodigo(int id, String value) =>
-      _updateComprobante(id, (c) => c.copyWith(codigo: value));
+  /// Código de la imagen (uno por foto).
+  void setCodigo(String value) => state = state.copyWith(codigo: value);
 
   void setTotal(int id, String digits) =>
       _updateComprobante(id, (c) => c.copyWith(total: digits));
+
+  void setLoteria(int id, String value) =>
+      _updateComprobante(id, (c) => c.copyWith(loteria: value));
 
   // ── Números ──────────────────────────────────
 
@@ -152,6 +155,7 @@ class ReviewDraftNotifier extends Notifier<ReviewDraftState> {
       rol: key.rol,
       storagePath: target.storagePath,
       fechaJornada: target.fechaJornada,
+      messageTimestamp: target.messageTimestamp,
       form: form,
       registradoEn: DateTime.now(),
       registradoPor: email,

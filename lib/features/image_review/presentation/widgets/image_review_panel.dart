@@ -7,6 +7,7 @@ import 'package:whatsapp_monitor_viewer/features/image_review/presentation/model
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/image_review_providers.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/widgets/comprobante_card.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/widgets/dashed_border_button.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/presentation/widgets/review_field_hints.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/widgets/review_panel_footer.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/widgets/review_panel_header.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/widgets/review_read_only_view.dart';
@@ -21,7 +22,8 @@ import 'package:whatsapp_monitor_viewer/helpers/map_failure_to_message.dart';
 /// ancho acotado por quien lo aloja. Todo el estado vive en los providers de
 /// `image_review_providers.dart` (en memoria por ahora), indexado por imagen y
 /// rol: cada rol ve solo su propio borrador y registro. El Sumador no anota
-/// números.
+/// números. El código es uno por imagen: un solo campo arriba de las tarjetas
+/// de comprobante.
 ///
 /// Estructura: encabezado (estado del registro), cuerpo con scroll y pie fijo
 /// (resumen y acciones). Modos: registro guardado (solo lectura + "Editar"), o
@@ -197,6 +199,12 @@ class _FormModeState extends ConsumerState<_FormMode> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                _CodigoCard(
+                  reviewKey: _reviewKey,
+                  initialValue: draft.codigo,
+                  showError: draft.showErrors && draft.codigo.trim().isEmpty,
+                ),
+                const SizedBox(height: AppSpacing.md),
                 for (var i = 0; i < draft.comprobantes.length; i++) ...[
                   ComprobanteCard(
                     key: ValueKey(
@@ -280,6 +288,55 @@ class _ButtonLabel extends StatelessWidget {
         const SizedBox(width: AppSpacing.sm),
         Text(text),
       ],
+    );
+  }
+}
+
+/// Código de la imagen: obligatorio, uno por foto, vale para todos sus
+/// comprobantes.
+class _CodigoCard extends ConsumerStatefulWidget {
+  final ReviewKey reviewKey;
+  final String initialValue;
+  final bool showError;
+
+  const _CodigoCard({
+    required this.reviewKey,
+    required this.initialValue,
+    required this.showError,
+  });
+
+  @override
+  ConsumerState<_CodigoCard> createState() => _CodigoCardState();
+}
+
+class _CodigoCardState extends ConsumerState<_CodigoCard> {
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.initialValue,
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ReviewSectionCard(
+      child: TextField(
+        key: const ValueKey('codigo'),
+        controller: _controller,
+        textInputAction: TextInputAction.next,
+        style: AppTypography.tabular,
+        decoration: InputDecoration(
+          labelText: 'Código',
+          helperText: 'Uno por foto: vale para todos los comprobantes',
+          errorText: widget.showError ? ReviewFieldHints.required : null,
+        ),
+        onChanged: (value) => ref
+            .read(reviewDraftProvider(widget.reviewKey).notifier)
+            .setCodigo(value),
+      ),
     );
   }
 }

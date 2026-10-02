@@ -8,10 +8,12 @@ import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/im
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/repositories/review_uploader.dart';
 
 /// Subida SIMULADA: no toca Firestore, solo imprime en consola (`debugPrint`)
-/// lo que se subiría: colección, id del documento y datos. Nunca falla.
+/// lo que se subiría: la ruta completa del documento y sus datos. Solo falla
+/// (sin imprimir nada) si el registro no tiene una ruta válida (ver
+/// [ImageReviewRecordModel.toUploadDocument]).
 ///
-/// La conexión real es otra implementación de [ReviewUploader]; no se activa
-/// sin autorización explícita.
+/// No cableado en producción; solo tests y referencia; candidato a borrar.
+/// La subida real es `FirestoreReviewUploader` (ver `reviewUploaderProvider`).
 class SimulatedReviewUploader implements ReviewUploader {
   const SimulatedReviewUploader();
 
@@ -19,12 +21,12 @@ class SimulatedReviewUploader implements ReviewUploader {
 
   @override
   Future<Either<Failure, Unit>> upload(ImageReviewRecord record) async {
-    final model = ImageReviewRecordModel(record);
-    debugPrint(
-      '[SUBIDA SIMULADA] '
-      '${ImageReviewRecordModel.uploadCollection}/${model.uploadDocumentId}\n'
-      '${_encoder.convert(model.toUploadMap())}',
-    );
-    return const Right(unit);
+    return ImageReviewRecordModel(record).toUploadDocument().map((document) {
+      debugPrint(
+        '[SUBIDA SIMULADA] ${document.path}\n'
+        '${_encoder.convert(document.data)}',
+      );
+      return unit;
+    });
   }
 }

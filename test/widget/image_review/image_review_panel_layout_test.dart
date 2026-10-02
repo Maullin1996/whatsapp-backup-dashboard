@@ -18,6 +18,7 @@ const _target = ImageReviewTarget(
   shift: 'Jornada Mañana',
   storagePath: 'img_m1.png',
   fechaJornada: '2026-01-15',
+  messageTimestamp: 1788489942000,
   localTime: '10:03',
   shiftImageIndex: 4,
 );
@@ -77,7 +78,7 @@ ReviewStatus _status(WidgetTester tester) =>
     tester.widget<ReviewStatusChip>(find.byType(ReviewStatusChip)).status;
 
 Future<void> _fillValid(WidgetTester tester) async {
-  await tester.enterText(_key('codigo-0'), 'A1');
+  await tester.enterText(_key('codigo'), 'A1');
   await tester.enterText(_key('numero-0'), '0123');
   await tester.tap(_key('agregar-numero-0'));
   await tester.pump();
@@ -236,12 +237,12 @@ void main() {
       await tester.tap(find.text('Agregar comprobante'));
       await tester.pumpAndSettle();
 
-      expect(_key('codigo-3'), findsOneWidget);
-      expect(_focusOf(tester, 'codigo-3').hasFocus, isTrue);
+      expect(_key('numero-3'), findsOneWidget);
+      expect(_focusOf(tester, 'numero-3').hasFocus, isTrue);
       expect(scrollable.position.pixels, greaterThan(offsetBefore));
 
       final panel = tester.getRect(find.byType(ImageReviewPanel));
-      final field = tester.getRect(_key('codigo-3'));
+      final field = tester.getRect(_key('numero-3'));
       expect(field.top, greaterThanOrEqualTo(panel.top));
       expect(field.bottom, lessThanOrEqualTo(panel.bottom));
     });
@@ -249,7 +250,7 @@ void main() {
     testWidgets('al abrir el panel ningún campo roba el foco', (tester) async {
       await _pumpPanel(tester);
 
-      expect(_focusOf(tester, 'codigo-0').hasFocus, isFalse);
+      expect(_focusOf(tester, 'codigo').hasFocus, isFalse);
     });
   });
 
@@ -259,9 +260,9 @@ void main() {
     ) async {
       await _pumpPanel(tester);
 
-      await tester.tap(_key('codigo-0'));
+      await tester.tap(_key('codigo'));
       await tester.pump();
-      expect(_focusOf(tester, 'codigo-0').hasFocus, isTrue);
+      expect(_focusOf(tester, 'codigo').hasFocus, isTrue);
 
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.pump();

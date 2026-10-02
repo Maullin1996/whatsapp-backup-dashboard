@@ -1,8 +1,22 @@
+import 'package:dartz/dartz.dart';
+import 'package:whatsapp_monitor_viewer/core/errors/failure.dart';
+import 'package:whatsapp_monitor_viewer/core/time/shifts.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/comprobante.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/estado_sync.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/image_review_form.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/image_review_record.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
+
+/// Un registro listo para subir: [pathSegments] alterna colección / documento
+/// (ver [ImageReviewRecordModel.toUploadDocument]).
+class ReviewUploadDocument {
+  final List<String> pathSegments;
+  final Map<String, dynamic> data;
+
+  const ReviewUploadDocument({required this.pathSegments, required this.data});
+
+  String get path => pathSegments.join('/');
+}
 
 /// Forma persistida de un [ImageReviewRecord]: un `Map` de tipos primitivos
 /// (que se guarda como JSON) con una versión de esquema para poder migrar.
@@ -26,9 +40,14 @@ class ImageReviewRecordModel {
     'rol': record.rol.name,
     'storagePath': record.storagePath,
     'fechaJornada': record.fechaJornada,
+    // Tal cual (ms); null solo en registros guardados antes de este campo.
+    'messageTimestamp': record.messageTimestamp,
+    // Uno por imagen; null solo en registros guardados antes de este campo.
+    'codigo': record.form.codigo,
     'comprobantes': [
       for (final c in record.form.comprobantes)
-        {'codigo': c.codigo, 'numeros': c.numeros, 'total': c.total},
+        // `loteria` siempre presente (null si quedó vacía).
+        {'numeros': c.numeros, 'total': c.total, 'loteria': c.loteria},
     ],
     'anotaciones': record.form.anotaciones,
     // UTC en ISO-8601; al leer se devuelve en hora local.
@@ -38,17 +57,76 @@ class ImageReviewRecordModel {
     'estadoSync': record.estadoSync.name,
   };
 
-  /// Colección de Firestore a la que se sube el registro.
-  static const String uploadCollection = 'image_reviews';
+  // Ruta de subida (nombres PROVISIONALES, solo aquí):
+  // image_reviews/{chatJid}/jornadas/{fechaJornada}_{shiftKey}/registros/{messageId}_{rol}
+  static const String uploadRootCollection = 'image_reviews';
+  static const String uploadJornadasCollection = 'jornadas';
+  static const String uploadRegistrosCollection = 'registros';
 
-  /// Id del documento: uno por imagen y por rol.
-  String get uploadDocumentId => '${record.messageId}_${record.rol.name}';
+  /// Documento a subir: la ruta por grupo -> jornada -> registro y los datos.
+  ///
+  /// `shiftKey` es el nombre del enum [Shift] de la etiqueta guardada en el
+  /// registro. `Left` si la etiqueta no es de una jornada asignable
+  /// (desconocida o [Shift.outOfShift]), si el registro no tiene
+  /// `messageTimestamp` o `codigo` (guardado antes de esos campos) o si algún
+  /// segmento de la ruta queda vacío o con "/". El id lleva el rol: Revisor y
+  /// Sumador de la misma imagen comparten jornada y no se pisan.
+  Either<Failure, ReviewUploadDocument> toUploadDocument() {
+    final shift = shiftFromLabel(record.shift);
+    if (shift == null || shift == Shift.outOfShift) {
+      return Left(
+        Failure.unknown(
+          message:
+              'La imagen no pertenece a una jornada asignable '
+              '("${record.shift}"): no se puede subir.',
+        ),
+      );
+    }
+    if (record.messageTimestamp == null) {
+      return Left(
+        Failure.unknown(
+          message:
+              'El registro de la imagen ${record.messageId} es anterior a '
+              'este cambio y no se puede subir: guárdalo de nuevo desde el '
+              'visor.',
+        ),
+      );
+    }
+    if (record.form.codigo == null) {
+      return Left(
+        Failure.unknown(
+          message:
+              'El registro de la imagen ${record.messageId} es anterior al '
+              'código por imagen y no se puede subir: guárdalo de nuevo desde '
+              'el visor.',
+        ),
+      );
+    }
 
-  /// Lo que se sube: lo persistido, sin lo que es solo local (versión de
-  /// esquema y estado de sincronización).
-  Map<String, dynamic> toUploadMap() => toMap()
-    ..remove('v')
-    ..remove('estadoSync');
+    final segments = [
+      uploadRootCollection,
+      record.chatJid,
+      uploadJornadasCollection,
+      '${record.fechaJornada}_${shift.name}',
+      uploadRegistrosCollection,
+      '${record.messageId}_${record.rol.name}',
+    ];
+    if (segments.any((s) => s.isEmpty || s.contains('/'))) {
+      return Left(
+        Failure.unknown(
+          message: 'Ruta de subida inválida: ${segments.join(' | ')}',
+        ),
+      );
+    }
+
+    // Lo persistido, sin lo que es solo local (versión de esquema y estado de
+    // sincronización), más la jornada como nombre del enum.
+    final data = toMap()
+      ..remove('v')
+      ..remove('estadoSync')
+      ..['shiftKey'] = shift.name;
+    return Right(ReviewUploadDocument(pathSegments: segments, data: data));
+  }
 
   /// Lee un mapa persistido (de cualquier versión conocida). Lanza si le
   /// falta algo, tiene un tipo inesperado o es de una versión más nueva que
@@ -58,10 +136,13 @@ class ImageReviewRecordModel {
     final comprobantes = (map['comprobantes'] as List)
         .map((c) => c as Map)
         .map(
+          // Un `codigo` dentro del comprobante (registro anterior al código
+          // por imagen) se ignora.
           (c) => Comprobante(
-            codigo: c['codigo'] as String,
             numeros: (c['numeros'] as List).cast<String>().toList(),
             total: c['total'] as int,
+            // Ausente -> null; con otro tipo, falla.
+            loteria: c['loteria'] as String?,
           ),
         )
         .toList();
@@ -74,7 +155,12 @@ class ImageReviewRecordModel {
         rol: ReviewRole.values.byName(map['rol'] as String),
         storagePath: map['storagePath'] as String,
         fechaJornada: map['fechaJornada'] as String,
+        // Opcional sin subir el esquema: ausente (registro de antes) -> null;
+        // presente con otro tipo -> falla como los demás campos.
+        messageTimestamp: map['messageTimestamp'] as int?,
         form: ImageReviewForm(
+          // Ausente (registro anterior) -> null; con otro tipo, falla.
+          codigo: map['codigo'] as String?,
           comprobantes: comprobantes,
           anotaciones: map['anotaciones'] as String?,
         ),

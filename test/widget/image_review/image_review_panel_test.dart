@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:whatsapp_monitor_viewer/core/theme/app_theme.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/data/repositories/in_memory_image_review_repository.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/comprobante.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/estado_sync.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/image_review_form.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/image_review_record.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/models/image_review_target.dart';
@@ -16,18 +18,22 @@ const _target = ImageReviewTarget(
   shift: 'Jornada Mañana',
   storagePath: 'img_m1.png',
   fechaJornada: '2026-01-15',
+  messageTimestamp: 1788489942000,
 );
 
 const _email = 'revisor@test.com';
 
-Widget _app({required Widget child}) => ProviderScope(
+Widget _app({
+  required Widget child,
+  InMemoryImageReviewRepository? repository,
+}) => ProviderScope(
   overrides: [
     reviewerEmailProvider.overrideWithValue(_email),
     reviewerUidProvider.overrideWithValue('uid-test'),
     // Sin rol el panel no se construye: estos tests son del Revisor.
     currentReviewRoleProvider.overrideWithValue(ReviewRole.revisor),
     imageReviewRepositoryProvider.overrideWithValue(
-      InMemoryImageReviewRepository(),
+      repository ?? InMemoryImageReviewRepository(),
     ),
   ],
   child: MaterialApp(
@@ -41,12 +47,20 @@ Widget _app({required Widget child}) => ProviderScope(
   ),
 );
 
-Future<ProviderContainer> _pumpPanel(WidgetTester tester) async {
+Future<ProviderContainer> _pumpPanel(
+  WidgetTester tester, {
+  InMemoryImageReviewRepository? repository,
+}) async {
   tester.view.physicalSize = const Size(900, 2400);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
 
-  await tester.pumpWidget(_app(child: const ImageReviewPanel(target: _target)));
+  await tester.pumpWidget(
+    _app(
+      repository: repository,
+      child: const ImageReviewPanel(target: _target),
+    ),
+  );
   await tester.pumpAndSettle();
   return ProviderScope.containerOf(
     tester.element(find.byType(ImageReviewPanel)),
@@ -67,7 +81,7 @@ Future<void> _fillValid(
   String numero = '0123',
   String total = '9000',
 }) async {
-  await tester.enterText(_key('codigo-$id'), codigo);
+  await tester.enterText(_key('codigo'), codigo);
   await tester.enterText(_key('numero-$id'), numero);
   await tester.tap(_key('agregar-numero-$id'));
   await tester.pump();
@@ -123,7 +137,7 @@ void main() {
       await _pumpPanel(tester);
       await tester.tap(find.text('Agregar comprobante'));
       await tester.pump();
-      await tester.enterText(_key('codigo-1'), 'B2');
+      await tester.enterText(_key('loteria-1'), 'Baloto');
       await tester.pump(); // enterText no dibuja un frame por sí solo
 
       await tester.tap(_key('quitar-1'));
@@ -191,7 +205,7 @@ void main() {
     ) async {
       final container = await _pumpPanel(tester);
 
-      await tester.enterText(_key('codigo-0'), 'A1');
+      await tester.enterText(_key('codigo'), 'A1');
       await tester.enterText(_key('numero-0'), '0042');
       await tester.enterText(_key('total-0'), '500');
       await _tapButton(tester, 'Guardar');
@@ -231,7 +245,7 @@ void main() {
 
       await _tapButton(tester, 'Guardar');
 
-      expect(find.text('Comprobante 1: ingresa el código'), findsOneWidget);
+      expect(find.text('Ingresa el código de la imagen'), findsOneWidget);
       expect(find.text('Obligatorio'), findsNWidgets(2)); // código y total
       expect(find.text('Agrega al menos un número'), findsOneWidget);
       expect(await _savedRecord(container), isNull);
@@ -270,7 +284,7 @@ void main() {
       expect(record.fechaJornada, '2026-01-15');
       expect(record.estadoSync, EstadoSync.pendiente);
       expect(record.editado, isFalse);
-      expect(record.form.comprobantes.single.codigo, 'A1');
+      expect(record.form.codigo, 'A1');
       expect(record.form.comprobantes.single.total, 9000);
       expect(record.form.anotaciones, 'ilegible');
       expect(
@@ -279,6 +293,107 @@ void main() {
         ),
         isTrue,
       );
+    });
+  });
+
+  group('código de la imagen y lotería', () {
+    testWidgets('un solo campo Código, arriba de las tarjetas; las tarjetas '
+        'no tienen código', (tester) async {
+      await _pumpPanel(tester);
+      await tester.tap(find.text('Agregar comprobante'));
+      await tester.pumpAndSettle();
+
+      expect(_key('codigo'), findsOneWidget);
+      expect(find.widgetWithText(TextField, 'Código'), findsOneWidget);
+      expect(_key('codigo-0'), findsNothing);
+      expect(_key('codigo-1'), findsNothing);
+      expect(
+        tester.getRect(_key('codigo')).bottom,
+        lessThan(tester.getRect(_badge(1)).top),
+      );
+      expect(_key('loteria-0'), findsOneWidget);
+      expect(_key('loteria-1'), findsOneWidget);
+      expect(
+        find.widgetWithText(TextField, 'Lotería (opcional)'),
+        findsNWidgets(2),
+      );
+    });
+
+    testWidgets('sin código no se guarda (aunque las tarjetas estén '
+        'completas)', (tester) async {
+      final container = await _pumpPanel(tester);
+      await _fillValid(tester, codigo: '   ');
+
+      await _tapButton(tester, 'Guardar');
+
+      expect(find.text('Ingresa el código de la imagen'), findsOneWidget);
+      expect(find.text('Obligatorio'), findsOneWidget); // solo el código
+      expect(await _savedRecord(container), isNull);
+    });
+
+    testWidgets('la lotería es opcional y distinta entre tarjetas; al agregar '
+        'un comprobante arranca vacía', (tester) async {
+      final container = await _pumpPanel(tester);
+      await _fillValid(tester);
+      await tester.enterText(_key('loteria-0'), '  Baloto ');
+      await tester.tap(find.text('Agregar comprobante'));
+      await tester.pumpAndSettle();
+      expect(_text(tester, 'loteria-1'), isEmpty);
+      await tester.enterText(_key('numero-1'), '5311');
+      await tester.tap(_key('agregar-numero-1'));
+      await tester.pump();
+      await tester.enterText(_key('total-1'), '3000');
+      await tester.pump();
+
+      await _tapButton(tester, 'Guardar');
+
+      final record = await _savedRecord(container);
+      expect(record, isNotNull);
+      expect(record!.form.codigo, 'A1');
+      expect(record.form.comprobantes.map((c) => c.loteria), ['Baloto', null]);
+      // Modo lectura: el código una vez y la lotería solo donde se anotó.
+      expect(find.text('A1'), findsOneWidget);
+      expect(find.text('Baloto'), findsOneWidget);
+      expect(find.text('Lotería'), findsOneWidget);
+    });
+
+    testWidgets('un registro anterior (sin código) abre "Editar" con el '
+        'código vacío y no se vuelve a guardar sin él', (tester) async {
+      final repository = InMemoryImageReviewRepository();
+      await repository.save(
+        ImageReviewRecord(
+          messageId: 'm1',
+          chatJid: 'chat@g.us',
+          shift: 'Jornada Mañana',
+          rol: ReviewRole.revisor,
+          storagePath: 'img_m1.png',
+          fechaJornada: '2026-01-15',
+          messageTimestamp: 1788489942000,
+          form: const ImageReviewForm(
+            comprobantes: [
+              Comprobante(numeros: ['0123'], total: 9000),
+            ],
+          ),
+          registradoEn: DateTime(2026, 1, 15, 8),
+          registradoPor: _email,
+        ),
+      );
+      final container = await _pumpPanel(tester, repository: repository);
+      expect(find.text('Sin código: guárdalo de nuevo'), findsOneWidget);
+
+      await _tapButton(tester, 'Editar');
+      expect(_text(tester, 'codigo'), isEmpty);
+      expect(_text(tester, 'total-0'), '9.000');
+
+      await _tapButton(tester, 'Guardar');
+      expect(find.text('Ingresa el código de la imagen'), findsOneWidget);
+      expect((await _savedRecord(container))!.form.codigo, isNull);
+
+      await tester.enterText(_key('codigo'), 'A1');
+      await _tapButton(tester, 'Guardar');
+      final record = await _savedRecord(container);
+      expect(record!.form.codigo, 'A1');
+      expect(record.editado, isTrue);
     });
   });
 
@@ -310,7 +425,7 @@ void main() {
 
       await _tapButton(tester, 'Editar');
       // El borrador se copia del registro guardado.
-      expect(_text(tester, 'codigo-0'), 'A1');
+      expect(_text(tester, 'codigo'), 'A1');
       expect(_text(tester, 'total-0'), '9.000');
       expect(find.widgetWithText(InputChip, '0123'), findsOneWidget);
 
@@ -410,7 +525,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.enterText(_key('codigo-0'), 'BORRADOR');
+    await tester.enterText(_key('codigo'), 'BORRADOR');
     await tester.enterText(_key('total-0'), '777');
 
     visible.value = false;
@@ -419,7 +534,7 @@ void main() {
 
     visible.value = true;
     await tester.pumpAndSettle();
-    expect(_text(tester, 'codigo-0'), 'BORRADOR');
+    expect(_text(tester, 'codigo'), 'BORRADOR');
     expect(_text(tester, 'total-0'), '777');
   });
 }

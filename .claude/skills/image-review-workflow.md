@@ -64,6 +64,11 @@ flujo completo sin tocar la base de datos real. Esto aplica en
 sigue vigente aunque el resto del feature ya esté probado con mocks:
 no es una señal de "ya se puede conectar", solo el usuario la da.
 
+**Actualización (paso 7, capa 6)**: el usuario autorizó y decidió cablear
+la subida real por jornada (`reviewUploaderProvider` → `FirestoreReviewUploader`,
+sin bandera). La regla sigue vigente para todo lo demás: Cloud Function
+puente, publicar reglas, cualquier otra escritura.
+
 ## Roadmap sugerido (a confirmar/ajustar con el usuario, no es definitivo)
 
 Basado en dependencias reales entre las piezas — **no lo asumas como
@@ -90,7 +95,7 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    simple de lo que se pensaba originalmente: solo guardar y listar
    pendientes.
 4. ✅ **Indicador/botón de subida por jornada** (`image-review-offline-sync`)
-   — hecho, con subida SIMULADA (`debugPrint`, sin tocar Firestore): una
+   — hecho (con subida SIMULADA al principio; REAL desde el paso 7, capa 6): una
    píldora por jornada con pendientes, encima de `GoToLatestMessageButton` en
    `MessageList`; aparece con el primer registro pendiente, sin lógica de
    conteo — la persona asignada decide cuándo presionarlo. Incluye
@@ -108,14 +113,13 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    en el indicador de subida. El detector de imágenes sin registrar usa
    el contador que publica el bot en `shift_image_counts`, no `count()` ni
    el máximo de `whatsapp_messages` (ver `image-review-domain.md`).
-   **UI ya hecha con datos INVENTADOS** (menú "Resumen" en `ChatList` +
-   ruta `/summary`, visible para cualquier usuario autenticado hasta que
-   existan los claims reales; `SummaryPage` con selector de fecha y
-   tarjetas por grupo y jornada, alimentada por `MockSummaryRepository`,
-   determinista por fecha, en `features/summary/`). **Sigue pendiente
-   conectar datos reales** (reemplazar el mock por un `SummaryRepository`
-   real: subida real a Firestore, paso 7, o el mecanismo de lectura
-   cruzada). **El Resumen mockeado ya incluye el aviso de imágenes sin
+   **UI hecha** (menú "Resumen" en `ChatList` +
+   ruta `/summary`, **solo para admin y superAdmin** — `canViewSummary`,
+   decidido; Revisor y Sumador no la ven, ver `image-review-roles`;
+   `SummaryPage` con selector de fecha y
+   tarjetas por grupo y jornada, en `features/summary/`). Empezó con datos
+   inventados (`MockSummaryRepository`, hoy sin cablear); **desde el paso
+   7, pieza d, lee datos reales** (ver "Pieza (d)" más abajo). **El Resumen mockeado ya incluye el aviso de imágenes sin
    registrar** (línea bajo cada rol, con `imagenesEnJornada` inventado en el
    mock con el formato real de `shift_image_counts`); falta cambiar solo la
    fuente por un `get` por id a esa colección.
@@ -136,6 +140,186 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    formato real de jornadas/números ganadores y reemplazar los mocks
    del paso 6 — varios puntos de esta skill quedaron explícitamente
    diferidos hasta ese momento (ver Pendientes globales).
+   **Pieza (a), subida real de registros — capas 1-6 HECHAS, subida REAL
+   cableada**. Capa 1: la ruta grupo -> jornada -> registros
+   (`image_reviews/{chatJid}/jornadas/{fechaJornada}_{shiftKey}/registros/{messageId}_{rol}`,
+   nombres provisionales) y el payload con `shiftKey` los arma
+   `ImageReviewRecordModel.toUploadDocument()`.
+   **Capa 2**: interfaz `ReviewUploadDatasource`
+   (reemplaza el documento completo, idempotente, no lanza) y
+   `FirestoreReviewUploader`, ambos en Dart puro y probados con un
+   datasource falso.
+   **Capa 3**: `FirestoreReviewUploadDatasource`
+   (`doc(path).set(data)` sin `SetOptions`, timeout de 15 s por registro,
+   todo error a `Left`), probada con una función de escritura falsa.
+   **Capa 4**: `messageTimestamp` (int, ms UTC, tal
+   cual) viaja del visor al registro (`int?`, esquema sigue en v1) y al
+   payload; `registradoEn` se mantiene. Un registro viejo sin el campo no se
+   sube hasta re-guardarlo desde el visor.
+   **Capa 5, reglas de Firestore — PUBLICADAS el 2026-10-01** (HECHO,
+   verificado por el usuario; empezaron como borrador):
+   `firestore.rules.draft` (raíz del repo, no referenciado en
+   `firebase.json`) es la copia de lo publicado a mano en la consola, que
+   reemplaza todo el conjunto (por eso copia tal cual las reglas que ya
+   había). Su comentario de encabezado todavía dice "BORRADOR... no se
+   despliega" (también en lo publicado): hay que corregirlo. Agrega create/update de
+   `image_reviews/.../registros/{registroId}` (delete negado; la lectura
+   de admin se agregó después, ver más abajo):
+   sesión, claim `reviewRole`, `rol` == claim, ids de registro y de jornada
+   coherentes con el payload, `shiftKey` asignable, tipos de las claves, y
+   `messageTimestamp`/`chatJid` iguales a los de `whatsapp_messages`.
+   Detalle de qué valida y qué no en `image-review-offline-sync` § "Ruta de
+   la subida".
+   **Antecedente: probado en la zona de pruebas de la consola el
+   2026-10-01, antes de publicar, en parte**
+   (claim simulado editando a mano la línea del claim en el editor; el
+   simulador no deja editar la carga útil del token). PERMITIDO: create de
+   un revisor con el documento correcto. RECHAZADO: `messageTimestamp`
+   distinto del mensaje real, sin sesión, `rol` distinto del claim. NO
+   PROBADO: el claim real de un token, `jornadaId` mal armado, `shiftKey`
+   `outOfShift`, id sin sufijo de rol, `chatJid` distinto, mensaje
+   inexistente, `delete`, `get` y el cliente real de la app. Nota: el
+   simulador convirtió `registradoEn` ISO en fecha y la regla lo rechazó
+   por `is string`; la primera escritura real confirmó después que la app
+   lo manda como texto, y también verificó el claim real y el cliente real
+   de la app.
+   **Capa 6, subida REAL cableada** (decisión del usuario, sin bandera):
+   `reviewUploadDatasourceProvider` construye
+   `FirestoreReviewUploadDatasource` con el `firestoreProvider` de la app y
+   `reviewUploaderProvider` devuelve siempre `FirestoreReviewUploader`. Solo
+   se construye al confirmar "Subir" (`ReviewUploadNotifier._upload`). Cada
+   fallo deja un `debugPrint` con el messageId y el tipo de `Failure`, sin
+   payload ni chatJid. Hasta la publicación de las reglas (2026-10-01) la
+   escritura se rechazaba con `permission-denied` y el registro quedaba
+   pendiente. `SimulatedReviewUploader`
+   queda sin cablear (candidato a borrar).
+   **Cambio del modelo del registro — HECHO** (antes de la primera
+   escritura real; decisión del usuario): el `codigo` pasa a ser **uno por
+   imagen** (`ImageReviewForm.codigo`, un solo campo "Código" arriba de
+   las tarjetas, obligatorio para los dos roles) y cada comprobante queda
+   `{numeros, total, loteria}`, con `loteria` texto libre **opcional**
+   ("Lotería (opcional)", dónde se compró el boleto; sin relación con los
+   ganadores ni la reconciliación). Esquema sigue en v1 (`codigo` ausente
+   → null; un `codigo` dentro de un comprobante viejo se ignora); un
+   registro sin `codigo` no se sube hasta re-guardarlo desde el visor
+   (abre con el código vacío). Reglas, Resumen y Coincidencias sin
+   cambios. Detalle en `image-review-domain` (vocabulario y regla 6) y
+   `image-review-offline-sync`.
+   **PENDIENTES (no decididos)**: validar `codigo` y `loteria` en las
+   reglas (hoy no se validan); si la lotería pasa a ser una lista cerrada;
+   un aviso visible
+   para los registros viejos que no se pueden subir (la píldora los sigue
+   contando).
+   **Reglas publicadas y primera escritura real — HECHO (verificado por el
+   usuario el 2026-10-01)**: reglas vigentes desde ese día, 7:37 p.m., con
+   el contenido de `firestore.rules.draft`. Primera escritura real: 4
+   documentos de **PRUEBA** en producción (jornadas `2026-10-01_afternoon2`
+   y `2026-10-01_night1`, Revisor y Sumador en cada una, dos cuentas
+   distintas); formato confirmado en la consola (`codigo` arriba,
+   comprobantes `{numeros, total, loteria}`, `registradoEn` texto, `total`
+   int64, `messageTimestamp` entero, ceros a la izquierda conservados,
+   `fechaJornada`/`shiftKey` coherentes con la hora de Colombia); claim
+   `reviewRole` real y comparación contra `whatsapp_messages` verificados.
+   En la zona de pruebas, un usuario sin claim de admin no lee `registros`
+   ni `shift_image_counts`. **Hay que BORRAR los 4 documentos de prueba
+   desde la consola** antes de desplegar el hosting o de que otra persona
+   use el Resumen. Detalle en `image-review-offline-sync` (capas 5 y 6).
+   Siguen **PENDIENTES** (detalle en `image-review-offline-sync` § "Ruta de
+   la subida"): aviso visible para los registros viejos que no se pueden
+   subir (y que la píldora los sigue contando), si conviene subir el
+   esquema a v2 (versiones antiguas de la app en caché), borrar los 4
+   documentos de prueba, corregir el encabezado de `firestore.rules.draft`
+   y republicar cuando cambie otra regla, los casos de escritura nunca
+   probados en la zona de pruebas, probar la lectura de un admin real
+   conectando el Resumen,
+   si validar `reviewShifts` o `allowedGroups`, reglas de Storage,
+   verificación de conexión antes de subir, si una escritura en
+   cola del SDK web llega tarde después de un timeout,
+   mensajes de error visibles en español en la interfaz, nombres definitivos de las
+   colecciones, cómo lee
+   Coincidencias entre grupos (consulta de grupo de colecciones o Cloud
+   Function), si `fechaJornada`
+   usa `toLocal()` o UTC-5 (ahora es parte de la ruta), límites de tamaño
+   (tampoco los imponen las reglas).
+   **Acceso al Resumen — HECHO**: `/summary` y su entrada "Resumen" del
+   menú solo para admin y superAdmin (`canViewSummary`, misma regla que
+   `canViewMatches` pero separada); el resto va a `/home`. **PENDIENTES**:
+   si Revisor o Sumador deben ver sus propias sumas, una Cloud Function
+   (toca `functions/`); el desfase de claims (se leen solo al iniciar
+   sesión: un admin al que le quiten el rol sigue viendo la pantalla hasta
+   que se renueve el token).
+   **Lectura de `image_reviews` — DECIDIDO por el usuario**: solo la leen
+   cuentas con claim `admin` o `superAdmin`; Revisor y Sumador no leen nada
+   de `image_reviews` (sus registros siguen en local). La regla está
+   publicada desde el 2026-10-01 (ver más abajo).
+   **Pieza (d), Resumen real — capa 1 HECHA y CONECTADA**: capa de datos
+   en `features/summary/data/` (nombres provisionales), probada con
+   datasources falsos. Tres datasources en Dart puro con su clase Firestore
+   (constructor con `FirebaseFirestore` y `.withReader` para tests; nunca
+   lanzan; `FirebaseException` → `mapFirestoreError`): registros del día
+   (`collectionGroup('registros').where('fechaJornada', ...)`), contadores
+   del bot del día (`shift_image_counts.where('shiftDate', ...)`) y nombre
+   del grupo (`group_stats/{chatJid}`). Un documento con un campo faltante,
+   un tipo incorrecto, un `shiftKey` desconocido u `outOfShift` (o un `rol`
+   desconocido) hace que la lectura devuelva `Left` con su id: nunca se
+   omite. `FirestoreSummaryRepository` arma un `JornadaSummary` por cada
+   (grupo, jornada) con contador o registros ese día (ver
+   `image-review-domain`, "Cómo se arma el Resumen real"). Providers en
+   `real_summary_providers.dart` (`realSummaryRepositoryProvider` y los tres
+   datasources).
+   **Conexión — HECHA (decisión del usuario)**: `summaryRepositoryProvider`
+   devuelve `ref.watch(realSummaryRepositoryProvider)`: el Resumen lee
+   datos reales (registros de `image_reviews`, contadores de
+   `shift_image_counts` y nombres de `group_stats`), solo para admin y
+   superAdmin, con la caché de 5 minutos. `MockSummaryRepository` queda sin
+   cablear ("No cableado; solo tests y referencia; candidato a borrar").
+   Un `Left` deja un `debugPrint` en `jornadaSummariesProvider`: los errores
+   de Firestore y de permisos con su texto completo (si falta un índice,
+   trae el enlace para crearlo), los demás solo con el tipo (su texto puede
+   nombrar un registro). `SummaryPage` no cambió: muestra el texto completo
+   del `Failure` con "Reintentar". **No se ejecutó**: nada de esto se probó
+   todavía contra Firestore. Coincidencias **sigue con datos inventados**,
+   así que el hosting sigue sin desplegarse con esa pantalla visible.
+   **Caché del Resumen — HECHA** (hoy sobre el repositorio real): `SummaryCache`
+   en memoria, por fecha (`fechaJornadaDe`), TTL de 5 minutos
+   (`summaryCacheTtl`), solo éxitos (un `Left` nunca se guarda), una sola
+   lectura por fecha a la vez, máximo 10 fechas (sale la más antigua).
+   `jornadaSummariesProvider` pasa por ella. Botón "Actualizar" en la barra
+   de `SummaryPage` y "Reintentar" del error: invalidan la fecha elegida y
+   van a la fuente (`reloadJornadaSummariesProvider`). Nombres de grupo:
+   `CachedGroupNameDatasource` guarda los encontrados toda la sesión (no
+   los ausentes ni los errores), aplicado solo en `real_summary_providers.dart`.
+   **PENDIENTES (no decididos)**: la caché no se comparte entre pestañas ni
+   sesiones; un registro subido después puede tardar hasta 5 minutos en
+   aparecer (el botón "Actualizar" lo evita).
+   **Reglas de lectura de admin — PUBLICADAS el 2026-10-01** (en la zona de
+   pruebas, un usuario sin claim de admin no lee `registros` ni
+   `shift_image_counts`; la lectura de un admin real no está verificada):
+   `isAdmin()` (claims `admin` o `superAdmin` leídos con `get`), `match
+   /{path=**}/registros/{registroId}` solo lectura (sirve a la consulta de
+   grupo; el nombre `registros` aplica a toda colección con ese nombre) y
+   `shift_image_counts` con lectura de admin y escritura negada.
+   **PENDIENTES (no decididos)**: la primera lectura real y el índice de grupo de colecciones sobre `fechaJornada` (se crea desde la consola con el enlace del error, que queda en el log `[RESUMEN] falló (firestore): ...`); que un admin real puede leer (no verificado hasta ejecutar); borrar los 4 documentos de prueba antes de desplegar o de que otra persona use el Resumen; `lastIndex` puede ser mayor que las imágenes reales; el costo en lecturas por consulta (hasta unas 3600; la caché de 5 minutos evita repetirla); el desfase de claims
+   (se leen solo al iniciar sesión); qué hacer con
+   `functions/set-admin.js`, que reemplaza los claims sin fusionarlos
+   (borraría `reviewRole`); no hay
+   contadores de días anteriores a la publicación inicial (ver
+   `image-review-domain`); el día se arma con `fechaJornadaDe` (`toLocal()`)
+   y `shiftDate` es UTC-5 fijo; qué colección de resultados manda para las
+   coincidencias; y lo ya pendiente.
+   **Jornadas — tabla definitiva, código HECHO, corte SIN fijar**: se leyó
+   una vez `jornadas` de `whats-apuestas` (2026-09-30) y el usuario decidió
+   usar ese horario como tabla fija en código, sin lectura dinámica. Tabla
+   vieja y nueva coexisten en `shifts.dart`; `newShiftsEffectiveFromMs`
+   sigue en `null` (tabla vieja en toda la app) hasta que el usuario lo fije
+   el día del despliegue. night2 retirado de la tabla nueva; los huecos se
+   ven en el visor ("Fuera de jornada X") pero no cuentan para reportes.
+   Detalle en `image-review-domain` ("Jornadas: tabla vieja, tabla nueva y
+   corte") y en `image-review-firebase-integration` ("Tabla definitiva").
+   **PENDIENTES**: fecha fija del corte y despliegue coordinado con el bot;
+   actualizar el bot (rangos y claves de `shift_image_counts`) en su repo;
+   retirar night2 de `ASSIGNABLE_SHIFTS` en `functions/`; fuente de
+   festivos; caché de la PWA tras el despliegue.
 
 ## Checklist antes de pasar a la siguiente pieza
 
@@ -183,16 +367,21 @@ de aquí y de la skill correspondiente cuando el usuario confirme):
 - **`sqflite`/`drift` vs. `Hive`** (`image-review-offline-sync`) —
   decisión libre, a tomar en Claude Code; no hay nada existente que
   condicione la elección.
-- **Tres puntos diferidos explícitamente hasta tener acceso al proyecto
-  externo de Firebase** (`image-review-firebase-integration`): mecanismo
-  de recepción de números ganadores (webhook vs. polling), formato real
-  de las jornadas por fecha, y el contrato completo de la Cloud
-  Function puente. El usuario dijo que los revisamos juntos cuando
-  tenga acceso a ese proyecto — no intentar adivinarlos antes.
-- **Calidad de conexión / timeout por registro en la subida real**
-  (`image-review-offline-sync`, paso 7) — el uploader simulado nunca falla ni
-  se cuelga; antes de conectar Firestore hay que decidir si se verifica la
-  conexión antes de subir y/o se pone un timeout por registro.
+- **Dos puntos diferidos del proyecto externo de Firebase**
+  (`image-review-firebase-integration`): mecanismo de recepción de números
+  ganadores (webhook vs. polling) y el contrato completo de la Cloud
+  Function puente. El usuario dijo que los revisamos juntos — no intentar
+  adivinarlos antes. (El formato de las jornadas ya se vio y se decidió
+  una tabla fija en código, 2026-09-30.)
+- **Corte de la tabla de jornadas** (`image-review-domain`): fecha fija de
+  `newShiftsEffectiveFromMs` y despliegue coordinado con el bot (rangos y
+  claves de `shift_image_counts` en su repo), retirar night2 de
+  `ASSIGNABLE_SHIFTS` en `functions/`, fuente de festivos y caché de la PWA
+  tras el despliegue.
+- **Calidad de conexión en la subida real** (`image-review-offline-sync`,
+  paso 7) — el timeout por registro ya existe (15 s, capa 3); falta decidir
+  si además se verifica la conexión antes de subir, y qué pasa si una
+  escritura en cola del SDK web llega después del timeout.
 - **Qué pasa si le quitan el rol a alguien con registros locales sin
   subir** (`image-review-roles`) — queda como decisión operativa del
   superAdmin, no resuelta por la app.

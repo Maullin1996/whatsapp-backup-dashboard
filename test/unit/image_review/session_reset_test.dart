@@ -20,6 +20,7 @@ const _target = ImageReviewTarget(
   shift: 'Jornada Mañana',
   storagePath: 'img_m1.png',
   fechaJornada: '2026-01-15',
+  messageTimestamp: 1788489942000,
 );
 
 ({String messageId, ReviewRole rol}) _key(
@@ -77,7 +78,7 @@ void main() {
     ReviewRole rol = ReviewRole.revisor,
   }) async {
     final draft = container.read(reviewDraftProvider(_key(id, rol)).notifier);
-    draft.setCodigo(0, 'A1');
+    draft.setCodigo('A1');
     if (rol == ReviewRole.revisor) draft.setNumeroPendiente(0, '0123');
     draft.setTotal(0, '9000');
     await draft.save(
@@ -87,6 +88,7 @@ void main() {
         shift: 'Jornada Mañana',
         storagePath: 'img_$id.png',
         fechaJornada: '2026-01-15',
+        messageTimestamp: 1788489942000,
       ),
     );
   }
@@ -120,7 +122,7 @@ void main() {
     expect(container.read(canAdvanceProvider(_key('m1'))), isTrue);
 
     // Un borrador sin guardar de otra imagen se pierde (solo está en memoria).
-    container.read(reviewDraftProvider(_key('m2')).notifier).setCodigo(0, 'X9');
+    container.read(reviewDraftProvider(_key('m2')).notifier).setCodigo('X9');
 
     await container.read(authSessionProvider.notifier).logout();
 
@@ -130,14 +132,7 @@ void main() {
       isNull,
     );
     expect(container.read(canAdvanceProvider(_key('m1'))), isFalse);
-    expect(
-      container
-          .read(reviewDraftProvider(_key('m2')))
-          .comprobantes
-          .single
-          .codigo,
-      isEmpty,
-    );
+    expect(container.read(reviewDraftProvider(_key('m2'))).codigo, isEmpty);
 
     // Nada se borró del almacenamiento: al volver el mismo usuario, sigue ahí.
     container
@@ -272,7 +267,7 @@ void main() {
     );
 
     final draft = broken.read(reviewDraftProvider(_key('m1')).notifier);
-    draft.setCodigo(0, 'A1');
+    draft.setCodigo('A1');
     draft.setNumeroPendiente(0, '0123');
     draft.setTotal(0, '9000');
     await draft.save(_target);

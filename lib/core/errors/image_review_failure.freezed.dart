@@ -128,11 +128,11 @@ return totalInvalido(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  sinComprobantes,TResult Function( int indice)?  codigoVacio,TResult Function( int indice)?  comprobanteSinNumeros,TResult Function( int indice)?  totalInvalido,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  sinComprobantes,TResult Function()?  codigoVacio,TResult Function( int indice)?  comprobanteSinNumeros,TResult Function( int indice)?  totalInvalido,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _SinComprobantes() when sinComprobantes != null:
 return sinComprobantes();case _CodigoVacio() when codigoVacio != null:
-return codigoVacio(_that.indice);case _ComprobanteSinNumeros() when comprobanteSinNumeros != null:
+return codigoVacio();case _ComprobanteSinNumeros() when comprobanteSinNumeros != null:
 return comprobanteSinNumeros(_that.indice);case _TotalInvalido() when totalInvalido != null:
 return totalInvalido(_that.indice);case _:
   return orElse();
@@ -152,11 +152,11 @@ return totalInvalido(_that.indice);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  sinComprobantes,required TResult Function( int indice)  codigoVacio,required TResult Function( int indice)  comprobanteSinNumeros,required TResult Function( int indice)  totalInvalido,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  sinComprobantes,required TResult Function()  codigoVacio,required TResult Function( int indice)  comprobanteSinNumeros,required TResult Function( int indice)  totalInvalido,}) {final _that = this;
 switch (_that) {
 case _SinComprobantes():
 return sinComprobantes();case _CodigoVacio():
-return codigoVacio(_that.indice);case _ComprobanteSinNumeros():
+return codigoVacio();case _ComprobanteSinNumeros():
 return comprobanteSinNumeros(_that.indice);case _TotalInvalido():
 return totalInvalido(_that.indice);case _:
   throw StateError('Unexpected subclass');
@@ -175,11 +175,11 @@ return totalInvalido(_that.indice);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  sinComprobantes,TResult? Function( int indice)?  codigoVacio,TResult? Function( int indice)?  comprobanteSinNumeros,TResult? Function( int indice)?  totalInvalido,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  sinComprobantes,TResult? Function()?  codigoVacio,TResult? Function( int indice)?  comprobanteSinNumeros,TResult? Function( int indice)?  totalInvalido,}) {final _that = this;
 switch (_that) {
 case _SinComprobantes() when sinComprobantes != null:
 return sinComprobantes();case _CodigoVacio() when codigoVacio != null:
-return codigoVacio(_that.indice);case _ComprobanteSinNumeros() when comprobanteSinNumeros != null:
+return codigoVacio();case _ComprobanteSinNumeros() when comprobanteSinNumeros != null:
 return comprobanteSinNumeros(_that.indice);case _TotalInvalido() when totalInvalido != null:
 return totalInvalido(_that.indice);case _:
   return null;
@@ -225,67 +225,33 @@ String toString() {
 
 
 class _CodigoVacio implements ImageReviewFailure {
-  const _CodigoVacio(this.indice);
+  const _CodigoVacio();
   
 
- final  int indice;
 
-/// Create a copy of ImageReviewFailure
-/// with the given fields replaced by the non-null parameter values.
-@JsonKey(includeFromJson: false, includeToJson: false)
-@pragma('vm:prefer-inline')
-_$CodigoVacioCopyWith<_CodigoVacio> get copyWith => __$CodigoVacioCopyWithImpl<_CodigoVacio>(this, _$identity);
+
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CodigoVacio&&(identical(other.indice, indice) || other.indice == indice));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _CodigoVacio);
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,indice);
+int get hashCode => runtimeType.hashCode;
 
 @override
 String toString() {
-  return 'ImageReviewFailure.codigoVacio(indice: $indice)';
+  return 'ImageReviewFailure.codigoVacio()';
 }
 
 
 }
 
-/// @nodoc
-abstract mixin class _$CodigoVacioCopyWith<$Res> implements $ImageReviewFailureCopyWith<$Res> {
-  factory _$CodigoVacioCopyWith(_CodigoVacio value, $Res Function(_CodigoVacio) _then) = __$CodigoVacioCopyWithImpl;
-@useResult
-$Res call({
- int indice
-});
 
 
-
-
-}
-/// @nodoc
-class __$CodigoVacioCopyWithImpl<$Res>
-    implements _$CodigoVacioCopyWith<$Res> {
-  __$CodigoVacioCopyWithImpl(this._self, this._then);
-
-  final _CodigoVacio _self;
-  final $Res Function(_CodigoVacio) _then;
-
-/// Create a copy of ImageReviewFailure
-/// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') $Res call({Object? indice = null,}) {
-  return _then(_CodigoVacio(
-null == indice ? _self.indice : indice // ignore: cast_nullable_to_non_nullable
-as int,
-  ));
-}
-
-
-}
 
 /// @nodoc
 

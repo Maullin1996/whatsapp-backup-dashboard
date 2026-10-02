@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:whatsapp_monitor_viewer/core/time/shifts.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/domain/entities/date_filter.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/providers/date_filter_provider.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/providers/shift_stats_provider.dart';
@@ -20,11 +19,7 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          shiftStatsProvider.overrideWithValue({
-            for (final s in Shift.values) s: 0,
-          }),
-        ],
+        overrides: [shiftStatsProvider.overrideWithValue(ShiftStats.empty())],
         child: MaterialApp(
           home: Scaffold(
             key: scaffoldKey,

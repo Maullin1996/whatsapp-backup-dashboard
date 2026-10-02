@@ -23,6 +23,11 @@ abstract class ImageReviewRecord with _$ImageReviewRecord {
     /// Día de la jornada (`yyyy-MM-dd`): la fecha del mensaje, no la de
     /// [registradoEn]. Ver `fechaJornadaDe`.
     required String fechaJornada,
+
+    /// `messageTimestamp` del mensaje (epoch en milisegundos, sin
+    /// transformar). null solo en registros guardados antes de agregar este
+    /// campo: esos no se pueden subir hasta volver a guardarlos.
+    int? messageTimestamp,
     required ImageReviewForm form,
     required DateTime registradoEn,
 

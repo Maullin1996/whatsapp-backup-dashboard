@@ -4,13 +4,10 @@ import 'package:whatsapp_monitor_viewer/features/chats/presentation/provider/act
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/pending_jornada.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/image_review_providers.dart';
 
-/// Posición de una jornada (por el texto que guarda el registro) dentro del
-/// día; las desconocidas van al final.
-int _shiftOrder(String shift) {
-  final labels = Shift.values.map((s) => shiftNames[s]).toList();
-  final index = labels.indexOf(shift);
-  return index == -1 ? labels.length : index;
-}
+/// Posición de una jornada (por el texto que guarda el registro, de la tabla
+/// vieja o de la nueva) dentro del día; las desconocidas van al final.
+int _shiftOrder(String shift) =>
+    shiftFromLabel(shift)?.index ?? Shift.values.length;
 
 /// Jornadas del chat activo con registros pendientes de subir, del rol activo.
 ///

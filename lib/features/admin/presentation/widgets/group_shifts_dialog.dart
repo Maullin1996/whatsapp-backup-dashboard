@@ -3,12 +3,19 @@ import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
 import 'package:whatsapp_monitor_viewer/core/time/jornada_labels.dart';
 import 'package:whatsapp_monitor_viewer/core/time/shifts.dart';
 
-/// Jornadas asignables a un Revisor/Sumador: todas menos [Shift.outOfShift],
-/// que no es un turno real. Espejo de `ASSIGNABLE_SHIFTS` en
-/// `functions/index.js`.
-final assignableShifts = Shift.values
-    .where((s) => s != Shift.outOfShift)
-    .toList(growable: false);
+/// Jornadas asignables a un Revisor/Sumador en el instante [nowMs]: todas
+/// menos [Shift.outOfShift], que no es un turno real, y menos [Shift.night2]
+/// cuando rige la tabla nueva (no existe en ella), aunque
+/// `ASSIGNABLE_SHIFTS` de `functions/index.js` todavía la acepte.
+List<Shift> assignableShiftsAt(
+  int nowMs, {
+  int? effectiveFromMs = newShiftsEffectiveFromMs,
+}) {
+  final newTable = usesNewShiftTable(nowMs, effectiveFromMs: effectiveFromMs);
+  return Shift.values
+      .where((s) => s != Shift.outOfShift && !(newTable && s == Shift.night2))
+      .toList(growable: false);
+}
 
 /// Diálogo anidado (se abre sobre `AssignGroupsDialog`, patrón consistente
 /// con el resto del panel — ver `.claude/skills/image-review-roles.md`) para
@@ -47,6 +54,10 @@ class _GroupShiftsDialogState extends State<GroupShiftsDialog> {
 
   @override
   Widget build(BuildContext context) {
+    // Etiquetas y jornadas de la tabla que rige ahora.
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final names = shiftNamesAt(nowMs);
+
     return AlertDialog(
       title: Text(
         'Horarios · ${widget.groupName}',
@@ -57,12 +68,12 @@ class _GroupShiftsDialogState extends State<GroupShiftsDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            for (final shift in assignableShifts)
+            for (final shift in assignableShiftsAt(nowMs))
               CheckboxListTile(
                 dense: true,
                 value: _selected.contains(shift),
                 activeColor: AppColors.primaryGreen,
-                title: Text(shortShiftName(shiftNames[shift]!)),
+                title: Text(shortShiftName(names[shift]!)),
                 subtitle: widget.takenByOthers.containsKey(shift)
                     ? Text(
                         'Ya asignado a ${widget.takenByOthers[shift]}',

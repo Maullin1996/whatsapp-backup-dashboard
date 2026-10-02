@@ -38,8 +38,9 @@ ImageReviewRecord _record(
   storagePath: 'img_$id.png',
   fechaJornada: fecha,
   form: const ImageReviewForm(
+    codigo: 'A1',
     comprobantes: [
-      Comprobante(codigo: 'A1', numeros: ['1'], total: 1000),
+      Comprobante(numeros: ['1'], total: 1000),
     ],
   ),
   registradoEn: DateTime(2026, 1, 15, 8),
@@ -136,6 +137,22 @@ void main() {
     ]);
   });
 
+  test('las jornadas con etiquetas de la tabla nueva se ordenan igual que las '
+      'viejas (por la clave de la jornada)', () async {
+    final newMorning = newShiftNames[Shift.morning]!;
+    final newNight = newShiftNames[Shift.night1]!;
+    await repo.save(_record('a', fecha: '2026-11-02', shift: newNight));
+    await repo.save(_record('b', fecha: '2026-11-02', shift: newMorning));
+    await repo.save(_record('c', fecha: '2026-11-02', shift: _afternoon));
+    container.read(activeChatProvider.notifier).select(_chat('c1'));
+
+    expect(await read(), [
+      ('2026-11-02', newMorning, 1),
+      ('2026-11-02', _afternoon, 1),
+      ('2026-11-02', newNight, 1),
+    ]);
+  });
+
   test('ignora sincronizados, otro chat y el otro rol', () async {
     await repo.save(_record('a', estadoSync: EstadoSync.sincronizado));
     await repo.save(_record('b', chatJid: 'c2'));
@@ -172,12 +189,13 @@ void main() {
       shift: 'Jornada Mañana',
       storagePath: 'img_m1.png',
       fechaJornada: '2026-01-15',
+      messageTimestamp: 1788489942000,
     );
     const key = (messageId: 'm1', rol: ReviewRole.revisor);
 
     Future<void> saveValid() async {
       final draft = container.read(reviewDraftProvider(key).notifier);
-      draft.setCodigo(0, 'A1');
+      draft.setCodigo('A1');
       draft.setNumeroPendiente(0, '0123');
       draft.setTotal(0, '9000');
       await draft.save(target);
