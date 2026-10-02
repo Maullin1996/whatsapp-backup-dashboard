@@ -14,7 +14,9 @@ import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/aut
 import 'package:whatsapp_monitor_viewer/features/chats/presentation/widgets/custom_popup_menu_logout_button.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/presentation/pages/matches_page.dart';
+import 'package:whatsapp_monitor_viewer/features/summary/data/mock_summary_repository.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/presentation/pages/summary_page.dart';
+import 'package:whatsapp_monitor_viewer/features/summary/presentation/providers/summary_providers.dart';
 
 class _FakeAuth extends AuthSessionNotifier {
   final bool isAdmin;
@@ -67,6 +69,10 @@ Future<void> pumpMenu(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
+        // El Resumen real leería Firestore: en el test, el mock sin latencia.
+        summaryRepositoryProvider.overrideWithValue(
+          const MockSummaryRepository(latency: Duration.zero),
+        ),
         authSessionProvider.overrideWith(
           () => _FakeAuth(
             isAdmin: isAdmin,

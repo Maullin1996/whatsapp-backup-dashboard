@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:whatsapp_monitor_viewer/core/errors/failure.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/data/cache/summary_cache.dart';
-import 'package:whatsapp_monitor_viewer/features/summary/data/mock_summary_repository.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/domain/entities/jornada_summary.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/domain/repositories/summary_repository.dart';
+import 'package:whatsapp_monitor_viewer/features/summary/presentation/providers/real_summary_providers.dart';
 
 /// Día del resumen (solo la fecha, sin hora). Arranca en hoy.
 class SummaryDateNotifier extends Notifier<DateTime> {
@@ -24,10 +25,11 @@ final summaryDateProvider = NotifierProvider<SummaryDateNotifier, DateTime>(
 /// ya terminó).
 final clockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
 
-/// Único punto donde se instancia el repositorio del resumen. TEMPORAL: datos
-/// inventados (ver [MockSummaryRepository]); se reemplaza por uno real.
+/// Repositorio del Resumen: el real (registros de `image_reviews`,
+/// contadores de `shift_image_counts` y nombres de `group_stats`, ver
+/// `real_summary_providers.dart`). Los tests lo sobreescriben.
 final summaryRepositoryProvider = Provider<SummaryRepository>(
-  (ref) => const MockSummaryRepository(),
+  (ref) => ref.watch(realSummaryRepositoryProvider),
 );
 
 /// Caché en memoria del Resumen (ver [SummaryCache]: 5 minutos por fecha,
@@ -49,8 +51,22 @@ final jornadaSummariesProvider = FutureProvider<List<JornadaSummary>>((
   final result = await ref
       .watch(summaryCacheProvider)
       .get(date, () => repository.getJornadaSummaries(date));
-  return result.fold((failure) => throw failure, (list) => list);
+  return result.fold((failure) {
+    debugPrint(summaryFailureLog(failure));
+    throw failure;
+  }, (list) => list);
 }, retry: (retryCount, error) => null);
+
+/// Línea de log de una lectura fallida del Resumen. Los errores de Firestore
+/// llevan su texto completo (si falta un índice, trae el enlace para
+/// crearlo); los demás solo el tipo, porque su texto puede nombrar un
+/// documento (`messageId_rol`). Nunca imprime documentos ni datos.
+String summaryFailureLog(Failure failure) => failure.map(
+  firestore: (f) => '[RESUMEN] falló (firestore): ${f.message}',
+  unauthorized: (f) => '[RESUMEN] falló (unauthorized): ${f.message}',
+  storage: (_) => '[RESUMEN] falló (storage)',
+  unknown: (_) => '[RESUMEN] falló (unknown)',
+);
 
 /// Recarga la fecha elegida desde la fuente, aunque haya caché vigente
 /// ("Actualizar" y "Reintentar").

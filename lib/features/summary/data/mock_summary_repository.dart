@@ -34,7 +34,10 @@ enum _Scenario {
   ninguno,
 }
 
-/// TEMPORAL — el día que exista subida real a Firestore (paso 7) o el
+/// No cableado; solo tests y referencia; candidato a borrar
+/// (`summaryRepositoryProvider` usa el repositorio real).
+///
+/// Historia: el día que exista subida real a Firestore (paso 7) o el
 /// mecanismo de lectura cruzada que se descartó en esta sesión, esta clase se
 /// reemplaza por un `SummaryRepository` real. No asumas que los datos de acá
 /// reflejan la app de verdad. El dato real de `imagenesEnJornada` es un `get`

@@ -14,7 +14,7 @@ import 'package:whatsapp_monitor_viewer/features/summary/domain/repositories/sum
 /// (todos los grupos), los contadores del bot de ese día y el nombre de cada
 /// grupo. Nombre PROVISIONAL.
 ///
-/// TODAVÍA NO CONECTADO: `summaryRepositoryProvider` sigue en el mock.
+/// Es el de `summaryRepositoryProvider` (vía `realSummaryRepositoryProvider`).
 class FirestoreSummaryRepository implements SummaryRepository {
   final SummaryRecordsDatasource _records;
   final ShiftImageCountsDatasource _counts;

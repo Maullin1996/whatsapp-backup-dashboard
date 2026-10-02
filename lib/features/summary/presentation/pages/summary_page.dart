@@ -13,7 +13,8 @@ import 'package:whatsapp_monitor_viewer/helpers/map_failure_to_message.dart';
 
 /// Resumen por grupo y jornada de un día: qué registró cada rol y si cuadra.
 ///
-/// Por ahora con datos inventados (ver `MockSummaryRepository`).
+/// Lee datos reales de Firestore (ver `summaryRepositoryProvider`); solo para
+/// admin y superAdmin.
 class SummaryPage extends ConsumerWidget {
   const SummaryPage({super.key});
 

@@ -10,10 +10,8 @@ import 'package:whatsapp_monitor_viewer/features/summary/data/datasources/summar
 import 'package:whatsapp_monitor_viewer/features/summary/data/repositories/firestore_summary_repository.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/domain/repositories/summary_repository.dart';
 
-// Capa de datos REAL del Resumen (nombres PROVISIONALES). TODAVÍA NO
-// CONECTADA: ningún código los lee y `summaryRepositoryProvider` sigue en el
-// mock. Conectarla es cambiar ese provider para que devuelva
-// `ref.watch(realSummaryRepositoryProvider)`.
+// Capa de datos REAL del Resumen (nombres PROVISIONALES), conectada:
+// `summaryRepositoryProvider` devuelve `realSummaryRepositoryProvider`.
 
 final summaryRecordsDatasourceProvider = Provider<SummaryRecordsDatasource>(
   (ref) => FirestoreSummaryRecordsDatasource(ref.watch(firestoreProvider)),
