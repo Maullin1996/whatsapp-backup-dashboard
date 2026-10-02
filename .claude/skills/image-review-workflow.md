@@ -191,6 +191,23 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    en `image_reviews`** (`permission-denied`): el registro queda pendiente
    hasta que se publique el borrador de la capa 5. `SimulatedReviewUploader`
    queda sin cablear (candidato a borrar).
+   **Cambio del modelo del registro — HECHO** (antes de la primera
+   escritura real; decisión del usuario): el `codigo` pasa a ser **uno por
+   imagen** (`ImageReviewForm.codigo`, un solo campo "Código" arriba de
+   las tarjetas, obligatorio para los dos roles) y cada comprobante queda
+   `{numeros, total, loteria}`, con `loteria` texto libre **opcional**
+   ("Lotería (opcional)", dónde se compró el boleto; sin relación con los
+   ganadores ni la reconciliación). Esquema sigue en v1 (`codigo` ausente
+   → null; un `codigo` dentro de un comprobante viejo se ignora); un
+   registro sin `codigo` no se sube hasta re-guardarlo desde el visor
+   (abre con el código vacío). Reglas, Resumen y Coincidencias sin
+   cambios. Detalle en `image-review-domain` (vocabulario y regla 6) y
+   `image-review-offline-sync`.
+   **PENDIENTES (no decididos)**: validar `codigo` en las reglas de
+   Firestore (hoy el borrador no lo valida y las reglas publicadas no
+   cambian); si la lotería pasa a ser una lista cerrada; un aviso visible
+   para los registros viejos que no se pueden subir (la píldora los sigue
+   contando).
    Siguen **PENDIENTES** (detalle en `image-review-offline-sync` § "Ruta de
    la subida"): aviso visible para los registros viejos que no se pueden
    subir (y que la píldora los sigue contando), si conviene subir el

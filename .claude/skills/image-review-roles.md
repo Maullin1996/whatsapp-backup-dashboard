@@ -144,12 +144,13 @@ El repo ya tiene un patrón completo en `lib/features/admin/` y
 - "Completar" = **guardar** (botón "Guardar" explícito): llenar los
   campos no basta, se navega solo cuando existe un registro guardado.
   Los campos obligatorios son los definidos en `image-review-domain`.
-  Para el **Revisor**: al menos un
-  comprobante, y cada comprobante con código, al menos un número y
-  total > 0. Para el **Sumador**: al menos un comprobante, y cada
-  comprobante con código y total > 0, sin números. Ambas reglas están
-  implementadas en `validateImageReviewForm(form, rol)`. Las
-  anotaciones nunca son obligatorias, son siempre opcionales.
+  Para los dos roles: el **código de la imagen** (uno por foto, un solo
+  campo arriba de las tarjetas) y al menos un comprobante. Para el
+  **Revisor**, cada comprobante con al menos un número y total > 0. Para
+  el **Sumador**, cada comprobante con total > 0, sin números. Ambas
+  reglas están implementadas en `validateImageReviewForm(form, rol)`. Las
+  anotaciones y la lotería de cada comprobante ("Lotería (opcional)")
+  nunca son obligatorias.
 - Esta validación es **de navegación dentro del visor**, no de guardado:
   no impide cerrar la app o salir de `image_detail_page` por completo,
   solo bloquea el gesto/flecha/botón de cambio de imagen mientras falte

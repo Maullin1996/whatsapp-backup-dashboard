@@ -37,17 +37,25 @@ cada vez. Antes de tocar código de este feature, lee esta skill completa.
 - **Comprobante** ("Bono Paga Diario" en la foto física): unidad dentro de
   una imagen. **Una imagen puede tener 1 o varios comprobantes** (en el
   ejemplo real que definió esta skill, una imagen traía 4 comprobantes).
-  Cada comprobante tiene su propio código impreso (`COD`). El código es
-  **texto libre** (dígitos como "0123", o el nombre de una región) y es
-  **obligatorio**: se le aplica `trim` y es error solo si queda vacío;
-  no se valida el formato ni se normalizan mayúsculas o tildes. **Lo
-  anotan ambos roles, Revisor y Sumador, cada uno por su cuenta** (igual
-  que el total). **El código
-  identifica a la persona que registró el ticket, no al ticket en sí** —
-  por eso el mismo código puede repetirse en varios comprobantes (de la
-  misma imagen o de imágenes distintas). **Nunca se suman entre sí dos
-  comprobantes solo por compartir código** — cada ticket es una unidad
-  independiente aunque el código coincida.
+- **Código** (`COD`): **UNO por imagen** (decidido por el usuario, paso
+  7, antes de la primera escritura real): es el mismo para todos los
+  boletos de la foto, así que se escribe **una sola vez** y vale para
+  todos sus comprobantes (antes era uno por comprobante). Es **texto
+  libre** (dígitos como "0123", o el nombre de una región) y es
+  **obligatorio**: se le aplica `trim` y es error solo si falta o queda
+  vacío; no se valida el formato ni se normalizan mayúsculas o tildes.
+  **Lo anotan ambos roles, Revisor y Sumador, cada uno por su cuenta**
+  (igual que el total). **El código identifica a la persona que registró
+  el ticket, no al ticket en sí** — por eso se repite entre imágenes.
+  **Nunca se suman entre sí comprobantes por compartir código** — cada
+  ticket es una unidad independiente.
+- **Lotería** (de un comprobante): el nombre de **dónde se compró el
+  boleto**. **Por comprobante**, porque puede variar entre los boletos de
+  una misma foto. Texto libre, con `trim`; vacía o solo espacios = `null`;
+  **OPCIONAL**. **No tiene relación con las loterías de los números
+  ganadores**: no entra en la comparación con los ganadores ni en la
+  reconciliación. La pueden llenar los dos roles (valor por defecto, no
+  una decisión de negocio: se puede restringir después).
 - **Número**: cada entrada escrita a mano dentro de un comprobante (en el
   ejemplo, cosas como `5311`, `1111`, `2023`...). Un comprobante tiene
   **N números** (cantidad variable, no fija). **Solo los anota el
@@ -73,15 +81,18 @@ cada vez. Antes de tocar código de este feature, lee esta skill completa.
 
 ```
 Imagen (1)
+ ├── código — UNO por imagen, OBLIGATORIO, texto libre, anotado por
+ │    Revisor y por Sumador (identifica a quien registró los tickets;
+ │    vale para todos los comprobantes de la foto; nunca implica que dos
+ │    comprobantes se sumen)
  └── Comprobantes (1..N)
-      ├── código — OBLIGATORIO, texto libre, anotado por Revisor y por
-      │    Sumador (identifica a quien registró el ticket; se puede
-      │    repetir, nunca implica que dos comprobantes se sumen)
       ├── Números (1..N) — SOLO Revisor (el valor del número en sí, para
       │    poder cruzarlos contra números ganadores)
-      └── Total del comprobante
-           ├── anotado por el Revisor
-           └── anotado por el Sumador (independiente, para verificación)
+      ├── Total del comprobante
+      │    ├── anotado por el Revisor
+      │    └── anotado por el Sumador (independiente, para verificación)
+      └── lotería — OPCIONAL, texto libre (dónde se compró el boleto; sin
+           relación con las loterías ganadoras ni con la reconciliación)
 
 Registro de imagen (lo que se guarda por imagen Y POR ROL, ver
 image-review-roles: cada imagen tiene DOS registros independientes, uno del
@@ -416,9 +427,9 @@ tabla fija en código (hechos de esa lectura y pendientes de integración en
    un comprobante puede tener 1 número o varios. Nunca asumir cantidad
    fija ni deshabilitar "agregar otro" después de cierto número.
 2. **Doble verificación por captura independiente, no por cálculo**:
-   Revisor y Sumador anotan **los mismos datos — el código y el total de
-   cada comprobante — cada uno por su cuenta**, sin ver lo que anotó el
-   otro. **Solo el Revisor anota los números.** No es que uno calcule y
+   Revisor y Sumador anotan **los mismos datos — el código de la imagen
+   y el total de cada comprobante — cada uno por su cuenta**, sin ver lo
+   que anotó el otro. **Solo el Revisor anota los números.** No es que uno calcule y
    el otro registre partes; ambos ven la misma foto y ambos escriben el
    código y el total que leen. El propósito es detectar errores de
    transcripción de uno de los dos (por eso el Sumador existe: para
@@ -450,22 +461,25 @@ tabla fija en código (hechos de esa lectura y pendientes de integración en
    día es una unidad de reporte independiente. Si se necesita histórico,
    es una vista de "varios reportes diarios lado a lado", nunca una
    suma acumulada.
-6. **Anotaciones son siempre opcionales, para los dos roles, y son el
-   ÚNICO campo opcional del formulario** (texto libre; vacías o solo
-   espacios se normalizan a `null`). No tienen estructura ni afectan la
-   reconciliación numérica; sirven para que un humano revise después
-   ("este número no se ve bien", "esta suma no me da"). Todo lo demás es
-   obligatorio, y varía por rol:
-   - **Revisor**: al menos un comprobante; y por comprobante, código
-     (texto libre, `trim`, no vacío), al menos un número (String, con
+6. **Anotaciones y lotería son los ÚNICOS campos opcionales del
+   formulario, para los dos roles** (texto libre; vacías o solo espacios
+   se normalizan a `null`; las anotaciones son una por imagen, la lotería
+   una por comprobante). No afectan la reconciliación numérica; las
+   anotaciones sirven para que un humano revise después ("este número no
+   se ve bien", "esta suma no me da"). Todo lo demás es obligatorio, y
+   varía por rol:
+   - **Los dos roles**: el código de la imagen (uno por foto, texto
+     libre, `trim`, no vacío) y al menos un comprobante.
+   - **Revisor**: por comprobante, al menos un número (String, con
      `trim`, conservando ceros a la izquierda) y total entero > 0.
-   - **Sumador**: al menos un comprobante; y por comprobante, código
-     (mismas reglas) y total entero > 0. **Sin números.**
+   - **Sumador**: por comprobante, total entero > 0. **Sin números.**
 
-   `validateImageReviewForm(form, rol)` (fail-fast; orden: comprobantes,
-   código, números —solo Revisor—, total) aplica las reglas del rol. Para
-   el Sumador la lista de números se normaliza siempre a vacía (lo que
-   llegue se descarta).
+   `validateImageReviewForm(form, rol)` (fail-fast; orden: código de la
+   imagen, comprobantes, números —solo Revisor—, total) aplica las reglas
+   del rol. Para el Sumador la lista de números se normaliza siempre a
+   vacía (lo que llegue se descarta). El error de código no lleva índice
+   ("Ingresa el código de la imagen"). **PENDIENTE (no decidido)**: si la
+   lotería pasa a ser una lista cerrada.
 7. **Coincidencia con números ganadores**: se busca solo contra los
    **números** que registró el Revisor, porque el Sumador no anota
    números. Si un número coincide con un número ganador, debe

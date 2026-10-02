@@ -179,7 +179,10 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
    `Message.messageDate`, que a pesar del nombre guarda la hora "HH:mm",
    ni `registradoEn`), `messageTimestamp` (int?, ms UTC del mensaje, tal
    cual; lo copia `save()` del target), `registradoPor`, `editado` y
-   `estadoSync`.
+   `estadoSync`. Del formulario: `codigo` (uno por imagen, en
+   `ImageReviewForm.codigo`, `String?`: null solo en registros guardados
+   antes de ese cambio), `comprobantes` (cada uno `{numeros, total,
+   loteria}`; `loteria` opcional, `String?`) y `anotaciones`.
 3. **`estadoSync` (`EstadoSync { pendiente, sincronizado }`)**: un registro
    nuevo nace `pendiente`. **Re-guardar (editar) un registro, aunque
    estuviera `sincronizado`, lo devuelve a `pendiente` y pone
@@ -220,6 +223,17 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
    falla como el resto de campos estrictos. Esos registros viejos con `null`
    se leen y se muestran normal, pero **no se suben hasta re-guardarlos**
    desde el visor (ver "Ruta de la subida").
+   **`codigo` por imagen y `loteria` por comprobante, también SIN subir el
+   esquema (sigue en v1, sin paso nuevo en `migrate`)**: `toMap` escribe
+   `codigo` arriba y cada comprobante como `{numeros, total, loteria}`
+   (la clave `loteria` siempre presente, null si quedó vacía). `fromMap`:
+   `codigo` ausente → `null`; `loteria` ausente en un comprobante →
+   `null`; con otro tipo, cualquiera de los dos falla como los campos
+   estrictos; una clave `codigo` DENTRO de un comprobante (registro
+   anterior, cuando el código era por comprobante) **se ignora**. Un
+   registro anterior se ve con "Sin código: guárdalo de nuevo"; al
+   editarlo, el campo Código abre **vacío** (no se prellena con el código
+   viejo) y no se puede volver a guardar sin él.
 8. **Arquitectura**: `ReviewLocalDatasource` (`data/datasources/`) es lo
    único que toca `hive_ce`, devuelve `Either<Failure, T>` y nunca se llama
    desde un Notifier. Las entidades de domain no llevan anotaciones de la
@@ -319,9 +333,11 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
   "/", pero en la ruta va `holiday`.
 - **Datos** = `toMap()` sin `v` ni `estadoSync`, más `shiftKey`. Conserva
   `rol`, `shift` (etiqueta en español), `chatJid`, `fechaJornada`,
-  `messageTimestamp` (int, ms UTC, tal cual), `registradoEn` (ISO-8601 UTC,
-  texto; se mantiene sin cambios) y `registradoPor` (solo auditoría). No
-  lleva `uid`.
+  `messageTimestamp` (int, ms UTC, tal cual), `codigo` (String, uno por
+  imagen, arriba), `comprobantes` (cada uno `{numeros, total, loteria}`,
+  con `loteria` siempre presente, String o null), `anotaciones`,
+  `registradoEn` (ISO-8601 UTC, texto; se mantiene sin cambios),
+  `registradoPor` (solo auditoría) y `editado`. No lleva `uid`.
 - **Capa 2 — HECHA, cableada en la capa 6** (nombres provisionales):
   - `ReviewUploadDatasource` (`data/datasources/review_upload_datasource.dart`,
     Dart puro, sin `cloud_firestore`): `setDocument(pathSegments, data)` →
@@ -373,6 +389,18 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
     visor."))`, sin llamar a ningún uploader ni imprimir nada. Para
     `ReviewUploadNotifier` es un fallo más: sigue pendiente. Al re-guardarlo
     desde el visor, `save()` le pone el `messageTimestamp` del mensaje.
+- **Código por imagen — HECHO** (antes de la primera escritura real):
+  registro anterior sin `codigo` (`null`) → `toUploadDocument()` devuelve
+  `Left(Failure.unknown("El registro de la imagen <messageId> es anterior
+  al código por imagen y no se puede subir: guárdalo de nuevo desde el
+  visor."))`, con el chequeo **después** de los de jornada y
+  `messageTimestamp`, sin llamar al datasource y sin imprimir el payload
+  (`FirestoreReviewUploader` deja, como con todo `Left`, solo su línea
+  `[SUBIDA] falló <messageId>: unknown`; el simulado no imprime nada). Las
+  reglas del borrador **no** cambiaron: usan `hasAll` sin `hasOnly` sobre
+  las 13 claves y no miran el interior de `comprobantes`, así que aceptan
+  `codigo` arriba y `loteria` en cada comprobante sin validarlos. El
+  Resumen real lee de cada comprobante solo `total`.
 - **Capa 5 — BORRADOR de reglas, NO desplegado**: `firestore.rules.draft`
   en la raíz del repo. **No está referenciado en `firebase.json`** (que no
   tiene bloque `firestore`) y no se despliega con la CLI: se publica a mano
@@ -469,10 +497,14 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
     marca `sincronizado` y el fallo deja `pendiente` sin lanzar. Ningún test
     instancia `FirebaseFirestore` ni lee el `firestoreProvider` real.
 - **PENDIENTE (no decidido)**:
-  - Aviso visible para los registros viejos que no se pueden subir: hoy solo
-    cuentan como "no se pudieron subir" en el SnackBar, sin decir cuál ni
-    por qué, y **la píldora los sigue contando** (el índice de pendientes no
-    sabe que les falta el campo).
+  - Aviso visible para los registros viejos que no se pueden subir (sin
+    `messageTimestamp` o sin `codigo`): hoy solo cuentan como "no se
+    pudieron subir" en el SnackBar, sin decir cuál ni por qué, y **la
+    píldora los sigue contando** (el índice de pendientes no sabe que les
+    falta el campo).
+  - Validar `codigo` en las reglas de Firestore (hoy el borrador no lo
+    valida; las reglas publicadas no cambian). Si la lotería pasa a ser
+    una lista cerrada.
   - Si conviene subir el esquema a v2 igual (por ejemplo, para que una
     versión antigua de la app que siga en caché no lea ni reescriba
     registros con un campo que no conoce).
