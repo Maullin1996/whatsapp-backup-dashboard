@@ -26,7 +26,15 @@ para este feature — no el modelo de negocio (`image-review-domain`),
 ni los roles (`image-review-roles`), ni el guardado local
 (`image-review-offline-sync`).
 
-## Fase actual: todo mockeado, no conectado de verdad
+## Fase actual
+
+**Actualización (paso 7, pieza c)**: Coincidencias ya lee datos REALES de
+Firestore (`FirestoreMatchesRepository`, ver "Coincidencias real" más
+abajo). Los números ganadores todavía no llegan: la colección
+`winning_numbers` no existe hasta que se implemente la función puente. Lo
+que sigue en esta sección es el antecedente (todo mockeado).
+
+### Antecedente: todo mockeado, no conectado de verdad
 
 **Confirmado explícitamente por el usuario**: por ahora, tanto las
 **jornadas** como los **números ganadores** van con datos **locales/de
@@ -69,22 +77,19 @@ refactor grande — coherente con la Clean Architecture del proyecto.
   no esta pantalla) y sin filtro por `allowedGroups` (coherente con el
   punto siguiente: mira todos los grupos, no solo los asignados al
   usuario).
-- **Agrupación de la comparación/visualización — CONFIRMADA, siempre
-  por jornada, nunca por día**: el usuario aclaró explícitamente
-  "siempre es por jornada y nunca por día" — nunca existe un total
-  combinado de varias jornadas en un mismo día, coherente con que
-  también la reconciliación (`image-review-domain`, regla 3-4) y los
-  reportes (regla 5) son siempre por jornada y nunca combinados por
-  día.
-- **Disparador de la comparación — NO DEFINIDO (PENDIENTE)**: la
-  pantalla construida (`/matches`, datos inventados) consulta
-  **cualquier fecha a demanda** (selector de calendario, hoy por
-  defecto) y no está ligada a la subida de una jornada
-  (`image-review-offline-sync`) ni a "fin de día". Qué momento/lectura
-  alimentará los registros reales de coincidencias sigue sin resolver:
-  ¿se recalcula en cada consulta contra Firestore, o la Cloud Function
-  puente precalcula y guarda coincidencias al recibir números
-  ganadores? — pendiente.
+- **Agrupación de la visualización — siempre por jornada**: nunca existe
+  un total combinado de varias jornadas en un mismo día, coherente con la
+  reconciliación (`image-review-domain`, regla 3-4) y los reportes (regla
+  5). **La comparación, en cambio, es del día (DECIDIDO, pieza c)**: los
+  ganadores de una fecha se comparan contra los números del Revisor de
+  TODAS las jornadas y grupos de esa fecha (solo cuenta el número); la
+  jornada solo agrupa lo que se muestra.
+- **Disparador de la comparación — HECHO (pieza c)**: se recalcula en
+  cada consulta, en el cliente: la pantalla consulta **cualquier fecha a
+  demanda** (selector de calendario, hoy por defecto), lee los ganadores
+  de esa fecha y los registros del Revisor, y cruza con `findMatches`. No
+  está ligada a la subida de una jornada ni a "fin de día". La función
+  puente solo guarda los ganadores, no precalcula coincidencias.
 - **Alcance de la búsqueda de coincidencias**: un número ganador puede
   coincidir con un registro de **cualquier grupo monitoreado**, no solo
   el chat que se está viendo en ese momento — así que esta comparación
@@ -98,19 +103,21 @@ refactor grande — coherente con la Clean Architecture del proyecto.
   Implementado en `findMatches` (`features/matches/domain/helpers/`).
 - **Qué se muestra al encontrar coincidencia**: el número que coincidió,
   el grupo (`chatJid`/nombre del grupo) al que pertenece, quién lo
-  envió, la hora, la jornada y si el mensaje de WhatsApp fue editado.
+  envió, la hora y la jornada. **Ya no se muestra si el mensaje fue
+  editado** (`messageEdited` se quitó en la pieza c).
 - **"Ver más" — corregido, NO navega al visor**: la UI construida abre
   un **diálogo de detalle propio** (`MatchDetailDialog`), no
   `ImageDetailPage` — no cambia el chat activo ni el filtro de fecha.
   Sigue vigente la idea original de no cargar la imagen completa solo
   por aparecer en la lista: dentro del diálogo, la imagen se pide
-  (`imageUrlProvider`) **solo si el usuario toca "Ver imagen"**, y con
-  los datos de prueba de hoy ese pedido está apagado por una bandera
-  (`realImageEnabled`, `false` por defecto): tocar "Ver imagen" muestra
-  un aviso, sin tocar la red ni construir ningún `ExtendedImage`. Los
-  campos ya guardados alcanzan para el contexto sin cargar la imagen:
-  `id`/`messageId`, `chatJid`, `senderName`, `storagePath`, `shift`,
-  `localTime` y si el mensaje fue editado.
+  (`imageUrlProvider`) **solo si el usuario toca "Ver imagen"**.
+  **Activado (HECHO, pieza c)**: `realImageEnabled` es `true` por
+  defecto y carga la imagen real desde el `storagePath` del registro (la
+  bandera apagada queda solo para tests). **PENDIENTE**: no se probó
+  todavía cargar una imagen real (las reglas de Storage no están en el
+  repo). Los campos alcanzan para el contexto sin cargar la imagen:
+  `messageId`, `chatJid`, `senderName`, `storagePath`, `shift` y
+  `localTime`.
 - **Pantalla dedicada, nueva** (no una sección de otra pantalla
   existente): muestra las coincidencias **por fecha**, con **el día
   actual como valor por defecto**, y un botón que despliega un
@@ -121,20 +128,52 @@ refactor grande — coherente con la Clean Architecture del proyecto.
   (`image-review-domain`, regla 5), esta pantalla también debe
   respetar eso: cada fecha se consulta y se muestra de forma
   independiente, nunca acumulada con otras fechas.
-- **Formato de la lista de ganadores — decisión del mock, no del
-  contrato real**: `MockMatchesRepository` (datos inventados) organiza
-  los números ganadores por (fecha, jornada), coherente con el punto
-  anterior — pero es una decisión de cómo se armó el mock, no un
-  contrato confirmado de la fuente externa; el formato real sigue
-  diferido (ver "Zona gris" más abajo).
-- **PENDIENTE: estructura de la colección real de números/coincidencias
-  no definida**. Al conectar (paso 7) va a hacer falta una colección
-  nueva con los registros de números — hoy `ImageReviewRecord`
-  (`features/image_review/domain/entities/`) no trae `senderName`,
-  `groupName`, `localTime` ni el `isEdited` del mensaje de WhatsApp (los
-  campos que hoy arma `MatchEntry` para la UI); de dónde sale cada uno
-  de esos datos en el contrato real (¿del propio `Message`? ¿de una
-  colección aparte?) queda diferido a ese paso.
+- **Formato de la lista de ganadores — PROVISIONAL**: un documento por
+  fecha, `winning_numbers/{yyyy-MM-dd}` con el campo `numbers` (lista de
+  texto), definido en una sola constante (`winningNumbersSource`). Es la
+  lista del DÍA: todas las jornadas de esa fecha muestran la misma.
+  (`MockMatchesRepository`, sin cablear, los organizaba por fecha y
+  jornada; era una decisión del mock.)
+- **De dónde sale cada dato de una coincidencia (HECHO, pieza c)**: el
+  número, el grupo, la jornada, el `messageId` y el `storagePath`, del
+  registro del Revisor (`image_reviews/.../registros`); `senderName` y
+  `localTime`, de `whatsapp_messages/{messageId}`; el nombre del grupo, de
+  `group_stats/{chatJid}` (si no existe, se muestra el `chatJid`). No hace
+  falta una colección aparte de coincidencias.
+
+### Coincidencias real (paso 7, pieza c)
+
+**HECHO**: `matchesRepositoryProvider` usa `FirestoreMatchesRepository`
+(detalle en `image-review-workflow`, "Pieza (c)"). Solo admin y superAdmin
+leen `image_reviews`. La regla de `winning_numbers` (lectura para
+`isAdmin()`, escritura negada) está **PUBLICADA desde el 2026-10-02**
+(verificado por el usuario); la copia está en `firestore.rules.draft`, cuyo
+encabezado todavía la da como no publicada. El nombre y la forma de
+`winning_numbers` siguen **PROVISIONALES** y la colección **todavía no
+existe**. Coincidencias **abrió sin error con una cuenta admin** el
+2026-10-02 (verificado por el usuario) y mostró "Todavía no hay ganadores".
+
+**DECIDIDO por el usuario — regla de la función puente (pieza b), NO
+implementada**:
+- El número de `manual_lotteries` **reemplaza** al de
+  `resultados_loterias` cuando es la misma lotería y la misma fecha.
+- Una lotería que solo está en la manual cuenta como un número más.
+- La función normaliza tildes y mayúsculas entre colecciones (a confirmar
+  con datos reales).
+- Relee una ventana de días recientes, porque la manual se corrige
+  después.
+
+**PENDIENTE (no decidido)**:
+- La función puente (toca `functions/`; necesita autorización aparte).
+- El índice de grupo de colecciones sobre `fechaJornada` y `rol` (el enlace
+  sale del error de la primera consulta con ganadores, en el log
+  `[COINCIDENCIAS] falló (firestore): ...`).
+- Caché de Coincidencias y costo en lecturas.
+- Probar "Ver imagen" con una imagen real.
+- Borrar los mocks y el uploader simulado.
+- Borrar los 4 documentos de prueba antes de desplegar el hosting.
+- Corregir el encabezado de `firestore.rules.draft` (dice que el bloque de
+  `winning_numbers` no está publicado).
 
 ## Jornadas desde otro proyecto de Firebase
 

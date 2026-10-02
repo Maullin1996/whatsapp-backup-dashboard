@@ -131,10 +131,8 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    **UI ya hecha con datos INVENTADOS** (página `/matches`, solo para
    `isAdmin`/`isSuperAdmin` vía `canViewMatches`; entrada "Coincidencias"
    en el menú de `ChatList`; `MockMatchesRepository` determinista por
-   fecha, en `features/matches/`). **Sigue pendiente conectar datos
-   reales** (paso 7: reemplazar el mock por un `MatchesRepository`
-   real; de dónde lee —y si hay o no lectura directa de Firestore— se
-   define en el paso 7).
+   fecha, en `features/matches/`). **Desde el paso 7, pieza c, lee datos
+   reales** (ver "Pieza (c)" más abajo).
 7. **Conexión real a Firebase** (`image-review-firebase-integration`):
    una vez el usuario tenga acceso al proyecto externo, revisar el
    formato real de jornadas/números ganadores y reemplazar los mocks
@@ -236,9 +234,7 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    verificación de conexión antes de subir, si una escritura en
    cola del SDK web llega tarde después de un timeout,
    mensajes de error visibles en español en la interfaz, nombres definitivos de las
-   colecciones, cómo lee
-   Coincidencias entre grupos (consulta de grupo de colecciones o Cloud
-   Function), si `fechaJornada`
+   colecciones, si `fechaJornada`
    usa `toLocal()` o UTC-5 (ahora es parte de la ruta), límites de tamaño
    (tampoco los imponen las reglas).
    **Acceso al Resumen — HECHO**: `/summary` y su entrada "Resumen" del
@@ -278,8 +274,8 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    trae el enlace para crearlo), los demás solo con el tipo (su texto puede
    nombrar un registro). `SummaryPage` no cambió: muestra el texto completo
    del `Failure` con "Reintentar". **No se ejecutó**: nada de esto se probó
-   todavía contra Firestore. Coincidencias **sigue con datos inventados**,
-   así que el hosting sigue sin desplegarse con esa pantalla visible.
+   todavía contra Firestore. Coincidencias lee datos reales desde la
+   pieza c (ver más abajo).
    **Caché del Resumen — HECHA** (hoy sobre el repositorio real): `SummaryCache`
    en memoria, por fecha (`fechaJornadaDe`), TTL de 5 minutos
    (`summaryCacheTtl`), solo éxitos (un `Left` nunca se guarda), una sola
@@ -305,8 +301,63 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    (borraría `reviewRole`); no hay
    contadores de días anteriores a la publicación inicial (ver
    `image-review-domain`); el día se arma con `fechaJornadaDe` (`toLocal()`)
-   y `shiftDate` es UTC-5 fijo; qué colección de resultados manda para las
-   coincidencias; y lo ya pendiente.
+   y `shiftDate` es UTC-5 fijo; y lo ya pendiente (qué colección de
+   resultados manda para las coincidencias ya se decidió, ver "Pieza (c)").
+   **Pieza (c), Coincidencias real — HECHA y CONECTADA** (decisiones del
+   usuario): `matchesRepositoryProvider` devuelve
+   `ref.watch(realMatchesRepositoryProvider)` (`FirestoreMatchesRepository`,
+   nombres provisionales). Tres datasources nuevos en
+   `features/matches/data/datasources/` (Dart puro + clase Firestore con
+   `.withReader`; nunca lanzan; `FirebaseException` → `mapFirestoreError`; un
+   documento malformado da `Left` con su id): registros del **Revisor** del
+   día (`collectionGroup('registros')` por `fechaJornada` y `rol`), números
+   ganadores del día (`winning_numbers/{fecha}`, campo `numbers`, nombre y
+   forma **PROVISIONALES** en una sola constante; documento ausente = lista
+   vacía) y el mensaje por id (`whatsapp_messages`: `senderName` y
+   `localTime`). El nombre del grupo reutiliza el
+   `groupNameDatasourceProvider` del Resumen, con su caché (sin documento →
+   el `chatJid`; error → `Left`). Solo admin y superAdmin leen
+   `image_reviews`.
+   - **Comparación**: los ganadores de una fecha se comparan contra los
+     números del Revisor de **TODAS las jornadas y grupos** de esa fecha;
+     solo cuenta el número (`findMatches`, sin cambios). Solo las
+     coincidencias leen su mensaje (una vez por `messageId`) y su grupo (una
+     vez por `chatJid`); cualquier lectura fallida → `Left`.
+   - **Pantalla**: siempre una lista por jornada (las del día: domingo solo
+     `holiday`, si no mañana, tarde 1, tarde 2 y noche 1, más cualquier otra
+     con registros del Revisor), cada una con los mismos ganadores del día;
+     sin coincidencias: "Todavía no hay ganadores". El vacío de página queda
+     solo para un día sin jornadas. Sin ganadores, no se leen registros.
+   - Se quitó `messageEdited` (de `MatchEntry` y del diálogo de detalle).
+     **"Ver imagen" activado** (HECHO: `realImageEnabled` en `true` por
+     defecto, carga la imagen real desde el `storagePath` del registro).
+   - Log: `failureLogLine(tag, failure)` en `core/errors/` (Firestore y
+     permisos con su texto completo, el resto solo el tipo); un `Left`
+     imprime `[COINCIDENCIAS] falló (...)` y el Resumen usa la misma función
+     con `RESUMEN`. `MockMatchesRepository` queda sin cablear ("No
+     cableado; solo tests y referencia; candidato a borrar").
+   - **Regla de `winning_numbers` — PUBLICADA el 2026-10-02** (HECHO,
+     verificado por el usuario): lectura para `isAdmin()`, escritura
+     negada; copia en `firestore.rules.draft`, cuyo encabezado todavía dice
+     que ese bloque NO está publicado (hay que corregirlo). La colección
+     **todavía no existe** (la escribirá la función puente).
+   - **Coincidencias abrió sin error con una cuenta admin** (HECHO,
+     verificado por el usuario el 2026-10-02), mostrando "Todavía no hay
+     ganadores".
+   **Función puente (pieza b) — DECIDIDO por el usuario, NO implementada**:
+   el número de `manual_lotteries` reemplaza al de `resultados_loterias`
+   cuando es la misma lotería y la misma fecha; una lotería que solo está
+   en la manual cuenta como un número más; la función normaliza tildes y
+   mayúsculas entre colecciones (a confirmar con datos reales); relee una
+   ventana de días recientes porque la manual se corrige después.
+   **PENDIENTES (no decididos)**: la función puente (toca `functions/`,
+   autorización aparte); el índice de grupo de colecciones sobre
+   `fechaJornada` y `rol` (el enlace sale del error de la primera consulta
+   con ganadores, en el log `[COINCIDENCIAS] falló (firestore): ...`);
+   caché; costo en lecturas; que "Ver imagen" no se probó con una imagen
+   real (las reglas de Storage no están en el repo); borrar los mocks y el
+   uploader simulado; borrar los 4 documentos de prueba antes de desplegar
+   el hosting; y lo ya pendiente.
    **Jornadas — tabla definitiva, código HECHO, corte SIN fijar**: se leyó
    una vez `jornadas` de `whats-apuestas` (2026-09-30) y el usuario decidió
    usar ese horario como tabla fija en código, sin lectura dinámica. Tabla

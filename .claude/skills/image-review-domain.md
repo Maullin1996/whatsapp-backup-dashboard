@@ -73,9 +73,11 @@ cada vez. Antes de tocar código de este feature, lee esta skill completa.
   domingo/festivo, fuera de jornada; noche 2 solo en la tabla vieja — ver
   `lib/core/time/shifts.dart` y "Jornadas: tabla vieja, tabla nueva y
   corte" más abajo). Todo el feature de revisión se agrupa por jornada.
-- **Números ganadores**: lista externa (hoy local/mock, más adelante vía
-  Cloud Function) contra la que se comparan los números registrados por
-  el Revisor, para detectar coincidencias.
+- **Números ganadores**: lista del DÍA (`winning_numbers/{fecha}`, nombre
+  y forma PROVISIONALES; la escribirá la función puente, todavía no
+  existe) contra la que se comparan los números registrados por el
+  Revisor en todas las jornadas y grupos de esa fecha, para detectar
+  coincidencias.
 
 ## Estructura de datos (conceptual, no es el modelo Dart final)
 
@@ -185,7 +187,7 @@ Consecuencias para el feature de revisión:
   Revisor/Sumador.
 - **La pantalla de coincidencias (con número ganador) no navega a
   `image_detail_page` para mostrar contexto** — con `id`, `chatJid`,
-  `senderName`, `storagePath`, `shift`, `localTime` e `isEdited` ya
+  `senderName`, `storagePath`, `shift` y `localTime` ya
   alcanza para construir una vista/tarjeta de contexto (a qué grupo
   pertenece, cuándo se registró, quién lo envió); la UI construida abre
   un diálogo de detalle propio en vez de navegar (ver
@@ -499,7 +501,13 @@ tabla fija en código (hechos de esa lectura y pendientes de integración en
    `image-review-firebase-integration`) el número, el grupo al que
    pertenece (nombre y `chatJid`), quién lo envió y la hora — la UI
    construida lo hace con un "Ver más" que abre un diálogo de detalle
-   propio, **sin navegar al visor**. **PENDIENTE (no decidido)**: si
+   propio, **sin navegar al visor** ("Ver imagen" carga la imagen real).
+   **DECIDIDO (pieza c)**: los ganadores de una fecha se comparan contra
+   los números del Revisor de TODAS las jornadas y grupos de esa fecha;
+   solo cuenta el número (igualdad exacta tras `trim`, `findMatches`). La
+   pantalla muestra siempre una lista por jornada; una jornada sin
+   coincidencias dice "Todavía no hay ganadores". Ya no se muestra si el
+   mensaje de WhatsApp fue editado. **PENDIENTE (no decidido)**: si
    algún día se quiere navegar a la imagen exacta en el visor
    (exigiría cambiar el chat activo y el filtro de fecha).
 
