@@ -17,13 +17,13 @@ const _dialogMaxWidth = 480.0;
 class MatchDetailDialog extends StatelessWidget {
   final MatchEntry match;
 
-  /// Si el botón "Ver imagen" pide la imagen real (`imageUrlProvider`) o
-  /// muestra el aviso de datos de prueba. Por defecto APAGADO: con datos
-  /// inventados no existe ninguna imagen real que cargar — el paso 7 lo
-  /// enciende. Parámetro solo para tests, igual que `pickSingleDate.isWeb`.
+  /// Si el botón "Ver imagen" pide la imagen real (`imageUrlProvider`, desde
+  /// el `storagePath` del registro, como el visor). Por defecto ENCENDIDO
+  /// (paso 7, datos reales). Apagado, "Ver imagen" no carga nada: solo para
+  /// tests que no deben tocar la red, igual que `pickSingleDate.isWeb`.
   final bool realImageEnabled;
 
-  static const _defaultRealImageEnabled = false;
+  static const _defaultRealImageEnabled = true;
 
   const MatchDetailDialog({
     super.key,
@@ -109,10 +109,6 @@ class _DialogShell extends StatelessWidget {
                   label: 'Referencia de la imagen',
                   value: match.storagePath,
                 ),
-                _DetailRow(
-                  label: 'Mensaje editado',
-                  value: match.messageEdited ? 'Sí' : 'No',
-                ),
                 const SizedBox(height: AppSpacing.md),
                 _MatchImageSection(
                   storagePath: match.storagePath,
@@ -161,8 +157,8 @@ class _DetailRow extends StatelessWidget {
 }
 
 /// Imagen bajo demanda: no se pide hasta tocar "Ver imagen". Con
-/// [realImageEnabled] apagado (el caso de hoy, con datos inventados) nunca
-/// llega a leer `imageUrlProvider` ni construye un `ExtendedImage`.
+/// [realImageEnabled] apagado (solo tests) nunca llega a leer
+/// `imageUrlProvider` ni construye un `ExtendedImage`.
 class _MatchImageSection extends StatefulWidget {
   final String storagePath;
   final bool realImageEnabled;
@@ -192,27 +188,7 @@ class _MatchImageSectionState extends State<_MatchImageSection> {
       );
     }
 
-    if (!widget.realImageEnabled) {
-      return Container(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-          color: Colors.black12,
-          borderRadius: AppRadius.tileAll,
-        ),
-        child: Row(
-          children: [
-            Icon(
-              Icons.image_not_supported_outlined,
-              color: Colors.grey.shade600,
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            const Expanded(
-              child: Text('Imagen no disponible con datos de prueba'),
-            ),
-          ],
-        ),
-      );
-    }
+    if (!widget.realImageEnabled) return const SizedBox.shrink();
 
     return _RealMatchImage(storagePath: widget.storagePath);
   }

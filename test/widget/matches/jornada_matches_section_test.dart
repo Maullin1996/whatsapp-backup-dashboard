@@ -22,7 +22,6 @@ MatchEntry _entry({
   storagePath: 'demo/x/$messageId.jpg',
   shift: 'Jornada Mañana (06:00 – 10:54)',
   fechaJornada: '2026-09-28',
-  messageEdited: false,
 );
 
 Future<void> _pump(WidgetTester tester, JornadaMatches jornada) async {
@@ -98,7 +97,7 @@ void main() {
     });
   });
 
-  testWidgets('ganadores sin coincidencias: dice "No hubo ganadores"', (
+  testWidgets('ganadores sin coincidencias: dice "Todavía no hay ganadores"', (
     tester,
   ) async {
     await _pump(
@@ -110,28 +109,24 @@ void main() {
       ),
     );
 
-    expect(find.text('No hubo ganadores'), findsOneWidget);
-    expect(find.text('Aún no hay números ganadores'), findsNothing);
+    expect(find.text('Todavía no hay ganadores'), findsOneWidget);
     expect(find.text('9999'), findsOneWidget); // el ganador sigue visible
   });
 
-  testWidgets(
-    'lista de ganadores vacía: dice "Aún no hay números ganadores" (texto '
-    'distinto de "No hubo ganadores")',
-    (tester) async {
-      await _pump(
-        tester,
-        const JornadaMatches(
-          shift: 'Jornada Mañana (06:00 – 10:54)',
-          winningNumbers: [],
-          matches: [],
-        ),
-      );
+  testWidgets('lista de ganadores vacía: el mismo único texto "Todavía no hay '
+      'ganadores", sin la fila de números ganadores', (tester) async {
+    await _pump(
+      tester,
+      const JornadaMatches(
+        shift: 'Jornada Mañana (06:00 – 10:54)',
+        winningNumbers: [],
+        matches: [],
+      ),
+    );
 
-      expect(find.text('Aún no hay números ganadores'), findsOneWidget);
-      expect(find.text('No hubo ganadores'), findsNothing);
-    },
-  );
+    expect(find.text('Todavía no hay ganadores'), findsOneWidget);
+    expect(find.text('Números ganadores:'), findsNothing);
+  });
 
   testWidgets('"0123" y "123" se muestran tal cual, distintos', (tester) async {
     final a = _entry(numero: '0123', messageId: 'm1');

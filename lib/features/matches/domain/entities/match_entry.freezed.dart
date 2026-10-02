@@ -19,12 +19,7 @@ mixin _$MatchEntry {
  String get numero; String get messageId; String get chatJid; String get groupName; String get senderName; String get localTime;/// Referencia de la imagen en Storage (nunca la imagen ni una URL).
  String get storagePath;/// Etiqueta larga en español, igual que `Message.shift`.
  String get shift;/// Día de la jornada (`yyyy-MM-dd`), igual que `Message.fechaJornada`.
- String get fechaJornada;/// Si el MENSAJE de WhatsApp original fue editado (cruce con
-/// `edit_attempts`, igual que `Message.isEdited`). Deliberadamente NO se
-/// llama `editado`: ese nombre es de `ImageReviewRecord.editado` (si el
-/// REGISTRO de revisión se volvió a guardar) y significa otra cosa — ver
-/// `image-review-domain`.
- bool get messageEdited;
+ String get fechaJornada;
 /// Create a copy of MatchEntry
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -35,16 +30,16 @@ $MatchEntryCopyWith<MatchEntry> get copyWith => _$MatchEntryCopyWithImpl<MatchEn
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is MatchEntry&&(identical(other.numero, numero) || other.numero == numero)&&(identical(other.messageId, messageId) || other.messageId == messageId)&&(identical(other.chatJid, chatJid) || other.chatJid == chatJid)&&(identical(other.groupName, groupName) || other.groupName == groupName)&&(identical(other.senderName, senderName) || other.senderName == senderName)&&(identical(other.localTime, localTime) || other.localTime == localTime)&&(identical(other.storagePath, storagePath) || other.storagePath == storagePath)&&(identical(other.shift, shift) || other.shift == shift)&&(identical(other.fechaJornada, fechaJornada) || other.fechaJornada == fechaJornada)&&(identical(other.messageEdited, messageEdited) || other.messageEdited == messageEdited));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is MatchEntry&&(identical(other.numero, numero) || other.numero == numero)&&(identical(other.messageId, messageId) || other.messageId == messageId)&&(identical(other.chatJid, chatJid) || other.chatJid == chatJid)&&(identical(other.groupName, groupName) || other.groupName == groupName)&&(identical(other.senderName, senderName) || other.senderName == senderName)&&(identical(other.localTime, localTime) || other.localTime == localTime)&&(identical(other.storagePath, storagePath) || other.storagePath == storagePath)&&(identical(other.shift, shift) || other.shift == shift)&&(identical(other.fechaJornada, fechaJornada) || other.fechaJornada == fechaJornada));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,numero,messageId,chatJid,groupName,senderName,localTime,storagePath,shift,fechaJornada,messageEdited);
+int get hashCode => Object.hash(runtimeType,numero,messageId,chatJid,groupName,senderName,localTime,storagePath,shift,fechaJornada);
 
 @override
 String toString() {
-  return 'MatchEntry(numero: $numero, messageId: $messageId, chatJid: $chatJid, groupName: $groupName, senderName: $senderName, localTime: $localTime, storagePath: $storagePath, shift: $shift, fechaJornada: $fechaJornada, messageEdited: $messageEdited)';
+  return 'MatchEntry(numero: $numero, messageId: $messageId, chatJid: $chatJid, groupName: $groupName, senderName: $senderName, localTime: $localTime, storagePath: $storagePath, shift: $shift, fechaJornada: $fechaJornada)';
 }
 
 
@@ -55,7 +50,7 @@ abstract mixin class $MatchEntryCopyWith<$Res>  {
   factory $MatchEntryCopyWith(MatchEntry value, $Res Function(MatchEntry) _then) = _$MatchEntryCopyWithImpl;
 @useResult
 $Res call({
- String numero, String messageId, String chatJid, String groupName, String senderName, String localTime, String storagePath, String shift, String fechaJornada, bool messageEdited
+ String numero, String messageId, String chatJid, String groupName, String senderName, String localTime, String storagePath, String shift, String fechaJornada
 });
 
 
@@ -72,7 +67,7 @@ class _$MatchEntryCopyWithImpl<$Res>
 
 /// Create a copy of MatchEntry
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? numero = null,Object? messageId = null,Object? chatJid = null,Object? groupName = null,Object? senderName = null,Object? localTime = null,Object? storagePath = null,Object? shift = null,Object? fechaJornada = null,Object? messageEdited = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? numero = null,Object? messageId = null,Object? chatJid = null,Object? groupName = null,Object? senderName = null,Object? localTime = null,Object? storagePath = null,Object? shift = null,Object? fechaJornada = null,}) {
   return _then(_self.copyWith(
 numero: null == numero ? _self.numero : numero // ignore: cast_nullable_to_non_nullable
 as String,messageId: null == messageId ? _self.messageId : messageId // ignore: cast_nullable_to_non_nullable
@@ -83,8 +78,7 @@ as String,localTime: null == localTime ? _self.localTime : localTime // ignore: 
 as String,storagePath: null == storagePath ? _self.storagePath : storagePath // ignore: cast_nullable_to_non_nullable
 as String,shift: null == shift ? _self.shift : shift // ignore: cast_nullable_to_non_nullable
 as String,fechaJornada: null == fechaJornada ? _self.fechaJornada : fechaJornada // ignore: cast_nullable_to_non_nullable
-as String,messageEdited: null == messageEdited ? _self.messageEdited : messageEdited // ignore: cast_nullable_to_non_nullable
-as bool,
+as String,
   ));
 }
 
@@ -169,10 +163,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String numero,  String messageId,  String chatJid,  String groupName,  String senderName,  String localTime,  String storagePath,  String shift,  String fechaJornada,  bool messageEdited)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String numero,  String messageId,  String chatJid,  String groupName,  String senderName,  String localTime,  String storagePath,  String shift,  String fechaJornada)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _MatchEntry() when $default != null:
-return $default(_that.numero,_that.messageId,_that.chatJid,_that.groupName,_that.senderName,_that.localTime,_that.storagePath,_that.shift,_that.fechaJornada,_that.messageEdited);case _:
+return $default(_that.numero,_that.messageId,_that.chatJid,_that.groupName,_that.senderName,_that.localTime,_that.storagePath,_that.shift,_that.fechaJornada);case _:
   return orElse();
 
 }
@@ -190,10 +184,10 @@ return $default(_that.numero,_that.messageId,_that.chatJid,_that.groupName,_that
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String numero,  String messageId,  String chatJid,  String groupName,  String senderName,  String localTime,  String storagePath,  String shift,  String fechaJornada,  bool messageEdited)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String numero,  String messageId,  String chatJid,  String groupName,  String senderName,  String localTime,  String storagePath,  String shift,  String fechaJornada)  $default,) {final _that = this;
 switch (_that) {
 case _MatchEntry():
-return $default(_that.numero,_that.messageId,_that.chatJid,_that.groupName,_that.senderName,_that.localTime,_that.storagePath,_that.shift,_that.fechaJornada,_that.messageEdited);case _:
+return $default(_that.numero,_that.messageId,_that.chatJid,_that.groupName,_that.senderName,_that.localTime,_that.storagePath,_that.shift,_that.fechaJornada);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -210,10 +204,10 @@ return $default(_that.numero,_that.messageId,_that.chatJid,_that.groupName,_that
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String numero,  String messageId,  String chatJid,  String groupName,  String senderName,  String localTime,  String storagePath,  String shift,  String fechaJornada,  bool messageEdited)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String numero,  String messageId,  String chatJid,  String groupName,  String senderName,  String localTime,  String storagePath,  String shift,  String fechaJornada)?  $default,) {final _that = this;
 switch (_that) {
 case _MatchEntry() when $default != null:
-return $default(_that.numero,_that.messageId,_that.chatJid,_that.groupName,_that.senderName,_that.localTime,_that.storagePath,_that.shift,_that.fechaJornada,_that.messageEdited);case _:
+return $default(_that.numero,_that.messageId,_that.chatJid,_that.groupName,_that.senderName,_that.localTime,_that.storagePath,_that.shift,_that.fechaJornada);case _:
   return null;
 
 }
@@ -225,7 +219,7 @@ return $default(_that.numero,_that.messageId,_that.chatJid,_that.groupName,_that
 
 
 class _MatchEntry implements MatchEntry {
-  const _MatchEntry({required this.numero, required this.messageId, required this.chatJid, required this.groupName, required this.senderName, required this.localTime, required this.storagePath, required this.shift, required this.fechaJornada, required this.messageEdited});
+  const _MatchEntry({required this.numero, required this.messageId, required this.chatJid, required this.groupName, required this.senderName, required this.localTime, required this.storagePath, required this.shift, required this.fechaJornada});
   
 
 /// El número tal cual lo anotó el Revisor (conserva ceros a la
@@ -242,12 +236,6 @@ class _MatchEntry implements MatchEntry {
 @override final  String shift;
 /// Día de la jornada (`yyyy-MM-dd`), igual que `Message.fechaJornada`.
 @override final  String fechaJornada;
-/// Si el MENSAJE de WhatsApp original fue editado (cruce con
-/// `edit_attempts`, igual que `Message.isEdited`). Deliberadamente NO se
-/// llama `editado`: ese nombre es de `ImageReviewRecord.editado` (si el
-/// REGISTRO de revisión se volvió a guardar) y significa otra cosa — ver
-/// `image-review-domain`.
-@override final  bool messageEdited;
 
 /// Create a copy of MatchEntry
 /// with the given fields replaced by the non-null parameter values.
@@ -259,16 +247,16 @@ _$MatchEntryCopyWith<_MatchEntry> get copyWith => __$MatchEntryCopyWithImpl<_Mat
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _MatchEntry&&(identical(other.numero, numero) || other.numero == numero)&&(identical(other.messageId, messageId) || other.messageId == messageId)&&(identical(other.chatJid, chatJid) || other.chatJid == chatJid)&&(identical(other.groupName, groupName) || other.groupName == groupName)&&(identical(other.senderName, senderName) || other.senderName == senderName)&&(identical(other.localTime, localTime) || other.localTime == localTime)&&(identical(other.storagePath, storagePath) || other.storagePath == storagePath)&&(identical(other.shift, shift) || other.shift == shift)&&(identical(other.fechaJornada, fechaJornada) || other.fechaJornada == fechaJornada)&&(identical(other.messageEdited, messageEdited) || other.messageEdited == messageEdited));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _MatchEntry&&(identical(other.numero, numero) || other.numero == numero)&&(identical(other.messageId, messageId) || other.messageId == messageId)&&(identical(other.chatJid, chatJid) || other.chatJid == chatJid)&&(identical(other.groupName, groupName) || other.groupName == groupName)&&(identical(other.senderName, senderName) || other.senderName == senderName)&&(identical(other.localTime, localTime) || other.localTime == localTime)&&(identical(other.storagePath, storagePath) || other.storagePath == storagePath)&&(identical(other.shift, shift) || other.shift == shift)&&(identical(other.fechaJornada, fechaJornada) || other.fechaJornada == fechaJornada));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,numero,messageId,chatJid,groupName,senderName,localTime,storagePath,shift,fechaJornada,messageEdited);
+int get hashCode => Object.hash(runtimeType,numero,messageId,chatJid,groupName,senderName,localTime,storagePath,shift,fechaJornada);
 
 @override
 String toString() {
-  return 'MatchEntry(numero: $numero, messageId: $messageId, chatJid: $chatJid, groupName: $groupName, senderName: $senderName, localTime: $localTime, storagePath: $storagePath, shift: $shift, fechaJornada: $fechaJornada, messageEdited: $messageEdited)';
+  return 'MatchEntry(numero: $numero, messageId: $messageId, chatJid: $chatJid, groupName: $groupName, senderName: $senderName, localTime: $localTime, storagePath: $storagePath, shift: $shift, fechaJornada: $fechaJornada)';
 }
 
 
@@ -279,7 +267,7 @@ abstract mixin class _$MatchEntryCopyWith<$Res> implements $MatchEntryCopyWith<$
   factory _$MatchEntryCopyWith(_MatchEntry value, $Res Function(_MatchEntry) _then) = __$MatchEntryCopyWithImpl;
 @override @useResult
 $Res call({
- String numero, String messageId, String chatJid, String groupName, String senderName, String localTime, String storagePath, String shift, String fechaJornada, bool messageEdited
+ String numero, String messageId, String chatJid, String groupName, String senderName, String localTime, String storagePath, String shift, String fechaJornada
 });
 
 
@@ -296,7 +284,7 @@ class __$MatchEntryCopyWithImpl<$Res>
 
 /// Create a copy of MatchEntry
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? numero = null,Object? messageId = null,Object? chatJid = null,Object? groupName = null,Object? senderName = null,Object? localTime = null,Object? storagePath = null,Object? shift = null,Object? fechaJornada = null,Object? messageEdited = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? numero = null,Object? messageId = null,Object? chatJid = null,Object? groupName = null,Object? senderName = null,Object? localTime = null,Object? storagePath = null,Object? shift = null,Object? fechaJornada = null,}) {
   return _then(_MatchEntry(
 numero: null == numero ? _self.numero : numero // ignore: cast_nullable_to_non_nullable
 as String,messageId: null == messageId ? _self.messageId : messageId // ignore: cast_nullable_to_non_nullable
@@ -307,8 +295,7 @@ as String,localTime: null == localTime ? _self.localTime : localTime // ignore: 
 as String,storagePath: null == storagePath ? _self.storagePath : storagePath // ignore: cast_nullable_to_non_nullable
 as String,shift: null == shift ? _self.shift : shift // ignore: cast_nullable_to_non_nullable
 as String,fechaJornada: null == fechaJornada ? _self.fechaJornada : fechaJornada // ignore: cast_nullable_to_non_nullable
-as String,messageEdited: null == messageEdited ? _self.messageEdited : messageEdited // ignore: cast_nullable_to_non_nullable
-as bool,
+as String,
   ));
 }
 

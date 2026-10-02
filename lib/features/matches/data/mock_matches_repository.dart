@@ -29,7 +29,10 @@ enum _JornadaScenario {
   cerosIzquierda,
 }
 
-/// TEMPORAL — reemplazar por un `MatchesRepository` real cuando exista la
+/// No cableado; solo tests y referencia; candidato a borrar
+/// (`matchesRepositoryProvider` usa el repositorio real).
+///
+/// Historia: reemplazar por un `MatchesRepository` real cuando exista la
 /// Cloud Function puente de números ganadores (paso 7, ver
 /// `image-review-firebase-integration`). Los campos que arma este mock
 /// (`chatJid`, `groupName`, `senderName`, `storagePath`, números ganadores)
@@ -131,7 +134,6 @@ class MockMatchesRepository implements MatchesRepository {
         storagePath: 'demo/$fechaJornada/${shift.name}/$id.jpg',
         shift: shiftLabel,
         fechaJornada: fechaJornada,
-        messageEdited: random.nextInt(5) == 0,
       );
     }
 

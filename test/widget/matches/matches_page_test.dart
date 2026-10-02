@@ -95,7 +95,6 @@ DayMatches _conGanadores(String fecha) => DayMatches(
           storagePath: 'demo/x/m1.jpg',
           shift: 'Jornada Mañana (06:00 – 10:54)',
           fechaJornada: fecha,
-          messageEdited: false,
         ),
       ],
     ),
@@ -127,7 +126,8 @@ void main() {
 
     testWidgets(
       'un día sin ningún número ganador (todas las jornadas con lista '
-      'vacía) muestra el vacío de página',
+      'vacía) muestra igual la lista por jornada, cada una con "Todavía no '
+      'hay ganadores"',
       (tester) async {
         final today = DateUtils.dateOnly(DateTime.now());
         final key =
@@ -138,11 +138,25 @@ void main() {
 
         expect(
           find.text('Aún no hay números ganadores para esta fecha'),
-          findsOneWidget,
+          findsNothing,
         );
-        expect(find.byType(JornadaMatchesSection), findsNothing);
+        expect(find.byType(JornadaMatchesSection), findsNWidgets(2));
+        expect(find.text('Todavía no hay ganadores'), findsNWidgets(2));
       },
     );
+
+    testWidgets('un día SIN jornadas muestra el vacío de página', (
+      tester,
+    ) async {
+      // _FakeRepo devuelve un DayMatches sin jornadas para fechas sin datos.
+      await _pumpPage(tester, repo: _FakeRepo());
+
+      expect(
+        find.text('Aún no hay números ganadores para esta fecha'),
+        findsOneWidget,
+      );
+      expect(find.byType(JornadaMatchesSection), findsNothing);
+    });
 
     testWidgets(
       'con ganadores en alguna jornada (aunque otra no tenga coincidencias) '
@@ -160,7 +174,7 @@ void main() {
           findsNothing,
         );
         expect(find.byType(JornadaMatchesSection), findsNWidgets(2));
-        expect(find.text('No hubo ganadores'), findsOneWidget);
+        expect(find.text('Todavía no hay ganadores'), findsOneWidget);
       },
     );
 

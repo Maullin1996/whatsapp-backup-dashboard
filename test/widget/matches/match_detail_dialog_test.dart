@@ -6,7 +6,7 @@ import 'package:whatsapp_monitor_viewer/features/matches/domain/entities/match_e
 import 'package:whatsapp_monitor_viewer/features/matches/presentation/widgets/match_detail_dialog.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/providers/image_url_provider.dart';
 
-MatchEntry _match({bool messageEdited = false}) => MatchEntry(
+MatchEntry _match() => MatchEntry(
   numero: '4521',
   messageId: 'm1',
   chatJid: 'demo-grupo-norte@g.us',
@@ -16,7 +16,6 @@ MatchEntry _match({bool messageEdited = false}) => MatchEntry(
   storagePath: 'demo/x/m1.jpg',
   shift: 'Jornada Mañana (06:00 – 10:54)',
   fechaJornada: '2026-09-28',
-  messageEdited: messageEdited,
 );
 
 Future<void> _openDialog(
@@ -68,49 +67,38 @@ void main() {
     expect(find.textContaining('demo/x/m1.jpg'), findsOneWidget);
   });
 
-  group('"Mensaje editado" (Sí/No), NUNCA el texto suelto "Editado"', () {
-    testWidgets('mensaje editado: "Mensaje editado: Sí"', (tester) async {
-      await _openDialog(tester, match: _match(messageEdited: true));
+  testWidgets('ya no muestra nada de "editado"', (tester) async {
+    await _openDialog(tester, match: _match());
 
-      expect(find.textContaining('Mensaje editado: Sí'), findsOneWidget);
-      // Ningún Text es exactamente "Editado" a secas (ese texto ya existe en
-      // el visor con otro significado: si el registro de revisión se
-      // volvió a guardar, no si el mensaje de WhatsApp fue editado).
-      expect(find.text('Editado'), findsNothing);
-    });
+    expect(find.textContaining('editado'), findsNothing);
+    expect(find.textContaining('Editado'), findsNothing);
+  });
 
-    testWidgets('mensaje sin editar: "Mensaje editado: No"', (tester) async {
-      await _openDialog(tester, match: _match(messageEdited: false));
-
-      expect(find.textContaining('Mensaje editado: No'), findsOneWidget);
-      expect(find.text('Editado'), findsNothing);
-    });
+  test('"Ver imagen" carga la imagen real por defecto', () {
+    expect(MatchDetailDialog(match: _match()).realImageEnabled, isTrue);
   });
 
   group('imagen bajo demanda', () {
-    testWidgets(
-      'con el flag apagado, "Ver imagen" muestra el aviso y no crea ningún '
-      'ExtendedImage',
-      (tester) async {
-        await _openDialog(
-          tester,
-          match: _match(),
-          realImageEnabledOverride: false,
-        );
+    testWidgets('con el flag apagado (solo tests), "Ver imagen" no crea ningún '
+        'ExtendedImage ni muestra un aviso de datos de prueba', (tester) async {
+      await _openDialog(
+        tester,
+        match: _match(),
+        realImageEnabledOverride: false,
+      );
 
-        expect(find.text('Ver imagen'), findsOneWidget);
-        expect(find.byType(ExtendedImage), findsNothing);
+      expect(find.text('Ver imagen'), findsOneWidget);
+      expect(find.byType(ExtendedImage), findsNothing);
 
-        await tester.tap(find.text('Ver imagen'));
-        await tester.pump();
+      await tester.tap(find.text('Ver imagen'));
+      await tester.pump();
 
-        expect(
-          find.text('Imagen no disponible con datos de prueba'),
-          findsOneWidget,
-        );
-        expect(find.byType(ExtendedImage), findsNothing);
-      },
-    );
+      expect(
+        find.text('Imagen no disponible con datos de prueba'),
+        findsNothing,
+      );
+      expect(find.byType(ExtendedImage), findsNothing);
+    });
 
     testWidgets(
       'con el flag apagado no lee imageUrlProvider (ni antes ni después de '

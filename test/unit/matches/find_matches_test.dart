@@ -16,7 +16,6 @@ MatchEntry _entry(
   storagePath: 'demo/x.jpg',
   shift: 'Jornada Mañana (06:00 – 10:54)',
   fechaJornada: '2026-09-28',
-  messageEdited: false,
 );
 
 void main() {

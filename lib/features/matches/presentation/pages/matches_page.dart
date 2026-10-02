@@ -14,8 +14,8 @@ import 'package:whatsapp_monitor_viewer/helpers/map_failure_to_message.dart';
 /// Coincidencias de números ganadores contra lo que registró el Revisor, por
 /// fecha y jornada (`image-review-domain`, regla 7).
 ///
-/// Por ahora con datos inventados (ver `MockMatchesRepository`). Todavía no
-/// es alcanzable desde la app (falta ruta y menú, capa posterior).
+/// Lee datos reales (`FirestoreMatchesRepository`); solo admin y superAdmin
+/// (`/matches`, desde el menú "Coincidencias").
 class MatchesPage extends ConsumerWidget {
   const MatchesPage({super.key});
 
@@ -151,12 +151,10 @@ class _MatchesContent extends ConsumerWidget {
             onAction: () => ref.invalidate(dayMatchesProvider),
           ),
         ),
-        // Vacío de página SOLO si ninguna jornada tiene números ganadores —
-        // distinto de "hubo ganadores pero ninguna coincidencia" (regla 7),
-        // que se muestra jornada por jornada, no como vacío de toda la
-        // página. Por eso NO se usa `DayMatches.tieneGanador` acá (ese
-        // getter dice si hubo COINCIDENCIA, no si hubo GANADOR).
-        data: (day) => day.jornadas.every((j) => j.winningNumbers.isEmpty)
+        // Siempre una lista por jornada (cada una dice "Todavía no hay
+        // ganadores" si no tiene coincidencias); el vacío de página queda
+        // solo para un día sin ninguna jornada.
+        data: (day) => day.jornadas.isEmpty
             ? const KeyedSubtree(
                 key: ValueKey('empty'),
                 child: _MessageState(

@@ -15,7 +15,6 @@ MatchEntry _entry(String numero) => MatchEntry(
   storagePath: 'demo/x/$numero.jpg',
   shift: 'Jornada Mañana (06:00 – 10:54)',
   fechaJornada: '2026-09-28',
-  messageEdited: false,
 );
 
 /// Misma forma que aproxima el skeleton: ganadores + 2 coincidencias.

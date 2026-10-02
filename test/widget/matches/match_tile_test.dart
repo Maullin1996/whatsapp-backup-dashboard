@@ -19,7 +19,6 @@ MatchEntry _entry({String numero = '4521'}) => MatchEntry(
   storagePath: 'demo/x/m1.jpg',
   shift: 'Jornada Mañana (06:00 – 10:54)',
   fechaJornada: '2026-09-28',
-  messageEdited: false,
 );
 
 Future<void> _pumpAt(WidgetTester tester, Size size, MatchEntry match) async {

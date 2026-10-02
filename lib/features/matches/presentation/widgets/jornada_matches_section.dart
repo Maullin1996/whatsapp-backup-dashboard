@@ -33,12 +33,15 @@ class JornadaMatchesSection extends StatelessWidget {
             shortShiftName(jornada.shift),
             style: AppTypography.headerTitle(context),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          _WinningNumbersRow(numbers: jornada.winningNumbers),
-          if (hasWinners && !hasMatches) ...[
+          if (hasWinners) ...[
+            const SizedBox(height: AppSpacing.sm),
+            _WinningNumbersRow(numbers: jornada.winningNumbers),
+          ],
+          // Un único estado vacío, haya o no números ganadores.
+          if (!hasMatches) ...[
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'No hubo ganadores',
+              'Todavía no hay ganadores',
               style: TextStyle(color: Colors.grey.shade600),
             ),
           ],
@@ -55,8 +58,8 @@ class JornadaMatchesSection extends StatelessWidget {
   }
 }
 
-/// Los números ganadores de la jornada, tal cual (conservan ceros a la
-/// izquierda), o el aviso de que todavía no hay ninguno.
+/// Los números ganadores del día, tal cual (conservan ceros a la izquierda).
+/// Solo se muestra si hay alguno.
 class _WinningNumbersRow extends StatelessWidget {
   final List<String> numbers;
 
@@ -64,12 +67,6 @@ class _WinningNumbersRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (numbers.isEmpty) {
-      return Text(
-        'Aún no hay números ganadores',
-        style: TextStyle(color: Colors.grey.shade600),
-      );
-    }
     return Wrap(
       crossAxisAlignment: WrapCrossAlignment.center,
       spacing: AppSpacing.xs,

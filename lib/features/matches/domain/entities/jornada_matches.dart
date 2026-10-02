@@ -15,8 +15,9 @@ abstract class JornadaMatches with _$JornadaMatches {
     /// Etiqueta larga en español, igual que `Message.shift`.
     required String shift,
 
-    /// Números ganadores de esta jornada. Vacía si esa jornada no tuvo
-    /// ganadores.
+    /// Números ganadores del DÍA (la misma lista en todas las jornadas de
+    /// ese día: se comparan contra el Revisor de todas las jornadas). Vacía
+    /// si el día todavía no tiene ganadores.
     required List<String> winningNumbers,
 
     /// Coincidencias encontradas en esta jornada (puede ser más de una si el
