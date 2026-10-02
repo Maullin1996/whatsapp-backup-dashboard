@@ -258,7 +258,9 @@ void main() {
         '"/" en ningún segmento', () {
       expect(asignables, hasLength(6));
       for (final shift in asignables) {
-        final doc = document(_record().copyWith(shift: shiftNames[shift]!));
+        // night2 no está en la tabla: su etiqueta vieja (registros guardados).
+        final label = shiftNames[shift] ?? legacyShiftNames[shift]!;
+        final doc = document(_record().copyWith(shift: label));
         expect(doc.pathSegments, [
           'image_reviews',
           '1203630@g.us',
@@ -273,7 +275,7 @@ void main() {
         }
         expect(doc.path, doc.pathSegments.join('/'));
         expect(doc.data['shiftKey'], shift.name);
-        expect(doc.data['shift'], shiftNames[shift]);
+        expect(doc.data['shift'], label);
       }
     });
 
@@ -290,6 +292,21 @@ void main() {
         expect(doc.pathSegments, hasLength(6));
       },
     );
+
+    test('un registro guardado con una etiqueta vieja se sigue traduciendo a '
+        'su clave', () {
+      for (final (label, key) in [
+        ('Jornada Mañana (06:00 – 10:54)', 'morning'),
+        ('Jornada Noche (15:24 – 22:24)', 'night1'),
+        ('Jornada Noche (22:25 – 22:30)', 'night2'),
+        ('Domingo / Festivo (06:00 – 19:20)', 'holiday'),
+      ]) {
+        final doc = document(_record().copyWith(shift: label));
+        expect(doc.data['shiftKey'], key, reason: label);
+        expect(doc.data['shift'], label, reason: label);
+        expect(doc.pathSegments[3], '2026-01-15_$key', reason: label);
+      }
+    });
 
     test('fuera de jornada: Left (Failure.unknown)', () {
       final r = _record().copyWith(shift: shiftNames[Shift.outOfShift]!);

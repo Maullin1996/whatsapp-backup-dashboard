@@ -26,9 +26,9 @@ JornadaSummary _summary({
   imagenesEnJornada: contador,
 );
 
-// La mañana del 28 termina a las 10:55 en Bogotá (15:55 UTC).
+// La mañana del 28 termina a las 10:52 en Bogotá (15:52 UTC).
 final _terminada = DateTime.utc(2026, 9, 28, 16);
-final _enCurso = DateTime.utc(2026, 9, 28, 15, 54, 59);
+final _enCurso = DateTime.utc(2026, 9, 28, 15, 51, 59);
 
 Future<void> _pump(WidgetTester tester, JornadaSummary summary, DateTime now) =>
     tester.pumpWidget(
@@ -89,11 +89,11 @@ void main() {
       expect(find.textContaining(_aviso), findsNothing);
     });
 
-    testWidgets('a las 10:55:00 en punto ya aparece', (tester) async {
+    testWidgets('a las 10:52:00 en punto ya aparece', (tester) async {
       await _pump(
         tester,
         _summary(revisor: _role(3)),
-        DateTime.utc(2026, 9, 28, 15, 55),
+        DateTime.utc(2026, 9, 28, 15, 52),
       );
 
       expect(find.text('Faltan 7 imágenes por registrar'), findsOneWidget);

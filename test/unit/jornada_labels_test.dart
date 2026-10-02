@@ -11,9 +11,13 @@ void main() {
       expect(shortShiftName(shiftNames[Shift.holiday]!), 'Domingo / Festivo');
     });
 
-    test('las dos "Noche" se distinguen por su hora de inicio', () {
-      expect(shortShiftName(shiftNames[Shift.night1]!), 'Noche (15:24)');
-      expect(shortShiftName(shiftNames[Shift.night2]!), 'Noche (22:25)');
+    test('la única "Noche" de la tabla queda "Noche"', () {
+      expect(shortShiftName(shiftNames[Shift.night1]!), 'Noche');
+    });
+
+    test('las dos "Noche" viejas se distinguen por su hora de inicio', () {
+      expect(shortShiftName(legacyShiftNames[Shift.night1]!), 'Noche (15:24)');
+      expect(shortShiftName(legacyShiftNames[Shift.night2]!), 'Noche (22:25)');
     });
 
     test('"Fuera de las jornadas" queda igual', () {

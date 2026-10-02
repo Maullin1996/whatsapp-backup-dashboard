@@ -16,8 +16,7 @@ final _sunday = DateTime(2026, 10, 4);
 const _g1 = 'g1@g.us';
 const _g2 = 'g2@g.us';
 
-final _names = shiftNamesAt(DateTime(2026, 10, 5).millisecondsSinceEpoch);
-String _label(Shift s) => _names[s] ?? shiftNames[s]!;
+String _label(Shift s) => shiftNames[s] ?? legacyShiftNames[s]!;
 
 RevisorRecord _rec(
   String messageId,
@@ -237,9 +236,7 @@ void main() {
     final d = await day(_sunday);
 
     expect(d.fechaJornada, '2026-10-04');
-    expect(d.jornadas.map((j) => j.shift), [
-      shiftNamesAt(_sunday.millisecondsSinceEpoch)[Shift.holiday],
-    ]);
+    expect(d.jornadas.map((j) => j.shift), [shiftNames[Shift.holiday]]);
   });
 
   test('jornada con registros pero sin coincidencias: aparece con matches '

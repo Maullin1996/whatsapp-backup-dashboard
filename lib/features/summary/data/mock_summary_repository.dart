@@ -83,8 +83,6 @@ class MockSummaryRepository implements SummaryRepository {
     final day = DateTime(fecha.year, fecha.month, fecha.day);
     final random = Random(day.year * 10000 + day.month * 100 + day.day);
     final fechaJornada = fechaJornadaDe(day.millisecondsSinceEpoch);
-    // Etiquetas de la tabla que rige ese día (vieja o nueva, según el corte).
-    final names = shiftNamesAt(day.millisecondsSinceEpoch);
 
     // Los casos de siempre, más 0-2 al azar; repartidos entre los grupos.
     final scenarios = [
@@ -120,7 +118,7 @@ class MockSummaryRepository implements SummaryRepository {
           chatJid: group.chatJid,
           groupName: group.name,
           fechaJornada: fechaJornada,
-          shift: names[shift]!,
+          shift: shiftNames[shift]!,
           revisor: revisor,
           sumador: sumador,
           imagenesEnJornada: imagenesEnJornada,

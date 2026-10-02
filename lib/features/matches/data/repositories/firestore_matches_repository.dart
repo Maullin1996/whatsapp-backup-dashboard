@@ -61,9 +61,8 @@ class FirestoreMatchesRepository implements MatchesRepository {
     // Mismo día y mismas etiquetas que el mock y el Resumen real.
     final day = DateTime(date.year, date.month, date.day);
     final fechaJornada = fechaJornadaDe(day.millisecondsSinceEpoch);
-    final names = shiftNamesAt(day.millisecondsSinceEpoch);
-    // night2 no existe en la tabla nueva: si aparece, su etiqueta vieja.
-    String label(Shift shift) => names[shift] ?? shiftNames[shift]!;
+    // night2 no está en la tabla: si aparece, su etiqueta vieja.
+    String label(Shift shift) => shiftNames[shift] ?? legacyShiftNames[shift]!;
 
     final winnersResult = await _winners.fetchByFecha(fechaJornada);
     final winners = winnersResult.fold((_) => null, (list) => list);

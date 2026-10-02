@@ -80,8 +80,6 @@ class MockMatchesRepository implements MatchesRepository {
     final day = DateTime(date.year, date.month, date.day);
     final random = Random(day.year * 10000 + day.month * 100 + day.day);
     final fechaJornada = fechaJornadaDe(day.millisecondsSinceEpoch);
-    // Etiquetas de la tabla que rige ese día (vieja o nueva, según el corte).
-    final names = shiftNamesAt(day.millisecondsSinceEpoch);
 
     // ~1 de cada 4 días no tiene ningún número ganador ese día.
     final sinGanadores = random.nextInt(4) == 0;
@@ -93,7 +91,7 @@ class MockMatchesRepository implements MatchesRepository {
       for (var i = 0; i < _shifts.length; i++)
         _buildJornada(
           shift: _shifts[i],
-          shiftLabel: names[_shifts[i]]!,
+          shiftLabel: shiftNames[_shifts[i]]!,
           fechaJornada: fechaJornada,
           scenario: sinGanadores ? null : scenarioOrder![i],
           random: random,

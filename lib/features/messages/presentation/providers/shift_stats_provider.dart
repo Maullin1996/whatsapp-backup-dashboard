@@ -5,7 +5,7 @@ import 'package:whatsapp_monitor_viewer/core/time/shifts.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/providers/messages_provider.dart';
 
 /// Imágenes cargadas por jornada, con la lectura del VISOR: una imagen en un
-/// hueco de día de la tabla nueva cuenta en [gapsAfter] (por la jornada que
+/// hueco de día cuenta en [gapsAfter] (por la jornada que
 /// termina justo antes del hueco) y NO en `byShift[Shift.outOfShift]`.
 class ShiftStats {
   final Map<Shift, int> byShift;
@@ -46,36 +46,19 @@ final shiftStatsProvider = Provider<ShiftStats>((ref) {
 /// Una fila de "Imágenes por jornada" del panel de control.
 typedef ShiftStatRow = ({String label, int count});
 
-/// Filas de "Imágenes por jornada" con las etiquetas de la tabla que rige en
-/// [nowMs].
-///
-/// - Tabla vieja: las 7 jornadas de siempre, igual que antes del corte.
-/// - Tabla nueva: sus jornadas; y, solo si tienen imágenes cargadas, night2
-///   (imágenes de antes del corte, con su etiqueta vieja) y cada "Fuera de
-///   jornada X" justo después de su jornada.
-List<ShiftStatRow> shiftStatRows(
-  ShiftStats stats, {
-  required int nowMs,
-  int? effectiveFromMs = newShiftsEffectiveFromMs,
-}) {
+/// Filas de "Imágenes por jornada": las jornadas de la tabla y, solo si
+/// tienen imágenes cargadas, cada "Fuera de jornada X" justo después de su
+/// jornada. Sin fila de night2: [getCurrentShift] nunca la devuelve, así que
+/// nunca tiene imágenes.
+List<ShiftStatRow> shiftStatRows(ShiftStats stats) {
   int count(Shift shift) => stats.byShift[shift] ?? 0;
-
-  if (!usesNewShiftTable(nowMs, effectiveFromMs: effectiveFromMs)) {
-    return [
-      for (final shift in Shift.values)
-        (label: shiftNames[shift]!, count: count(shift)),
-    ];
-  }
 
   return [
     for (final shift in Shift.values) ...[
-      if (shift == Shift.night2) ...[
-        if (count(shift) > 0)
-          (label: shiftNames[Shift.night2]!, count: count(shift)),
-      ] else
-        (label: newShiftNames[shift]!, count: count(shift)),
+      if (shift != Shift.night2)
+        (label: shiftNames[shift]!, count: count(shift)),
       if ((stats.gapsAfter[shift] ?? 0) > 0)
-        (label: newShiftGapLabels[shift]!, count: stats.gapsAfter[shift]!),
+        (label: shiftGapLabels[shift]!, count: stats.gapsAfter[shift]!),
     ],
   ];
 }

@@ -291,7 +291,7 @@ void main() {
     testWidgets('con el reloj después del fin de la jornada aparece', (
       tester,
     ) async {
-      await pumpAt(tester, DateTime.utc(2026, 9, 28, 15, 55));
+      await pumpAt(tester, DateTime.utc(2026, 9, 28, 15, 52));
 
       expect(find.text('Faltan 3 imágenes por registrar'), findsOneWidget);
       // El estado de dinero (cuadra) no cambia.
@@ -301,7 +301,7 @@ void main() {
     testWidgets('con el reloj antes del fin de la jornada no aparece', (
       tester,
     ) async {
-      await pumpAt(tester, DateTime.utc(2026, 9, 28, 15, 54, 59));
+      await pumpAt(tester, DateTime.utc(2026, 9, 28, 15, 51, 59));
 
       expect(find.textContaining('por registrar'), findsNothing);
       expect(find.byType(JornadaSummaryCard), findsOneWidget);
