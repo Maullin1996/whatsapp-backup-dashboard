@@ -138,8 +138,9 @@ describe("mergeWinningNumbers", () => {
     });
 
     test("un valor de longitud distinta va a discarded", () => {
+      // Ajuste b1.1: antes usaba "123", que ahora es válido (3 cifras).
       const result = mergeWinningNumbers(
-        autoDoc(auto("boyaca", "123"), auto("cauca", "12345")),
+        autoDoc(auto("boyaca", "12"), auto("cauca", "12345")),
         [manual("huila", "4444")],
       );
       assert.deepEqual(result.numbers, ["4444"]);
@@ -214,16 +215,138 @@ describe("mergeWinningNumbers", () => {
       assert.deepEqual(result.numbers, ["4444"]);
     });
 
-    test("un elemento nulo cuenta como vacío", () => {
+    test("un elemento nulo va a discarded como sin-loteria", () => {
+      // Ajuste b1.1: antes era `vacio`; un elemento nulo no tiene nombre ni
+      // slug, y eso ahora se descarta antes de mirar el número.
       const result = mergeWinningNumbers(autoDoc(null), [null]);
       assert.deepEqual(result.numbers, []);
       assert.deepEqual(
         result.discarded.map((d) => [d.lottery, d.reason]),
         [
-          [null, DISCARD_REASONS.empty],
-          [null, DISCARD_REASONS.empty],
+          [null, DISCARD_REASONS.noLottery],
+          [null, DISCARD_REASONS.noLottery],
         ],
       );
+    });
+  });
+
+  describe("ganadores de 3 cifras (b1.1)", () => {
+    test("un ganador de 3 cifras (Cash three) entra a numbers", () => {
+      const result = mergeWinningNumbers(
+        autoDoc(
+          auto("cash_three", "606", { nombreLoteria: "Cash three", serie: null }),
+        ),
+        [],
+      );
+      assert.deepEqual(result.numbers, ["606"]);
+      assert.deepEqual(result.discarded, []);
+    });
+
+    test("uno de 2 o de 5 cifras va a discarded", () => {
+      const result = mergeWinningNumbers(
+        autoDoc(auto("boyaca", "60"), auto("cauca", "60606")),
+        [manual("huila", "07")],
+      );
+      assert.deepEqual(result.numbers, []);
+      assert.deepEqual(
+        result.discarded.map((d) => [d.source, d.value, d.reason]),
+        [
+          ["manual", "07", DISCARD_REASONS.wrongLength],
+          ["automatica", "60", DISCARD_REASONS.wrongLength],
+          ["automatica", "60606", DISCARD_REASONS.wrongLength],
+        ],
+      );
+    });
+
+    test('"606" y "0606" son valores distintos', () => {
+      const result = mergeWinningNumbers(
+        autoDoc(auto("cash_three", "606"), auto("boyaca", "0606")),
+        [manual("huila", " 606 ")],
+      );
+      assert.deepEqual(result.numbers, ["0606", "606"]);
+    });
+  });
+
+  describe("entrada sin lotería (b1.1)", () => {
+    test("manual sin nombre ni slug no entra a numbers: sin-loteria", () => {
+      const result = mergeWinningNumbers(null, [
+        manual("", "0000", { lottery: "" }),
+      ]);
+      assert.deepEqual(result.numbers, []);
+      assert.deepEqual(result.discarded, [
+        {
+          lottery: null,
+          source: "manual",
+          value: "0000",
+          reason: DISCARD_REASONS.noLottery,
+        },
+      ]);
+    });
+
+    test("solo espacios o ausentes, en cualquiera de las dos fuentes", () => {
+      const result = mergeWinningNumbers(
+        autoDoc({ nombreLoteria: "  ", slug: " ", numero: "1234", serie: null }),
+        [{ date: "2026-10-02", result: "5678", series: "1" }],
+      );
+      assert.deepEqual(result.numbers, []);
+      assert.deepEqual(
+        result.discarded.map((d) => [d.source, d.reason]),
+        [
+          ["manual", DISCARD_REASONS.noLottery],
+          ["automatica", DISCARD_REASONS.noLottery],
+        ],
+      );
+    });
+
+    test("con nombre pero sin slug sigue contando sola", () => {
+      const result = mergeWinningNumbers(
+        autoDoc(auto("", "1111", { nombreLoteria: "Boyacá" })),
+        [manual(" ", "2222", { lottery: "Boyacá" })],
+      );
+      assert.deepEqual(result.numbers, ["1111", "2222"]);
+      assert.deepEqual(result.discarded, []);
+    });
+  });
+
+  describe("forma real de un día (datos falsos, b1.1)", () => {
+    test("automática con serie texto o null y manual con series", () => {
+      const automaticDoc = {
+        resultados: [
+          { nombreLoteria: "Boyacá", slug: "boyaca", numero: "0457", serie: "123" },
+          { nombreLoteria: "Cash three", slug: "cash_three", numero: "606", serie: null },
+          { nombreLoteria: "Medellín", slug: "medellin", numero: "8812", serie: "045" },
+          { nombreLoteria: "Huila", slug: "huila", numero: "", serie: null },
+        ],
+      };
+      // Lo que el handler pasará: doc.data().list de manual_lotteries/{fecha}.
+      const manualDoc = {
+        list: [
+          { lottery: "Medellín", slug: "medellin", date: "otro formato", result: "9001", series: "77" },
+          { lottery: "Sinuano Noche", slug: "sinuano_noche", date: null, result: "3141", series: "" },
+          { lottery: "", slug: "", date: "2026-10-02", result: "0000", series: "" },
+        ],
+      };
+      const result = mergeWinningNumbers(automaticDoc, manualDoc.list);
+      assert.deepEqual(result.numbers, ["0457", "3141", "606", "9001"]);
+      assert.deepEqual(
+        result.discarded.map((d) => [d.lottery, d.source, d.reason]),
+        [
+          [null, "manual", DISCARD_REASONS.noLottery],
+          ["Huila", "automatica", DISCARD_REASONS.empty],
+        ],
+      );
+    });
+
+    test("dorado_mañana (automática) y doramaña (manual): un solo valor", () => {
+      // Hecho observado en datos reales: es la misma lotería, pero con la
+      // clave PROVISIONAL no se emparejan (confirmar la clave queda PENDIENTE).
+      assert.notEqual(lotteryKey("dorado_mañana"), lotteryKey("doramaña"));
+      const result = mergeWinningNumbers(
+        autoDoc(auto("dorado_mañana", "4821", { nombreLoteria: "Dorado Mañana" })),
+        [manual("doramaña", "4821", { lottery: "Dorado Mañana" })],
+      );
+      assert.deepEqual(result.numbers, ["4821"]);
+      assert.deepEqual(result.discarded, []);
     });
   });
 
