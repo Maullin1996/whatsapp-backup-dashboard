@@ -414,10 +414,7 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
   `edit_attempts`: lectura con sesión, escritura negada; `users/{uid}`:
   lectura solo del propio uid, escritura negada), que siguen sin cambios.
   Antes de cada nueva publicación hay que confirmar que las de la consola
-  siguen siendo las del archivo. **El comentario del encabezado (en el repo
-  y en lo publicado) todavía dice "BORRADOR... no se despliega"**: está
-  desactualizado y debe corregirse en el repo, para publicarlo cuando
-  cambie otra regla.
+  siguen siendo las del archivo.
   - **Bloque nuevo**, solo para
     `image_reviews/{chatJid}/jornadas/{jornadaId}/registros/{registroId}`:
     `create` y `update` con las mismas condiciones, `delete` negado. La
@@ -544,9 +541,6 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
     hosting o de que otra persona use el Resumen.
   - Validar `codigo` y `loteria` en las reglas (hoy no se validan). Si la
     lotería pasa a ser una lista cerrada.
-  - Corregir el comentario del encabezado de `firestore.rules.draft`
-    ("BORRADOR... no se despliega") y republicarlo cuando cambie otra
-    regla.
   - Si conviene subir el esquema a v2 igual (por ejemplo, para que una
     versión antigua de la app que siga en caché no lea ni reescriba
     registros con un campo que no conoce).

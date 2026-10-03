@@ -159,8 +159,7 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    `firestore.rules.draft` (raíz del repo, no referenciado en
    `firebase.json`) es la copia de lo publicado a mano en la consola, que
    reemplaza todo el conjunto (por eso copia tal cual las reglas que ya
-   había). Su comentario de encabezado todavía dice "BORRADOR... no se
-   despliega" (también en lo publicado): hay que corregirlo. Agrega create/update de
+   había). Agrega create/update de
    `image_reviews/.../registros/{registroId}` (delete negado; la lectura
    de admin se agregó después, ver más abajo):
    sesión, claim `reviewRole`, `rol` == claim, ids de registro y de jornada
@@ -226,8 +225,7 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    la subida"): aviso visible para los registros viejos que no se pueden
    subir (y que la píldora los sigue contando), si conviene subir el
    esquema a v2 (versiones antiguas de la app en caché), borrar los 4
-   documentos de prueba, corregir el encabezado de `firestore.rules.draft`
-   y republicar cuando cambie otra regla, los casos de escritura nunca
+   documentos de prueba, los casos de escritura nunca
    probados en la zona de pruebas,
    si validar `reviewShifts` o `allowedGroups`, reglas de Storage,
    verificación de conexión antes de subir, si una escritura en
@@ -344,9 +342,8 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
      cableado; solo tests y referencia; candidato a borrar").
    - **Regla de `winning_numbers` — PUBLICADA el 2026-10-02** (HECHO,
      verificado por el usuario): lectura para `isAdmin()`, escritura
-     negada; copia en `firestore.rules.draft`, cuyo encabezado todavía dice
-     que ese bloque NO está publicado (hay que corregirlo). La colección
-     **todavía no existe** (la escribirá la función puente).
+     negada; copia en `firestore.rules.draft`. La colección existe desde
+     el 2026-10-03: la escribe la función puente desplegada.
    - **Coincidencias abrió sin error con una cuenta admin** (HECHO,
      verificado por el usuario el 2026-10-02), mostrando "Todavía no hay
      ganadores".
@@ -389,8 +386,8 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    **Pieza `findMatches` (3 y 4 cifras) — HECHA**: **DECIDIDO por el usuario e IMPLEMENTADO**: tras `trim` en ambos lados, sin normalizar ni quitar ceros a la izquierda, un boleto de 4 cifras coincide si es igual a un ganador de 4; uno de 3, si es igual a las últimas 3 de un ganador de 4 o a un ganador de 3 (las dos vías a la vez); un ganador de 3 nunca coincide con un boleto de 4; boletos y ganadores de otra longitud se ignoran sin aviso; una entrada por registro, nunca dos veces
    ("606" contra "606" y "4606" sale una sola vez; la entrada no lleva el
    ganador). Tests en `test/unit/matches/find_matches_test.dart`.
-   **Pieza b2 — HECHA, sin desplegar** (solo código y tests con datos
-   falsos). **DECIDIDO por el usuario**: disparador cada 60 minutos, hoy y
+   **Pieza b2 — HECHA** (código y tests con datos falsos; desplegada el
+   2026-10-03, ver abajo). **DECIDIDO por el usuario**: disparador cada 60 minutos, hoy y
    ayer en hora de Bogotá, escribir solo si cambió, un resultado vacío no
    escribe nada. Sobre `discarded`: comportamiento actual de la pieza b2: discarded solo se registra en el log; qué hacer con discarded sigue PENDIENTE (no decidido). `functions/winningNumbersSync.js`
    (sin `firebase-admin`, dependencias por parámetro):
@@ -406,15 +403,44 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    import y el export `syncWinningNumbers` (`onSchedule`, `"every 60
    minutes"`, `timeZone: "America/Bogota"`, sin región, `secrets:
    [defineSecret("WHATS_APUESTAS_KEY")]`, nombre PROVISIONAL) con una
-   segunda app de Admin "whats-apuestas" para leer. **SUPOSICIÓN** (solo se comprueba al desplegar): que Cloud Scheduler acepte "every 60 minutes".
-   **SUPOSICIÓN**: el
+   segunda app de Admin "whats-apuestas" para leer. **SUPOSICIÓN**: el
    documento lleva solo `numbers`. Detalle en
    `image-review-firebase-integration` ("Pieza b2").
+   **Función puente DESPLEGADA y corriendo — HECHO (verificado por el
+   usuario el 2026-10-03)**: secreto `WHATS_APUESTAS_KEY` creado en
+   `whatsapp-pro-3d483` (versión 1); deploy con `firebase deploy --only
+   functions:syncWinningNumbers` (solo esa función, sin `--force`) hacia las
+   00:39 de Bogotá: v2 programada, `us-central1`, 256 MB, `nodejs24`; el CLI
+   habilitó Cloud Scheduler y dio acceso al secreto a la cuenta de servicio
+   de Compute por defecto; los 10 callables no se redesplegaron
+   (`functions:list` los muestra intactos) y `setReviewAssignment` ya no
+   está en producción. Primera corrida (forzada a las 00:44): `escrita` para
+   2026-10-03 y 2026-10-02, sin errores; la llave lee el ERP, la función
+   escribe `winning_numbers` con el formato esperado ("606" incluido, ceros
+   a la izquierda, orden de texto) y la entrada manual vacía del 2026-10-02
+   se descartó con `sin-loteria`. El cron corre solo (02:44, 03:44 y 04:44,
+   `sin-cambios`): queda CONFIRMADO que Cloud Scheduler acepta `"every 60
+   minutes"`. El aviso `sin-loteria` se repite en cada corrida mientras
+   exista esa entrada manual vacía (esperado).
+   **DECIDIDO por el usuario**: los resultados del día D valen hasta las
+   5:30 a.m. (Bogotá) del día D+1; la función no cambia (procesa hoy y ayer)
+   y no se agrega ninguna regla de horas.
+   **OBSERVADO (HECHO, sin causa)**: `resultados_loterias/2026-10-03` tiene
+   `updatedAt` del 2026-10-02 20:30 (Bogotá) y 20 entradas (las 9 del
+   2026-10-02 más 11 nuevas, entre ellas de noche);
+   `resultados_loterias/2026-10-02`, `updatedAt` 13:30 y 9 entradas;
+   `manual_lotteries/2026-10-03` no existe. Por eso `winning_numbers/2026-10-03`
+   contiene hoy resultados del 2026-10-02 y `winning_numbers/2026-10-02`
+   solo los 9 de las 13:30. "Play four día" figuraba como 5362 en una
+   lectura anterior y como 9252 después, sin explicación. **SUPOSICIÓN**
+   (no verificada): que quien escribe `resultados_loterias` arma el id con
+   la fecha en UTC. Detalle en `image-review-firebase-integration`.
    **PENDIENTES de la función puente (no decididos)**: confirmar el
-   slug con datos reales; qué hacer con `discarded`; crear el secreto;
-   desplegar; revisar qué cambia al desplegar el paquete completo de
-   `functions/` (los 10 callables y la actualización a `firebase-functions`
-   7.4.0).
+   slug con datos reales (`dorado_mañana`/`doramaña`,
+   `dorado_tarde`/`doradotarde`); qué hacer con `discarded` (hoy solo se
+   registra en el log); ver cómo evoluciona `resultados_loterias/2026-10-03`
+   durante el día con una lectura de solo lectura pasado el mediodía de
+   Bogotá (hasta entonces no se cambia la función).
    **PENDIENTES (no decididos)**: el índice de grupo de colecciones sobre
    `fechaJornada` y `rol` (el enlace sale del error de la primera consulta
    con ganadores, en el log `[COINCIDENCIAS] falló (firestore): ...`);
@@ -445,9 +471,7 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    `functions/`; fuente de festivos; el horario del ERP puede cambiar sin
    aviso; caché de la PWA tras desplegar; los mensajes ya guardados se
    reclasifican con la tabla única; que Coincidencias, cuando haya
-   ganadores, probablemente pida un índice sobre `rol`; crear el secreto y desplegar
-   la función puente de ganadores (el handler ya está escrito, pieza b2;
-   ver "Función puente (pieza b)" arriba); borrar los 4
+   ganadores, probablemente pida un índice sobre `rol`; borrar los 4
    documentos de prueba antes de desplegar el hosting; borrar los mocks y
    el uploader simulado; y lo ya pendiente.
 
@@ -502,11 +526,11 @@ de aquí y de la skill correspondiente cuando el usuario confirme):
   en hora de Bogotá, sin historial) y la mezcla está hecha (piezas b1 y
   b1.1: 3 o 4 cifras, `sin-loteria`; decididos la escritura solo si
   cambió y no escribir nada si el resultado sale vacío) y el handler
-  programado está escrito y probado con datos falsos (pieza b2, sin
-  desplegar). Falta: confirmar la clave de emparejamiento (`lotteryKey`, PROVISIONAL;
-  caso `dorado_mañana`/`doramaña`), qué hacer con `discarded`, crear
-  el secreto, desplegar y revisar qué cambia al desplegar el paquete
-  completo de `functions/` (10 callables y `firebase-functions` 7.4.0). (El
+  programado está **desplegado y corriendo cada hora** desde el 2026-10-03
+  (pieza b2). Falta: confirmar la clave de emparejamiento (`lotteryKey`,
+  PROVISIONAL; casos `dorado_mañana`/`doramaña` y `dorado_tarde`/`doradotarde`),
+  qué hacer con `discarded` y ver cómo evoluciona
+  `resultados_loterias/2026-10-03` durante el día. (El
   formato de las jornadas ya se vio y se decidió una tabla fija en código,
   2026-09-30.)
 - **Tabla única de jornadas** (`image-review-domain`): actualizar el bot

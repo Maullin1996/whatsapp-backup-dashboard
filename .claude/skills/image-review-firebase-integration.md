@@ -30,9 +30,9 @@ ni los roles (`image-review-roles`), ni el guardado local
 
 **Actualización (paso 7, pieza c)**: Coincidencias ya lee datos REALES de
 Firestore (`FirestoreMatchesRepository`, ver "Coincidencias real" más
-abajo). Los números ganadores todavía no llegan: la colección
-`winning_numbers` no existe hasta que se implemente la función puente. Lo
-que sigue en esta sección es el antecedente (todo mockeado).
+abajo). **Desde el 2026-10-03** la función puente está desplegada y escribe
+`winning_numbers` cada hora (ver "Función puente de ganadores (pieza b)").
+Lo que sigue en esta sección es el antecedente (todo mockeado).
 
 ### Antecedente: todo mockeado, no conectado de verdad
 
@@ -156,10 +156,10 @@ refactor grande — coherente con la Clean Architecture del proyecto.
 (detalle en `image-review-workflow`, "Pieza (c)"). Solo admin y superAdmin
 leen `image_reviews`. La regla de `winning_numbers` (lectura para
 `isAdmin()`, escritura negada) está **PUBLICADA desde el 2026-10-02**
-(verificado por el usuario); la copia está en `firestore.rules.draft`, cuyo
-encabezado todavía la da como no publicada. El nombre y la forma de
-`winning_numbers` siguen **PROVISIONALES** y la colección **todavía no
-existe**. Coincidencias **abrió sin error con una cuenta admin** el
+(verificado por el usuario); la copia está en `firestore.rules.draft`. El
+nombre y la forma de `winning_numbers` siguen **PROVISIONALES**; la
+colección existe desde el 2026-10-03 (la escribe la función puente
+desplegada). Coincidencias **abrió sin error con una cuenta admin** el
 2026-10-02 (verificado por el usuario) y mostró "Todavía no hay ganadores".
 
 ### Función puente de ganadores (pieza b)
@@ -178,8 +178,8 @@ existe**. Coincidencias **abrió sin error con una cuenta admin** el
   fechas anteriores.
 - **Sin bot**: la función no depende del bot ni lo modifica.
 - **Autorizado** por el usuario: trabajar en `functions/` para esta
-  función y desplegarla cuando esté lista (el deploy todavía no se hizo;
-  el handler ya está escrito, ver "Pieza b2" más abajo).
+  función y desplegarla cuando esté lista. **Desplegada el 2026-10-03**
+  (ver "Pieza b2 — DESPLEGADA" más abajo).
 
 **Pieza b1 — HECHA: la mezcla, función pura** (`functions/winningNumbers.js`,
 tests en `functions/test/winningNumbers.test.js`, `npm test`). No lee ni
@@ -258,8 +258,8 @@ programado **cada 60 minutos** (`timeZone: "America/Bogota"`); procesa
 **solo si cambió**; si el resultado sale **vacío no escribe nada** y deja
 lo que había. Sobre `discarded`: comportamiento actual de la pieza b2: discarded solo se registra en el log; qué hacer con discarded sigue PENDIENTE (no decidido).
 
-**Pieza b2 — HECHA: el handler programado, sin desplegar** (solo código y
-tests con datos falsos; no se leyó ni escribió nada real):
+**Pieza b2 — HECHA: el handler programado** (código y tests con datos
+falsos; desplegado después, el 2026-10-03, ver "Pieza b2 — DESPLEGADA"):
 - **`functions/winningNumbersSync.js`** (no importa `firebase-admin`; todo
   llega por parámetro):
   - `syncWinningNumbers({readAutomatic, readManual, readStored,
@@ -312,22 +312,67 @@ tests con datos falsos; no se leyó ni escribió nada real):
   en tiempo de ejecución; cargando `index.js` en local, el endpoint queda
   con `scheduleTrigger: {schedule: "every 60 minutes", timeZone:
   "America/Bogota"}`, `secretEnvironmentVariables: [{key:
-  "WHATS_APUESTAS_KEY"}]` y sin región. **SUPOSICIÓN** (solo se comprueba al desplegar): que Cloud Scheduler acepte "every 60 minutes"
-  tal cual; no se desplegó.
+  "WHATS_APUESTAS_KEY"}]` y sin región. Que Cloud Scheduler acepte
+  `"every 60 minutes"` era SUPOSICIÓN: quedó **CONFIRMADO** con el deploy
+  del 2026-10-03.
 - Tests en `functions/test/winningNumbersSync.test.js` (`node:test`, datos
   falsos, `mergeWinningNumbers` real).
 
+**Pieza b2 — DESPLEGADA y corriendo (HECHO, verificado por el usuario el
+2026-10-03)**:
+- **Secreto**: `WHATS_APUESTAS_KEY` creado en `whatsapp-pro-3d483`
+  (versión 1).
+- **Deploy**: `firebase deploy --only functions:syncWinningNumbers` (solo
+  esa función, sin `--force`), alrededor de las 00:39 de Bogotá del
+  2026-10-03. Resultado del CLI: `syncWinningNumbers` creada como función
+  v2 programada, `us-central1`, 256 MB, `nodejs24`. El CLI habilitó Cloud
+  Scheduler y dio acceso al secreto a la cuenta de servicio de Compute por
+  defecto. Los 10 callables no se redesplegaron y `functions:list` los
+  muestra intactos; `setReviewAssignment` no aparece, o sea que ya no está
+  en producción.
+- **Primera corrida** (forzada desde Cloud Scheduler a las 00:44 de
+  Bogotá): resumen `escrita` para 2026-10-03 y 2026-10-02, sin errores.
+  Quedó comprobado que la llave lee el ERP y que la función escribe
+  `winning_numbers` (la colección ya existe). Formato en Firestore, el
+  esperado: `numbers` es una lista de textos con ceros a la izquierda,
+  "606" (3 cifras) incluido, en orden de texto. La entrada manual vacía del
+  2026-10-02 se descartó con `sin-loteria` y no se publicó.
+- **El cron corre solo**: corridas sin forzar a las 02:44, 03:44 y 04:44 de
+  Bogotá, todas `sin-cambios` en las dos fechas. Queda **CONFIRMADO** que
+  Cloud Scheduler acepta `"every 60 minutes"` (antes era SUPOSICIÓN). El
+  aviso `[GANADORES] descartado ... sin-loteria` se repite en cada corrida
+  mientras exista esa entrada manual vacía: es esperado y no afecta nada.
+
+**DECIDIDO por el usuario — plazo de los resultados**: los resultados del
+día D valen hasta las 5:30 a.m. (hora de Bogotá) del día D+1; desde esa
+hora cuentan para el día nuevo. La función no cambia por esto (procesa hoy
+y ayer en cada corrida) y no se agrega ninguna regla de horas.
+
+**OBSERVADO (HECHO, sin explicar la causa)** — lecturas únicas de solo
+lectura de `whats-apuestas` del 2026-10-03:
+- `resultados_loterias/2026-10-03` tiene `updatedAt` del 2026-10-02 a las
+  20:30 de Bogotá, con 20 entradas: las 9 de `resultados_loterias/2026-10-02`
+  más 11 nuevas, entre ellas loterías de noche.
+- `resultados_loterias/2026-10-02` quedó con `updatedAt` a las 13:30 de
+  Bogotá y 9 entradas.
+- `manual_lotteries/2026-10-03` no existe.
+- Por eso `winning_numbers/2026-10-03` contiene hoy resultados del
+  2026-10-02, y `winning_numbers/2026-10-02` solo tiene los 9 de las 13:30.
+- "Play four día" figuraba como 5362 en una lectura anterior y como 9252
+  después, sin explicación (según el usuario la API "a veces se equivoca";
+  no verificado).
+- **SUPOSICIÓN** (nadie la verificó): que quien escribe
+  `resultados_loterias` arma el id con la fecha en UTC.
+
 **PENDIENTE (no decidido)**:
 - Confirmar con datos reales la clave de emparejamiento (`lotteryKey`):
-  ver el caso `dorado_mañana` / `doramaña`.
-- Qué hacer con `discarded` (hoy solo va al log).
-- Crear el secreto (`WHATS_APUESTAS_KEY`, nombre PROVISIONAL) con la llave
-  de cuenta de servicio de `whats-apuestas`.
-- Desplegar la función.
-- Revisar qué cambia al desplegar el paquete completo de `functions/`: se
-  redesplegarían también los 10 callables y entraría la actualización a
-  `firebase-functions` 7.4.0 (según `PROJECT_DOCUMENTATION.md`, sección
-  10, producción tenía la 7.2.5; no verificado).
+  ver los casos `dorado_mañana` / `doramaña` y `dorado_tarde` /
+  `doradotarde`.
+- Qué hacer con `discarded` (hoy solo se registra en el log).
+- Ver cómo evoluciona `resultados_loterias/2026-10-03` durante el día (si
+  los números de ayer se reemplazan por los de hoy o se arrastran), con
+  una lectura de solo lectura pasado el mediodía de Bogotá. Hasta entonces
+  no se cambia la función.
 - El índice de grupo de colecciones sobre `fechaJornada` y `rol` (el enlace
   sale del error de la primera consulta con ganadores, en el log
   `[COINCIDENCIAS] falló (firestore): ...`).
@@ -335,8 +380,6 @@ tests con datos falsos; no se leyó ni escribió nada real):
 - Probar "Ver imagen" con una imagen real.
 - Borrar los mocks y el uploader simulado.
 - Borrar los 4 documentos de prueba antes de desplegar el hosting.
-- Corregir el encabezado de `firestore.rules.draft` (dice que el bloque de
-  `winning_numbers` no está publicado).
 
 ## Jornadas desde otro proyecto de Firebase
 
