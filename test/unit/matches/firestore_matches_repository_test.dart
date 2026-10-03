@@ -161,21 +161,30 @@ void main() {
     ]);
   });
 
-  test(
-    '"0123" y "123" no coinciden; los espacios alrededor se ignoran',
-    () async {
-      winners.numbers = [' 0123 '];
-      records.records = [
-        _rec('m1', ['123']),
-        _rec('m2', ['0123 ']),
-      ];
+  // Ajuste (regla de 3 y 4 cifras): antes el ganador "0123" no coincidía con
+  // "123"; ahora "123" coincide como últimas 3. Lo que sigue sin coincidir es
+  // un boleto de 4 contra un ganador de 3 ("0123" contra "123").
+  test('"123" coincide con "0123" como últimas 3, "0123" no coincide con el '
+      'ganador "123"; los espacios alrededor se ignoran', () async {
+    winners.numbers = [' 0123 '];
+    records.records = [
+      _rec('m1', ['123']),
+      _rec('m2', ['0123 ']),
+    ];
 
-      final matches = allMatches(await day());
+    final matches = allMatches(await day());
 
-      expect(matches.map((m) => m.messageId), ['m2']);
-      expect(matches.single.numero, '0123 '); // tal cual lo anotó el Revisor
-    },
-  );
+    expect(matches.map((m) => m.messageId), containsAll(['m1', 'm2']));
+    expect(matches, hasLength(2));
+    // Tal cual lo anotó el Revisor.
+    expect(matches.map((m) => m.numero), containsAll(['123', '0123 ']));
+
+    winners.numbers = ['123'];
+    records.records = [
+      _rec('m3', ['0123']),
+    ];
+    expect(allMatches(await day()), isEmpty);
+  });
 
   test('un ganador en dos registros: dos entradas; un registro con dos '
       'comprobantes: solo el número que coincide', () async {
@@ -359,18 +368,25 @@ void main() {
 
   test('orden dentro de la jornada: groupName, chatJid, messageId y '
       'número', () async {
-    winners.numbers = ['1', '2'];
+    // Ajuste (regla de 3 y 4 cifras): antes usaba números de 1 cifra, que
+    // ahora se ignoran; con 4 cifras el orden esperado es el mismo.
+    winners.numbers = ['1111', '2222'];
     records.records = [
-      _rec('m4', ['2', '1'], chatJid: _g1), // Grupo Uno
-      _rec('m3', ['1'], chatJid: _g2), // Grupo Dos
-      _rec('m1', ['2'], chatJid: _g1),
+      _rec('m4', ['2222', '1111'], chatJid: _g1), // Grupo Uno
+      _rec('m3', ['1111'], chatJid: _g2), // Grupo Dos
+      _rec('m1', ['2222'], chatJid: _g1),
     ];
 
     final matches = allMatches(await day());
 
     expect(
       matches.map((m) => '${m.groupName}|${m.messageId}|${m.numero}').toList(),
-      ['Grupo Dos|m3|1', 'Grupo Uno|m1|2', 'Grupo Uno|m4|1', 'Grupo Uno|m4|2'],
+      [
+        'Grupo Dos|m3|1111',
+        'Grupo Uno|m1|2222',
+        'Grupo Uno|m4|1111',
+        'Grupo Uno|m4|2222',
+      ],
     );
   });
 

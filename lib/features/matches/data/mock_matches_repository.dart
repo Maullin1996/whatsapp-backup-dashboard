@@ -24,8 +24,8 @@ enum _JornadaScenario {
   /// Hay números ganadores, pero ninguno coincide con lo registrado.
   sinCoincidencias,
 
-  /// Ceros a la izquierda: "0123" (ganador) coincide, "123" (registrado
-  /// aparte) NO, porque son strings distintos.
+  /// Ceros a la izquierda: "0123" (ganador) coincide con "0123", y "123"
+  /// (registrado aparte) también, como últimas 3 (regla de 3 y 4 cifras).
   cerosIzquierda,
 }
 

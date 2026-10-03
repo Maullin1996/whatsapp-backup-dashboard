@@ -147,12 +147,15 @@ void main() {
       expect(day.tieneGanador, isFalse);
     });
 
-    test('ceros a la izquierda: "0123" coincide, "123" (registrado aparte) '
-        'no', () async {
+    // Ajuste (regla de 3 y 4 cifras): antes "123" no coincidía con el
+    // ganador "0123"; ahora coincide como últimas 3. El escenario del mock no
+    // cambió, solo lo que se espera de él.
+    test('ceros a la izquierda: "0123" coincide y "123" (registrado aparte) '
+        'también, como últimas 3', () async {
       bool hasCase(DayMatches day) => day.jornadas.any((j) {
         if (!j.winningNumbers.contains('0123')) return false;
         final matched = j.matches.map((m) => m.numero).toSet();
-        return matched.contains('0123') && !matched.contains('123');
+        return matched.contains('0123') && matched.contains('123');
       });
 
       final found = (await days(120)).any(hasCase);
@@ -171,13 +174,24 @@ void main() {
     }
   });
 
+  // Ajuste (regla de 3 y 4 cifras): antes se exigía que el número estuviera
+  // tal cual entre los ganadores; ahora también vale que un número de 3 sea
+  // las últimas 3 de un ganador de 4.
   test('cada JornadaMatches viene de findMatches: toda coincidencia listada '
-      'realmente tiene su número entre los ganadores de esa jornada', () async {
+      'es un ganador o las últimas 3 de un ganador de 4', () async {
     for (final day in await days(30)) {
       for (final JornadaMatches jornada in day.jornadas) {
         final winners = jornada.winningNumbers.map((n) => n.trim()).toSet();
+        final lastThree = {
+          for (final w in winners)
+            if (w.length == 4) w.substring(1),
+        };
         for (final entry in jornada.matches) {
-          expect(winners.contains(entry.numero.trim()), isTrue);
+          final numero = entry.numero.trim();
+          final ok = numero.length == 4
+              ? winners.contains(numero)
+              : winners.contains(numero) || lastThree.contains(numero);
+          expect(ok, isTrue);
         }
       }
     }
