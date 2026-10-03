@@ -95,16 +95,21 @@ refactor grande — coherente con la Clean Architecture del proyecto.
   el chat que se está viendo en ese momento — así que esta comparación
   necesita mirar los registros ya subidos de todos los grupos, no ser
   una función local de una sola conversación.
-- **Cómo se comparan los números**: igualdad exacta de `String` después
-  de `trim` en ambos lados, sin normalizar mayúsculas ni quitar ceros a
-  la izquierda (coherente con cómo el Revisor anota el número,
-  `image-review-domain` regla 6: `String`, con `trim`, conservando
-  ceros a la izquierda) — "0123" y "123" nunca coinciden entre sí.
-  Implementado en `findMatches` (`features/matches/domain/helpers/`).
-  **Cambio decidido, NO implementado** (pieza b1.1): con ganadores de 3
-  cifras, un boleto de 3 cifras gana contra un ganador de 3 y también
-  contra las últimas 3 de un ganador de 4, aunque sea a la vez (ver
-  "Función puente de ganadores (pieza b)").
+- **Cómo se comparan los números — regla de 3 y 4 cifras, DECIDIDA por
+  el usuario e IMPLEMENTADA** en `findMatches`
+  (`features/matches/domain/helpers/`). Todo después de `trim` en ambos
+  lados, sin normalizar mayúsculas ni quitar ceros a la izquierda
+  (coherente con cómo el Revisor anota el número, `image-review-domain`
+  regla 6) y sin validar que sean cifras (no está decidido):
+  - un boleto de 4 cifras coincide si es igual a un ganador de 4;
+  - un boleto de 3 coincide si es igual a las últimas 3 de un ganador de
+    4, o si es igual a un ganador de 3; las dos vías valen a la vez
+    ("606" coincide con "606" y con "4606");
+  - un ganador de 3 solo se compara con boletos de 3: un boleto de 4 nunca
+    coincide con él ("0606" contra "606" no coincide);
+  - un boleto o un ganador de otra longitud se ignora, sin aviso.
+  Ceros a la izquierda: "0123" coincide con "0123"; "123" coincide con
+  "0123" (últimas 3); "0123" no coincide con el ganador "123".
 - **Qué se muestra al encontrar coincidencia**: el número que coincidió,
   el grupo (`chatJid`/nombre del grupo) al que pertenece, quién lo
   envió, la hora y la jornada. **Ya no se muestra si el mensaje fue
@@ -218,12 +223,13 @@ escribe nada, no usa Firebase y no está exportada en `index.js`.
   ganador de 3 cifras va en el mismo `numbers`.
 - Por ahora un ganador de 3 cifras se compara solo con boletos de 3
   cifras.
-- **Regla de comparación de `findMatches` — decidida, NO implementada**
-  (`findMatches` sigue con igualdad exacta): un boleto de 4 cifras gana si
-  es igual al ganador completo; uno de 3 gana si es igual a las últimas 3
-  cifras de un ganador de 4; cualquier otra longitud del Revisor se ignora
-  sin aviso; si un mismo ganador acierta a boletos de 3 y de 4, se
-  muestran como coincidencias separadas.
+- **Regla de comparación de `findMatches` — decidida e IMPLEMENTADA**
+  (ver "Cómo se comparan los números" arriba): un boleto de 4 cifras gana
+  si es igual al ganador completo; uno de 3 gana si es igual a las
+  últimas 3 cifras de un ganador de 4 o a un ganador de 3; cualquier otra
+  longitud del Revisor se ignora sin aviso; si un mismo ganador acierta a
+  boletos de 3 y de 4, se muestran como coincidencias separadas (son
+  registros distintos).
 - **Un boleto de 3 cifras puede coincidir a la vez** con un ganador de 3
   cifras (p. ej. "Cash three") y con las últimas 3 de un ganador de 4
   cifras: el boleto "606" coincide con "606" y con "4606". La app solo
@@ -238,12 +244,13 @@ escribe nada, no usa Firebase y no está exportada en `index.js`.
   muestra coincidencias, y si se borran los ganadores los revisores no
   los revisan.
 
-**Cómo agrupa hoy `findMatches` — HECHO (verificado en
-`lib/features/matches/domain/helpers/find_matches.dart`)**: igualdad
-exacta tras `trim` contra el conjunto (sin duplicados) de ganadores;
-devuelve una entrada por cada registro coincidente, no por ganador. Con
-igualdad exacta un boleto solo puede coincidir con un ganador, así que
-hoy nunca sale dos veces.
+**Cómo agrupa `findMatches` — HECHO**: devuelve una entrada por cada
+registro coincidente (cada `MatchEntry` es un número anotado por el
+Revisor), no por ganador, y un registro nunca sale dos veces aunque
+coincida con varios ganadores: "606" contra "606" y "4606" da una sola
+entrada. `MatchEntry` solo lleva el número del boleto (`numero`), no el
+ganador que coincidió; la pantalla muestra ese número y, aparte, la lista
+de ganadores del día.
 
 **Pieza b2 — DECIDIDO por el usuario (diseño del handler)**: disparador
 programado **cada 60 minutos** (`timeZone: "America/Bogota"`); procesa
@@ -311,8 +318,6 @@ tests con datos falsos; no se leyó ni escribió nada real):
   falsos, `mergeWinningNumbers` real).
 
 **PENDIENTE (no decidido)**:
-- Pieza de `findMatches`: si un boleto que acierta a dos ganadores (p. ej.
-  "606" contra "606" y "4606") sale como una tarjeta o como dos.
 - Confirmar con datos reales la clave de emparejamiento (`lotteryKey`):
   ver el caso `dorado_mañana` / `doramaña`.
 - Qué hacer con `discarded` (hoy solo va al log).

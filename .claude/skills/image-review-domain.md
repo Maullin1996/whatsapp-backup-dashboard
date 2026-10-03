@@ -532,23 +532,27 @@ definitiva".
    propio, **sin navegar al visor** ("Ver imagen" carga la imagen real).
    **DECIDIDO (pieza c)**: los ganadores de una fecha se comparan contra
    los números del Revisor de TODAS las jornadas y grupos de esa fecha;
-   solo cuenta el número (igualdad exacta tras `trim`, `findMatches`). La
+   solo cuenta el número (`findMatches`, regla de 3 y 4 cifras, abajo). La
    pantalla muestra siempre una lista por jornada; una jornada sin
    coincidencias dice "Todavía no hay ganadores". Ya no se muestra si el
    mensaje de WhatsApp fue editado.
-   **DECIDIDO, NO implementado (pieza b1.1)**: los ganadores pueden ser de
+   **DECIDIDO por el usuario e IMPLEMENTADO** (`findMatches`; regla de la
+   pieza b1.1): todo tras `trim` en ambos lados, sin normalizar ni quitar
+   ceros a la izquierda, y sin validar que sean cifras. Los ganadores pueden ser de
    3 o 4 cifras ("Cash three" trae 3). Un boleto de 4 cifras gana si es
    igual al ganador completo; uno de 3 gana si es igual al ganador de 3 o
    a las últimas 3 cifras de un ganador de 4; cualquier otra longitud del
    Revisor se ignora sin aviso; si un mismo ganador acierta a boletos de 3
-   y de 4, son coincidencias separadas. Un boleto de 3 cifras puede
+   y de 4, son coincidencias separadas. Un ganador de 3 cifras nunca
+   coincide con un boleto de 4 ("0606" contra "606" no); un ganador de
+   otra longitud también se ignora. Un boleto de 3 cifras puede
    coincidir **a la vez** con un ganador de 3 y con las últimas 3 de un
    ganador de 4 ("606" con "606" y con "4606"): la app solo muestra
    coincidencias y los revisores deciden si corresponde el premio doble.
-   **HECHO (verificado en `find_matches.dart`)**: hoy `findMatches` usa
-   igualdad exacta y devuelve una entrada por registro coincidente, así que
-   un boleto nunca sale dos veces. **PENDIENTE (no decidido)**: si un
-   boleto que acierta a dos ganadores sale como una tarjeta o como dos.
+   **HECHO**: `findMatches` devuelve una entrada por registro coincidente
+   (cada entrada es un número anotado por el Revisor y no lleva el ganador
+   que coincidió), así que un boleto que acierta a dos ganadores ("606"
+   contra "606" y "4606") sale una sola vez.
    **PENDIENTE (no decidido)**: si
    algún día se quiere navegar a la imagen exacta en el visor
    (exigiría cambiar el chat activo y el filtro de fecha).

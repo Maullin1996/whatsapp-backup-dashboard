@@ -325,7 +325,8 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    `image_reviews`.
    - **Comparación**: los ganadores de una fecha se comparan contra los
      números del Revisor de **TODAS las jornadas y grupos** de esa fecha;
-     solo cuenta el número (`findMatches`, sin cambios). Solo las
+     solo cuenta el número (`findMatches`; desde la pieza de 3 y 4 cifras,
+     ver "Pieza b1.1" más abajo). Solo las
      coincidencias leen su mensaje (una vez por `messageId`) y su grupo (una
      vez por `chatJid`); cualquier lectura fallida → `Left`.
    - **Pantalla**: siempre una lista por jornada (las del día: domingo solo
@@ -375,7 +376,7 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    boletos de 3; la regla de `findMatches` (boleto de 4 = ganador completo,
    boleto de 3 = últimas 3 del ganador de 4, otras longitudes se ignoran
    sin aviso, aciertos de 3 y de 4 como coincidencias separadas) está
-   decidida pero **NO implementada**; una entrada sin nombre ni slug no es
+   decidida e **IMPLEMENTADA** (ver abajo); una entrada sin nombre ni slug no es
    válida; el slug sigue PROVISIONAL (hecho observado sin resolver:
    `dorado_mañana` en la automática y `doramaña` en la manual son la misma
    lotería y no se emparejan); la escritura será solo si cambió (pieza b2);
@@ -384,10 +385,10 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    "606" y con "4606"): la app solo muestra coincidencias y los revisores
    deciden si corresponde el premio doble; si el resultado de una fecha
    sale vacío, el handler no escribe nada y deja lo que había (si se
-   borran los ganadores, los revisores no los revisan). **HECHO
-   (verificado en `find_matches.dart`)**: hoy `findMatches` devuelve una
-   entrada por registro coincidente, con igualdad exacta, así que un
-   boleto nunca sale dos veces.
+   borran los ganadores, los revisores no los revisan).
+   **Pieza `findMatches` (3 y 4 cifras) — HECHA**: **DECIDIDO por el usuario e IMPLEMENTADO**: tras `trim` en ambos lados, sin normalizar ni quitar ceros a la izquierda, un boleto de 4 cifras coincide si es igual a un ganador de 4; uno de 3, si es igual a las últimas 3 de un ganador de 4 o a un ganador de 3 (las dos vías a la vez); un ganador de 3 nunca coincide con un boleto de 4; boletos y ganadores de otra longitud se ignoran sin aviso; una entrada por registro, nunca dos veces
+   ("606" contra "606" y "4606" sale una sola vez; la entrada no lleva el
+   ganador). Tests en `test/unit/matches/find_matches_test.dart`.
    **Pieza b2 — HECHA, sin desplegar** (solo código y tests con datos
    falsos). **DECIDIDO por el usuario**: disparador cada 60 minutos, hoy y
    ayer en hora de Bogotá, escribir solo si cambió, un resultado vacío no
@@ -409,8 +410,7 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    **SUPOSICIÓN**: el
    documento lleva solo `numbers`. Detalle en
    `image-review-firebase-integration` ("Pieza b2").
-   **PENDIENTES de la función puente (no decididos)**: en la pieza de
-   `findMatches`, si un boleto que acierta a dos ganadores sale como una tarjeta o como dos; confirmar el
+   **PENDIENTES de la función puente (no decididos)**: confirmar el
    slug con datos reales; qué hacer con `discarded`; crear el secreto;
    desplegar; revisar qué cambia al desplegar el paquete completo de
    `functions/` (los 10 callables y la actualización a `firebase-functions`
@@ -504,8 +504,7 @@ de aquí y de la skill correspondiente cuando el usuario confirme):
   cambió y no escribir nada si el resultado sale vacío) y el handler
   programado está escrito y probado con datos falsos (pieza b2, sin
   desplegar). Falta: confirmar la clave de emparejamiento (`lotteryKey`, PROVISIONAL;
-  caso `dorado_mañana`/`doramaña`), qué hacer con `discarded`, implementar la nueva regla de `findMatches` (y decidir si un
-  boleto que acierta a dos ganadores sale como una tarjeta o dos), crear
+  caso `dorado_mañana`/`doramaña`), qué hacer con `discarded`, crear
   el secreto, desplegar y revisar qué cambia al desplegar el paquete
   completo de `functions/` (10 callables y `firebase-functions` 7.4.0). (El
   formato de las jornadas ya se vio y se decidió una tabla fija en código,
