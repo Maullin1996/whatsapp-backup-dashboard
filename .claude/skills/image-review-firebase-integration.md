@@ -199,10 +199,18 @@ escribe nada, no usa Firebase y no está exportada en `index.js`.
   (sin cambios en b1.1): el slug en minúsculas, sin tildes y sin espacios
   sobrantes. Es el único lugar que decide si dos entradas son la misma
   lotería. Una entrada con nombre pero sin slug no se empareja: cuenta
-  sola. **Hecho observado en datos reales, sin resolver**: la automática
-  trae `dorado_mañana` y la manual `doramaña`; son la misma lotería (mismo
-  número en 6 de 7 días) pero con esta clave no se emparejan (cuentan por
-  separado; si traen el mismo número queda uno solo en `numbers`).
+  sola. **DECIDIDO por el usuario e IMPLEMENTADO — alias
+  `doramaña` → `dorado_mañana`**: después de normalizar, `lotteryKey`
+  aplica la tabla `LOTTERY_KEY_ALIASES` (una sola entrada: `doramana` →
+  `dorado_manana`), a las entradas de las dos fuentes; así la manual
+  `doramaña` reemplaza a la automática `dorado_mañana`. Respaldo: una
+  lectura de solo lectura de `whats-apuestas` del 2026-10-03 en la que
+  `doramaña` coincide con `dorado_mañana` en 118 fechas entre 2026-01-19 y
+  2026-10-03. Se descartan los demás pares que aparecieron en esa lectura
+  (`doramaña`→`antioqueñita_día`, `doradotarde`→`paisita_día`,
+  `antioquenita_dia`→`dorado_mañana`, `antioqueña_dia`→`dorado_mañana`)
+  porque se apoyan en una sola fecha cada uno. `doradotarde` y
+  `dorado_tarde` NO se emparejan.
 - Por cada clave presente en la manual cuentan TODAS sus entradas
   manuales y se ignoran las automáticas de esa clave. Una automática
   reemplazada no se evalúa (no aparece en `discarded`).
@@ -351,14 +359,20 @@ y ayer en cada corrida) y no se agrega ninguna regla de horas.
 
 **OBSERVADO (HECHO, sin explicar la causa)** — lecturas únicas de solo
 lectura de `whats-apuestas` del 2026-10-03:
-- `resultados_loterias/2026-10-03` tiene `updatedAt` del 2026-10-02 a las
-  20:30 de Bogotá, con 20 entradas: las 9 de `resultados_loterias/2026-10-02`
-  más 11 nuevas, entre ellas loterías de noche.
+- **Horas de actualización de `resultados_loterias`**: en una lectura del
+  2026-10-03, 258 de 259 documentos tienen su última actualización
+  (`updatedAt`) a las 13:30 de Bogotá (el otro, a las 14:00), y cada
+  documento se crea a las 20:30 de Bogotá del día anterior (`createTime`).
+- El documento `resultados_loterias/2026-10-03` tuvo 20 entradas a las
+  20:30 del 2026-10-02, 32 a las 06:30 y 9 a las 13:30 del 2026-10-03: la
+  actualización de las 13:30 **reemplaza** el contenido. (Corrige la nota
+  anterior, que lo daba como un documento de 20 entradas; hoy tiene 9.)
 - `resultados_loterias/2026-10-02` quedó con `updatedAt` a las 13:30 de
   Bogotá y 9 entradas.
-- `manual_lotteries/2026-10-03` no existe.
-- Por eso `winning_numbers/2026-10-03` contiene hoy resultados del
-  2026-10-02, y `winning_numbers/2026-10-02` solo tiene los 9 de las 13:30.
+- `manual_lotteries/2026-10-03` no existía en la primera lectura.
+- Por eso, antes de las 13:30, `winning_numbers/2026-10-03` contenía
+  resultados de otra jornada, y `winning_numbers/2026-10-02` solo tiene los
+  9 de las 13:30.
 - "Play four día" figuraba como 5362 en una lectura anterior y como 9252
   después, sin explicación (según el usuario la API "a veces se equivoca";
   no verificado).
@@ -366,14 +380,11 @@ lectura de `whats-apuestas` del 2026-10-03:
   `resultados_loterias` arma el id con la fecha en UTC.
 
 **PENDIENTE (no decidido)**:
-- Confirmar con datos reales la clave de emparejamiento (`lotteryKey`):
-  ver los casos `dorado_mañana` / `doramaña` y `dorado_tarde` /
-  `doradotarde`.
+- Hasta las 13:30 de su fecha, el documento de la API trae datos de otra
+  jornada, y por eso `winning_numbers` de ese día puede mostrar números que
+  no son de ese día hasta esa hora. El usuario dijo que los ganadores se
+  revisan al día siguiente.
 - Qué hacer con `discarded` (hoy solo se registra en el log).
-- Ver cómo evoluciona `resultados_loterias/2026-10-03` durante el día (si
-  los números de ayer se reemplazan por los de hoy o se arrastran), con
-  una lectura de solo lectura pasado el mediodía de Bogotá. Hasta entonces
-  no se cambia la función.
 - El índice de grupo de colecciones sobre `fechaJornada` y `rol` (el enlace
   sale del error de la primera consulta con ganadores, en el log
   `[COINCIDENCIAS] falló (firestore): ...`).

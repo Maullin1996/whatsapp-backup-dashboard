@@ -368,9 +368,12 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    boleto de 3 = últimas 3 del ganador de 4, otras longitudes se ignoran
    sin aviso, aciertos de 3 y de 4 como coincidencias separadas) está
    decidida e **IMPLEMENTADA** (ver abajo); una entrada sin nombre ni slug no es
-   válida; el slug sigue PROVISIONAL (hecho observado sin resolver:
-   `dorado_mañana` en la automática y `doramaña` en la manual son la misma
-   lotería y no se emparejan); la escritura será solo si cambió (pieza b2);
+   válida; el slug sigue PROVISIONAL, con un alias **DECIDIDO por el
+   usuario e IMPLEMENTADO**: `doramaña` (manual) se empareja con
+   `dorado_mañana` (automática) mediante `LOTTERY_KEY_ALIASES` en
+   `lotteryKey`, respaldado por 118 fechas en una lectura de
+   `whats-apuestas` del 2026-10-03; los demás pares se descartan por
+   aparecer en una sola fecha; la escritura será solo si cambió (pieza b2);
    un boleto de 3 cifras puede coincidir a la vez con un ganador de 3 (p.
    ej. "Cash three") y con las últimas 3 de un ganador de 4 ("606" con
    "606" y con "4606"): la app solo muestra coincidencias y los revisores
@@ -419,22 +422,24 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    **DECIDIDO por el usuario**: los resultados del día D valen hasta las
    5:30 a.m. (Bogotá) del día D+1; la función no cambia (procesa hoy y ayer)
    y no se agrega ninguna regla de horas.
-   **OBSERVADO (HECHO, sin causa)**: `resultados_loterias/2026-10-03` tiene
-   `updatedAt` del 2026-10-02 20:30 (Bogotá) y 20 entradas (las 9 del
-   2026-10-02 más 11 nuevas, entre ellas de noche);
+   **OBSERVADO (HECHO, sin causa)**: en una lectura del 2026-10-03, 258 de
+   259 documentos de `resultados_loterias` tienen su última actualización a
+   las 13:30 de Bogotá, y cada documento se crea a las 20:30 del día
+   anterior. `resultados_loterias/2026-10-03` tuvo 20 entradas a las 20:30,
+   32 a las 06:30 y 9 a las 13:30: la actualización de las 13:30 reemplaza
+   el contenido (corrige la nota anterior de 20 entradas);
    `resultados_loterias/2026-10-02`, `updatedAt` 13:30 y 9 entradas;
-   `manual_lotteries/2026-10-03` no existe. Por eso `winning_numbers/2026-10-03`
-   contiene hoy resultados del 2026-10-02 y `winning_numbers/2026-10-02`
-   solo los 9 de las 13:30. "Play four día" figuraba como 5362 en una
+   `manual_lotteries/2026-10-03` no existía en la primera lectura. Por eso,
+   antes de las 13:30, `winning_numbers/2026-10-03` contenía resultados de
+   otra jornada y `winning_numbers/2026-10-02` tiene solo los 9 de las 13:30. "Play four día" figuraba como 5362 en una
    lectura anterior y como 9252 después, sin explicación. **SUPOSICIÓN**
    (no verificada): que quien escribe `resultados_loterias` arma el id con
    la fecha en UTC. Detalle en `image-review-firebase-integration`.
-   **PENDIENTES de la función puente (no decididos)**: confirmar el
-   slug con datos reales (`dorado_mañana`/`doramaña`,
-   `dorado_tarde`/`doradotarde`); qué hacer con `discarded` (hoy solo se
-   registra en el log); ver cómo evoluciona `resultados_loterias/2026-10-03`
-   durante el día con una lectura de solo lectura pasado el mediodía de
-   Bogotá (hasta entonces no se cambia la función).
+   **PENDIENTES de la función puente (no decididos)**: hasta las 13:30 de
+   su fecha, el documento de la API trae datos de otra jornada, y por eso
+   `winning_numbers` de ese día puede mostrar números que no son de ese día
+   hasta esa hora (el usuario dijo que los ganadores se revisan al día
+   siguiente); qué hacer con `discarded` (hoy solo se registra en el log).
    **PENDIENTES (no decididos)**: el índice de grupo de colecciones sobre
    `fechaJornada` y `rol` (el enlace sale del error de la primera consulta
    con ganadores, en el log `[COINCIDENCIAS] falló (firestore): ...`);
@@ -569,10 +574,9 @@ de aquí y de la skill correspondiente cuando el usuario confirme):
   b1.1: 3 o 4 cifras, `sin-loteria`; decididos la escritura solo si
   cambió y no escribir nada si el resultado sale vacío) y el handler
   programado está **desplegado y corriendo cada hora** desde el 2026-10-03
-  (pieza b2). Falta: confirmar la clave de emparejamiento (`lotteryKey`,
-  PROVISIONAL; casos `dorado_mañana`/`doramaña` y `dorado_tarde`/`doradotarde`),
-  qué hacer con `discarded` y ver cómo evoluciona
-  `resultados_loterias/2026-10-03` durante el día. (El
+  (pieza b2); alias `doramaña` → `dorado_mañana` decidido e implementado
+  (118 fechas). Falta: qué hacer con `discarded` y con los números de otra
+  jornada que trae el documento de la API hasta las 13:30 de su fecha. (El
   formato de las jornadas ya se vio y se decidió una tabla fija en código,
   2026-09-30.)
 - **Tabla única de jornadas** (`image-review-domain`): actualizar el bot
