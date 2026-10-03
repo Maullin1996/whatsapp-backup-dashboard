@@ -1,5 +1,14 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
+const { defineSecret } = require("firebase-functions/params");
+const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
+const {
+  runWinningNumbersSync,
+  firestoreSources,
+  WHATS_APUESTAS_SECRET_NAME,
+  WHATS_APUESTAS_APP_NAME,
+} = require("./winningNumbersSync.js");
 
 admin.initializeApp();
 
@@ -414,3 +423,34 @@ exports.listGroups = onCall(async (request) => {
   }));
   return { groups };
 });
+
+// ─── Función puente: números ganadores (pieza b2) ─────────────────────────────
+// Cada 60 minutos, hoy y ayer en hora de Bogotá. Lee resultados_loterias y
+// manual_lotteries de whats-apuestas con una segunda app de Admin (llave en el
+// secreto, nombre PROVISIONAL) y escribe winning_numbers en este proyecto. La
+// lógica vive en winningNumbersSync.js; nunca se imprime el contenido del secreto.
+const whatsApuestasKey = defineSecret(WHATS_APUESTAS_SECRET_NAME);
+
+exports.syncWinningNumbers = onSchedule(
+  {
+    schedule: "every 60 minutes",
+    timeZone: "America/Bogota",
+    secrets: [whatsApuestasKey],
+  },
+  async () => {
+    await runWinningNumbersSync({
+      readSecret: () => whatsApuestasKey.value(),
+      connect: (credentials) => {
+        const sourceApp =
+          admin.apps.find((app) => app?.name === WHATS_APUESTAS_APP_NAME) ??
+          admin.initializeApp(
+            { credential: admin.credential.cert(credentials) },
+            WHATS_APUESTAS_APP_NAME
+          );
+        return firestoreSources(admin.firestore(sourceApp), firestore);
+      },
+      logger,
+      now: () => Date.now(),
+    });
+  }
+);
