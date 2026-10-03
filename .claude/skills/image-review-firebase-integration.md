@@ -413,13 +413,17 @@ horario (mientras `pendingApproval` sea `true` rigen `startTime`/`endTime`).
 - Ese horario es el DEFINITIVO. La app usa una **tabla fija en código**
   (`lib/core/time/shifts.dart`), **sin lectura dinámica** de `jornadas`:
   reemplaza, para las jornadas, la meta de leerlas del otro proyecto
-  (sección de abajo, que queda como antecedente).
+  (sección de abajo, que queda como antecedente). **Superado por la pieza
+  2 de horarios dinámicos** (2026-10-03, ver "Lectura en la app" abajo): la
+  app lee `jornadas` y `festivos_colombia` y esta tabla fija queda como
+  RESPALDO.
 - **Tabla ÚNICA (paso 7, pieza e)**: rige en toda la app, para todas las
   fechas y todos los mensajes; la tabla vieja y el corte
   (`newShiftsEffectiveFromMs`) se retiraron. Fin INCLUSIVO, último minuto
   completo; se trunca al minuto: `morning` 05:30–10:51, `afternoon1`
   10:58–13:55, `afternoon2` 14:01–15:20, `night1` 15:28–22:15, `holiday`
-  06:00–19:15 (solo domingos, como hoy). Todo lo demás es `outOfShift`.
+  06:00–19:15 (domingos y, desde la pieza 2, festivos). Todo lo demás es
+  `outOfShift`.
 - **night2** queda solo como valor del enum y en etiquetas legacy;
   `getCurrentShift` nunca lo devuelve.
 - Las claves del enum NO cambian (no cambian ids de `shift_image_counts`,
@@ -442,10 +446,9 @@ horario (mientras `pendingApproval` sea `true` rigen `startTime`/`endTime`).
   bordes.
 - Retirar night2 de `ASSIGNABLE_SHIFTS` en `functions/` (el cliente ya no
   la ofrece, el servidor todavía la acepta).
-- Fuente de festivos (hoy solo se detectan domingos).
-- El horario del ERP (`jornadas` de `whats-apuestas`) puede cambiar sin
-  aviso: la tabla está fija en código (la réplica de la pieza 1, abajo, es
-  el primer paso; la app todavía no la lee).
+- (Fuente de festivos y "el horario del ERP puede cambiar sin aviso", para
+  la APP: resueltos por la pieza 2, ver "Lectura en la app". El bot sigue
+  con su tabla vieja: pieza 3.)
 - Caché de la PWA tras desplegar (versiones viejas con la tabla vieja).
 - Consecuencia a tener presente: los mensajes ya guardados se reclasifican
   con la tabla única (su etiqueta del visor se calcula al cargarlos).
@@ -544,12 +547,103 @@ comparar los horarios de cada documento con la tabla fija de
 (de ellos solo la hora).
 
 **PENDIENTE (no decidido)**:
-- Pieza 2: la app lee la colección, con la tabla fija como respaldo.
+- ~~Pieza 2: la app lee la colección~~ — HECHA (ver "Lectura en la app").
 - Pieza 3: el bot la lee.
-- La lista de festivos.
+- ~~La lista de festivos~~ — HECHA: `festivos_colombia` (ver abajo).
 - Publicar el bloque de reglas de `jornadas`.
 - Desplegar la función con este cambio.
 - Qué significan `pendingApproval` y `proposed*` en el ERP.
+
+### Festivos en Firebase: `festivos_colombia`
+
+**HECHO (carga del 2026-10-03, verificada releyendo los documentos)**:
+colección `festivos_colombia` de `whatsapp-pro-3d483` con **diez
+documentos**, ids `"2026"` a `"2035"`, cada uno con un solo campo `fechas`
+(lista de textos `yyyy-MM-dd`, ordenada, sin repetidas): 18 fechas por año,
+salvo 2030 con 17 (el Sagrado Corazón y San Pedro y San Pablo caen los dos
+el 2030-07-01 y quedó una sola). Se escribió con el Admin SDK (`set`
+completo, sin merge) a partir de una lista **generada con reglas** (festivos
+fijos, trasladables al lunes y de Semana Santa, Pascua gregoriana) y
+**revisada por el usuario**; la copia local está en
+`D:\documentos\Mauricio\festivos\` (fuera del repo). Su regla de lectura
+está en `firestore.rules.draft`, **NO PUBLICADA**.
+
+### Lectura en la app (horarios dinámicos, pieza 2)
+
+**DECIDIDO por el usuario e IMPLEMENTADO (2026-10-03, opción A + versión
+simple)**: la app lee `jornadas` y `festivos_colombia` y los usa para
+clasificar. **La tabla fija actual es el respaldo.**
+- **`lib/core/time/shifts.dart`**: una sola **tabla activa** en memoria
+  (`ShiftTable`: rangos de día normal en orden del día, rango de `holiday`
+  y el conjunto de fechas festivas `yyyy-MM-dd`), inicializada con
+  `fixedShiftTable` (la tabla fija de siempre, sin festivos).
+  `replaceShiftTable(table)` la reemplaza y devuelve `true` si era distinta;
+  `restoreFixedShiftTable()` (`@visibleForTesting`) vuelve a la fija.
+  `shiftLastMinute` ya no es una copia aparte: sale de los rangos (no se
+  pueden desalinear). Las firmas de `getCurrentShift`, `shiftGapBefore`,
+  `shiftViewerLabel` y `jornadaTerminada` no cambiaron y siguen síncronas.
+- **`isHolidayOrSunday(DateTime)`**: domingo, o fecha de la lista de
+  festivos. Un festivo entre semana se comporta **exactamente como un
+  domingo** (rango de `holiday`, sin huecos de día). La usan
+  `getCurrentShift`, `shiftGapBefore` (y por ellas `shiftViewerLabel`) y
+  `_shiftsOfDay` de Coincidencias (`firestore_matches_repository.dart`).
+  `jornadaTerminada` no compara días: recibe la jornada.
+- **Etiquetas**: `shiftNames`, `legacyShiftNames` y `shiftGapLabels` siguen
+  siendo texto FIJO; no se generan desde la tabla.
+- **Zona horaria**: sin cambios; se usa la fecha y hora de pared del
+  `DateTime` que llega.
+- **Datasource** (`lib/features/shift_schedule/data/datasources/
+  shift_schedule_datasource.dart`, nombres PROVISIONALES): un `.get()` de
+  cada colección, sin `.snapshots()`, `Either<Failure, ShiftTable>`, nunca
+  lanza (`.withReader` para tests). Arma la tabla desde la FIJA:
+  - conversión de ids `manana`→`morning`, `tarde_1`→`afternoon1`,
+    `tarde_2`→`afternoon2`, `noche`→`night1`, `festivos`→`holiday`;
+  - solo cuentan hora y minuto de `startTime`/`endTime`
+    (`yyyy-MM-ddTHH:mm:ss.000`; segundos descartados, último minuto
+    incluido); `pendingApproval` y `proposed*` se ignoran;
+  - un documento con hora inválida o inicio posterior al fin se ignora
+    (esa jornada conserva su rango fijo); un id desconocido se ignora; una
+    jornada ausente conserva la fija;
+  - una fecha de festivo sin formato `yyyy-MM-dd` válido se ignora;
+  - si cualquiera de las dos lecturas falla: `Left` (queda la tabla que
+    había).
+- **Cargador** (`shiftScheduleLoaderProvider`,
+  `shift_schedule_providers.dart`): `FutureProvider` que observa
+  `reviewerUidProvider`, disparado con un `ref.listen` en
+  `WhatsAppMonitorApp.build` (`app.dart`: siempre montado, también con el
+  visor abierto, y `ref.listen` no reconstruye la app). Sin uid: no lee ni
+  registra nada. Con uid: lee **una vez por sesión** (la regla exige
+  sesión), sin reintentos y sin lanzar. Falla: `[JORNADAS] falló (...)` con
+  `failureLogLine` y queda la tabla que había (la fija si nunca se cargó).
+  Tabla distinta de la activa: la reemplaza e invalida `shiftStatsProvider`
+  (conteos de "Imágenes por jornada" de `ChatDrawer`). Igual: no hace nada.
+  Nada espera al cargador (no hay timeout).
+- **Tests**: `test/unit/shifts_table_test.dart`,
+  `test/unit/shift_schedule/` (datasource y cargador) y dos casos nuevos en
+  `firestore_matches_repository_test.dart`. Los tests de jornadas que ya
+  existían pasan sin cambios con la tabla por defecto.
+
+**Limitaciones aceptadas por el usuario**:
+- Los mensajes ya cargados **mantienen su etiqueta** hasta cambiar de chat o
+  de filtro: `MessagesNotifier` no se toca y `ref.invalidate` reutiliza la
+  misma instancia (riverpod 3.3.2), cuyo `build` no recarga si no cambió el
+  chat ni el filtro. Solo se recalculan los conteos.
+- Lo guardado antes del deploy (registros locales y subidos) puede quedar
+  con etiquetas desfasadas.
+
+**PENDIENTE (no decidido)**:
+- **Publicar a mano** las reglas de `jornadas` y de `festivos_colombia`
+  (confirmar primero que la consola coincide con `firestore.rules.draft`,
+  porque publicar reemplaza todo el conjunto). Mientras no se publiquen, la
+  lectura falla con permisos y la app usa la tabla fija (solo domingos).
+- El bot sigue con su tabla vieja y no lee las colecciones (pieza 3).
+- El texto de las etiquetas lleva las horas escritas y no se actualiza si el
+  ERP cambia un horario: defecto cosmético.
+- Zona horaria del dispositivo: un festivo depende de la fecha local, así
+  que un dispositivo fuera de UTC-5 podría ver otro día.
+- Qué hacer si el ERP trae `pendingApproval: true` o valores en
+  `proposed*` (hoy se ignoran).
+- Desplegar el hosting con este cambio.
 
 ### Antecedente: la idea de leer las jornadas del otro proyecto
 
@@ -623,7 +717,7 @@ que ese punto ya no bloquea:
   (ver "Función puente de ganadores (pieza b)").
 - ~~Formato exacto de la lista de jornadas por fecha~~ — **resuelto**: ya
   se vio la colección `jornadas` y se decidió una tabla fija en código
-  (ver "Tabla definitiva"). Queda pendiente solo cómo se marcan los
-  festivos (la colección no los lista).
+  (ver "Tabla definitiva"); desde la pieza 2 la app la lee, con los
+  festivos de `festivos_colombia`.
 - Contrato completo de la Cloud Function puente (qué recibe/devuelve
   exactamente para jornadas y para números ganadores).

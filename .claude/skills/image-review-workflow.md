@@ -461,8 +461,9 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    sin night2 (en su repo; hasta entonces `shift_image_counts` sigue la
    tabla vieja y el "imágenes en la jornada" del Resumen puede estar
    desfasado en los bordes); retirar night2 de `ASSIGNABLE_SHIFTS` en
-   `functions/`; fuente de festivos; el horario del ERP puede cambiar sin
-   aviso; caché de la PWA tras desplegar; los mensajes ya guardados se
+   `functions/`; caché de la PWA tras desplegar (fuente de festivos y
+   horario del ERP que cambia sin aviso, para la app: resueltos por la pieza
+   2 de horarios dinámicos, más abajo); los mensajes ya guardados se
    reclasifican con la tabla única; que Coincidencias, cuando haya
    ganadores, probablemente pida un índice sobre `rol`; borrar los 4
    documentos de prueba antes de desplegar el hosting; y lo ya pendiente.
@@ -480,11 +481,37 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    DECIDIDO: "Mañana" vale para las mañanas de todos los días excepto
    domingos y festivos, que usan `festivos`. Conversión de ids y detalle en
    `image-review-firebase-integration` ("Réplica de jornadas").
-   **PENDIENTES (no decididos)**: pieza 2 (la app lee la colección con la
-   tabla fija de respaldo), pieza 3 (el bot la lee), la lista de festivos,
-   publicar las reglas, desplegar, qué significan `pendingApproval` y
-   `proposed*`. **SUPOSICIÓN**: los horarios que se usan son siempre
-   `startTime` y `endTime`.
+   **SUPOSICIÓN**: los horarios que se usan son siempre `startTime` y
+   `endTime`.
+   **Festivos en Firebase — HECHO (2026-10-03)**: `festivos_colombia`, diez
+   documentos (`"2026"` a `"2035"`, campo `fechas`, lista `yyyy-MM-dd`; 18
+   por año, 2030 con 17), cargados con el Admin SDK desde una lista generada
+   con reglas y revisada por el usuario, y verificados releyéndolos.
+   **Horarios dinámicos, pieza 2 — HECHA (código y tests; sin desplegar)**
+   (DECIDIDO por el usuario e IMPLEMENTADO, opción A, versión simple): la app
+   lee `jornadas` y `festivos_colombia` y clasifica con ellos; **la tabla
+   fija actual es el respaldo**. `shifts.dart` guarda una sola tabla activa
+   (`ShiftTable`, inicializada con `fixedShiftTable`; `replaceShiftTable`,
+   `restoreFixedShiftTable` solo para tests); `shiftLastMinute` sale de los
+   rangos; `isHolidayOrSunday` hace que un festivo se comporte como un
+   domingo (también en `_shiftsOfDay` de Coincidencias); etiquetas fijas;
+   zona horaria sin cambios. Datasource y cargador en
+   `lib/features/shift_schedule/` (lectura única por sesión, disparada con
+   `ref.listen` en `app.dart`, sin reintentos ni timeout; falla →
+   `[JORNADAS] falló (...)` y tabla fija; tabla distinta → reemplaza e
+   invalida `shiftStatsProvider`). Regla de `festivos_colombia` en
+   `firestore.rules.draft`, **NO PUBLICADA**. Limitaciones aceptadas: los
+   mensajes ya cargados mantienen su etiqueta hasta cambiar de chat o de
+   filtro, y lo guardado antes del deploy puede quedar con etiquetas
+   desfasadas. Detalle en `image-review-firebase-integration` ("Lectura en
+   la app").
+   **PENDIENTES (no decididos)**: publicar a mano las reglas de `jornadas` y
+   `festivos_colombia` (confirmar antes que la consola coincide con el
+   borrador; mientras no se publiquen, la app usa la tabla fija); pieza 3
+   (el bot sigue con su tabla vieja); el texto de las etiquetas no se
+   actualiza si el ERP cambia un horario (cosmético); la zona horaria del
+   dispositivo para los festivos; qué hacer con `pendingApproval: true` o
+   `proposed*` (hoy se ignoran); desplegar.
    **Limpieza — HECHA**: se borraron `MockSummaryRepository`,
    `MockMatchesRepository` y `SimulatedReviewUploader`, con sus tests
    propios; el test del menú (`custom_popup_menu_logout_button_test.dart`)
@@ -550,12 +577,13 @@ de aquí y de la skill correspondiente cuando el usuario confirme):
   2026-09-30.)
 - **Tabla única de jornadas** (`image-review-domain`): actualizar el bot
   con los mismos rangos y sin night2 (en su repo), retirar night2 de
-  `ASSIGNABLE_SHIFTS` en `functions/`, fuente de festivos, horario del ERP
-  que puede cambiar sin aviso y caché de la PWA tras desplegar.
+  `ASSIGNABLE_SHIFTS` en `functions/` y caché de la PWA tras desplegar.
 - **Horarios dinámicos** (`image-review-firebase-integration`, "Réplica de
-  jornadas"): pieza 1 hecha y sin desplegar; faltan las piezas 2 (app) y 3
-  (bot), la lista de festivos, publicar la regla de `jornadas`, desplegar y
-  el significado de `pendingApproval`/`proposed*`.
+  jornadas" y "Lectura en la app"): piezas 1 y 2 hechas y sin desplegar,
+  festivos cargados en `festivos_colombia`; faltan publicar las reglas de
+  `jornadas` y `festivos_colombia`, la pieza 3 (bot), desplegar, el texto de
+  las etiquetas con horas fijas, la zona horaria del dispositivo para los
+  festivos y el significado de `pendingApproval`/`proposed*`.
 - **Calidad de conexión en la subida real** (`image-review-offline-sync`,
   paso 7) — el timeout por registro ya existe (15 s, capa 3); falta decidir
   si además se verifica la conexión antes de subir, y qué pasa si una

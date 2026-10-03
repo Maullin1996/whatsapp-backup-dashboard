@@ -285,7 +285,9 @@ recomendación de diseño es:
     tabla única; el bot todavía usa la VIEJA hasta actualizarlo en su repo
     (PENDIENTE: mientras tanto el contador puede estar desfasado en los
     bordes; ver "Jornadas: una sola tabla"). Los dos truncan a minutos con
-    límites inclusivos y detectan solo domingos. Diferencia: la app
+    límites inclusivos; el bot detecta solo domingos (la app, desde la
+    pieza 2 de horarios dinámicos, también los festivos de
+    `festivos_colombia`, ver "Jornadas" más abajo). Diferencia: la app
     calcula la jornada con `toLocal()`; el bot, con `America/Bogota`, y
     su `shift_date` usa UTC-5 fijo.
 - **Limitaciones aceptadas** (decisión del usuario): el valor puede
@@ -395,13 +397,22 @@ no hay datos reales de otras personas que necesiten los horarios viejos).
 Hechos de esa lectura en `image-review-firebase-integration`, "Tabla
 definitiva".
 
+**Actualización (horarios dinámicos, pieza 2 — DECIDIDO por el usuario e
+IMPLEMENTADO, 2026-10-03)**: la tabla de abajo es ahora la tabla FIJA de
+RESPALDO. La app carga una vez por sesión `jornadas` (réplica del ERP) y
+`festivos_colombia` y clasifica con esa tabla activa; mientras no carga, o
+si la lectura falla, rige esta. Los domingos **y los festivos** usan el
+rango de `holiday` (`isHolidayOrSunday`); un festivo entre semana se
+comporta exactamente como un domingo. Las etiquetas siguen siendo texto
+fijo. Detalle en `image-review-firebase-integration` ("Lectura en la app").
+
 | Clave (`Shift`) | Rango |
 |---|---|
 | `morning` | 05:30–10:51 |
 | `afternoon1` | 10:58–13:55 |
 | `afternoon2` | 14:01–15:20 |
 | `night1` | 15:28–22:15 |
-| `holiday` (solo domingos) | 06:00–19:15 |
+| `holiday` (domingos y festivos) | 06:00–19:15 |
 | `night2` | **ninguno**: solo valor del enum y etiquetas legacy |
 | `outOfShift` | todo lo demás, incluidos los huecos |
 
@@ -443,14 +454,17 @@ definitiva".
     horario en domingo siguen siendo "Fuera de las jornadas", sin grupo.
   - `shiftFromLabel` de "Fuera de jornada X" da `outOfShift`: el panel de
     formulario no aparece en un hueco y `toUploadDocument` lo rechaza.
-- **Festivos**: sin cambios, solo se detectan domingos.
+- **Festivos**: desde la pieza 2, los de `festivos_colombia` (diez
+  documentos, 2026 a 2035, campo `fechas`, cargados el 2026-10-03 desde una
+  lista generada con reglas y revisada por el usuario). Sin cargar, solo
+  domingos.
 - **DECIDIDO por el usuario (2026-10-03)**: "Mañana" vale para las mañanas
   de todos los días excepto domingos y festivos, que usan `festivos` del
-  ERP. La lista de festivos en Firebase queda como pieza aparte.
+  ERP.
 - **Horarios dinámicos, pieza 1 — HECHA (no desplegada)**: la función
   programada copia `jornadas` del ERP a una colección `jornadas` de nuestro
-  proyecto (réplica exacta, nombre PROVISIONAL). La app **todavía no la
-  lee** (pieza 2) y su regla de lectura **no está publicada**. Conversión de
+  proyecto (réplica exacta, nombre PROVISIONAL). La app la lee desde la
+  pieza 2; su regla de lectura **no está publicada**. Conversión de
   ids del ERP a claves de `Shift`: `manana` → `morning`, `tarde_1` →
   `afternoon1`, `tarde_2` → `afternoon2`, `noche` → `night1`, `festivos` →
   `holiday`. Detalle en `image-review-firebase-integration` ("Réplica de
@@ -458,7 +472,11 @@ definitiva".
 - **Tests**: `test/unit/shifts_test.dart` (bordes, huecos, etiquetas,
   `shiftFromLabel`, panel de control, jornadas asignables) y
   `shifts_end_test.dart` (fin de cada jornada); `shifts_cutover_test.dart`
-  se borró.
+  se borró. Tabla activa y festivos: `shifts_table_test.dart`.
+- **Limitaciones aceptadas por el usuario (pieza 2)**: los mensajes ya
+  cargados mantienen su etiqueta hasta cambiar de chat o de filtro (solo se
+  recalculan los conteos del panel de control); lo guardado antes del
+  deploy puede quedar con etiquetas desfasadas.
 
 **PENDIENTE** (no decidido):
 - Actualizar el BOT con los mismos rangos y sin night2 (en su repo). Hasta
@@ -467,17 +485,20 @@ definitiva".
   bordes.
 - Retirar night2 de `ASSIGNABLE_SHIFTS` en `functions/` (el cliente ya no
   la ofrece, el servidor todavía la acepta).
-- Fuente de festivos (hoy solo se detectan domingos).
-- El horario del ERP (`jornadas` de `whats-apuestas`) puede cambiar sin
-  aviso: la tabla está fija en código.
 - Caché de la PWA tras desplegar (versiones viejas con la tabla vieja).
 - Consecuencia a tener presente: los mensajes ya guardados se reclasifican
   con la tabla única (su etiqueta del visor se calcula al cargarlos).
-- Horarios dinámicos: pieza 2 (la app lee la réplica, con la tabla fija de
-  respaldo), pieza 3 (el bot la lee), la lista de festivos, publicar la
-  regla de `jornadas`, desplegar, y qué significan `pendingApproval` y
-  `proposed*` en el ERP. **SUPOSICIÓN**: los horarios que se usan son
-  siempre `startTime` y `endTime`.
+- Horarios dinámicos: publicar a mano las reglas de `jornadas` y de
+  `festivos_colombia` (confirmar antes que la consola coincide con el
+  borrador; publicar reemplaza todo el conjunto; mientras no se publiquen,
+  la app usa la tabla fija); pieza 3 (el bot sigue con su tabla vieja y no
+  lee las colecciones); el texto de las etiquetas lleva las horas escritas
+  y no se actualiza si el ERP cambia un horario (defecto cosmético); la
+  zona horaria del dispositivo (un festivo depende de la fecha local: fuera
+  de UTC-5 se podría ver otro día); qué hacer si el ERP trae
+  `pendingApproval: true` o valores en `proposed*` (hoy se ignoran);
+  desplegar. **SUPOSICIÓN**: los horarios que se usan son siempre
+  `startTime` y `endTime`.
 
 ## Reglas de negocio (no negociables sin confirmación explícita del usuario)
 
