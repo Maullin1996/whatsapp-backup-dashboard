@@ -550,9 +550,9 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
   - Lectura de `image_reviews` y de `shift_image_counts` (solo admin y
     superAdmin, publicada; la lectura de un admin real y el índice sobre
     `fechaJornada` quedaron HECHOS el 2026-10-02, ver "Lectura de admin"):
-    el desfase de claims (se leen solo al iniciar sesión); qué hacer con
-    `functions/set-admin.js`, que reemplaza los claims sin fusionarlos
-    (borraría `reviewRole`).
+    el desfase de claims (se leen solo al iniciar sesión). (Lo de
+    `functions/set-admin.js` ya está resuelto: fusiona los claims en vez de
+    reemplazarlos; ver `image-review-workflow`.)
   - Si las reglas de escritura deben validar `reviewShifts` o
     `allowedGroups`; reglas de Storage (no están en el repo).
   - Verificación de conexión antes de subir (el timeout ya existe, ver

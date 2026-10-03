@@ -298,10 +298,9 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    /{path=**}/registros/{registroId}` solo lectura (sirve a la consulta de
    grupo; el nombre `registros` aplica a toda colección con ese nombre) y
    `shift_image_counts` con lectura de admin y escritura negada.
+   **`functions/set-admin.js` — HECHO**: ahora fusiona los claims existentes (`{...claimsActuales, admin: true, superAdmin: true}`, leídos del `UserRecord` de `getUserByEmail`) en vez de reemplazarlos, así que ya no borra `reviewRole`; tests en `functions/test/setAdmin.test.js`. **SUPOSICIÓN**: un claim que ya se hubiera perdido por una corrida anterior del script no se recupera solo.
    **PENDIENTES (no decididos)**: borrar los 4 documentos de prueba antes de desplegar o de que otra persona use el Resumen; `lastIndex` puede ser mayor que las imágenes reales; el costo en lecturas por consulta (hasta unas 3600; la caché de 5 minutos evita repetirla); el desfase de claims
-   (se leen solo al iniciar sesión); qué hacer con
-   `functions/set-admin.js`, que reemplaza los claims sin fusionarlos
-   (borraría `reviewRole`); no hay
+   (se leen solo al iniciar sesión); no hay
    contadores de días anteriores a la publicación inicial (ver
    `image-review-domain`); el día se arma con `fechaJornadaDe` (`toLocal()`)
    y `shiftDate` es UTC-5 fijo; y lo ya pendiente (qué colección de
