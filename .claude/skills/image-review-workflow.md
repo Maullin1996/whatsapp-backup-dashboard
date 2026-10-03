@@ -361,16 +361,38 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    **Pieza b1 — HECHA**: la mezcla, como función pura sin Firebase
    (`mergeWinningNumbers` en `functions/winningNumbers.js`, con tests
    `node:test`; no exportada en `index.js`). Devuelve `{numbers,
-   discarded}`: `numbers` son textos de 4 cifras, ceros a la izquierda
-   conservados, sin duplicados, en orden ascendente; `discarded`, lo que no
-   lo es, con su lotería y el motivo. La forma de las entradas es
-   SUPOSICIÓN y la clave de emparejamiento (`lotteryKey`) es PROVISIONAL.
-   Detalle en `image-review-firebase-integration` ("Función puente de
-   ganadores (pieza b)").
-   **PENDIENTES de la función puente (no decididos)**: la clave de
-   emparejamiento con datos reales; qué hacer con `discarded`; escribir
-   siempre o solo si cambió; el handler programado (pieza b2); el secreto
-   con las credenciales de `whats-apuestas`; el deploy.
+   discarded}`: `numbers` son textos de 3 o 4 cifras (desde b1.1), ceros a
+   la izquierda conservados, sin duplicados, en orden ascendente;
+   `discarded`, lo que no lo es (o no tiene nombre ni slug, `sin-loteria`),
+   con su lotería y el motivo. La clave de emparejamiento (`lotteryKey`)
+   es PROVISIONAL. Detalle en `image-review-firebase-integration`
+   ("Función puente de ganadores (pieza b)").
+   **Pieza b1.1 — HECHA** (solo lógica pura y tests con datos falsos):
+   forma real de las entradas documentada (`manualList` = `doc.data().list`
+   de `manual_lotteries/{yyyy-MM-dd}`, sin usar `date`). **DECIDIDO por el
+   usuario**: ganadores de 3 o 4 cifras en el mismo `numbers` ("Cash
+   three" cuenta); por ahora un ganador de 3 cifras se compara solo con
+   boletos de 3; la regla de `findMatches` (boleto de 4 = ganador completo,
+   boleto de 3 = últimas 3 del ganador de 4, otras longitudes se ignoran
+   sin aviso, aciertos de 3 y de 4 como coincidencias separadas) está
+   decidida pero **NO implementada**; una entrada sin nombre ni slug no es
+   válida; el slug sigue PROVISIONAL (hecho observado sin resolver:
+   `dorado_mañana` en la automática y `doramaña` en la manual son la misma
+   lotería y no se emparejan); la escritura será solo si cambió (pieza b2);
+   un boleto de 3 cifras puede coincidir a la vez con un ganador de 3 (p.
+   ej. "Cash three") y con las últimas 3 de un ganador de 4 ("606" con
+   "606" y con "4606"): la app solo muestra coincidencias y los revisores
+   deciden si corresponde el premio doble; si el resultado de una fecha
+   sale vacío, el handler no escribe nada y deja lo que había (si se
+   borran los ganadores, los revisores no los revisan). **HECHO
+   (verificado en `find_matches.dart`)**: hoy `findMatches` devuelve una
+   entrada por registro coincidente, con igualdad exacta, así que un
+   boleto nunca sale dos veces.
+   **PENDIENTES de la función puente (no decididos)**: en la pieza de
+   `findMatches`, si un boleto que acierta a dos ganadores sale como una tarjeta o como dos; confirmar el
+   slug con datos reales; qué hacer
+   con `discarded`; el handler programado (pieza b2); el secreto con las
+   credenciales de `whats-apuestas`; el deploy.
    **PENDIENTES (no decididos)**: el índice de grupo de colecciones sobre
    `fechaJornada` y `rol` (el enlace sale del error de la primera consulta
    con ganadores, en el log `[COINCIDENCIAS] falló (firestore): ...`);
@@ -455,10 +477,13 @@ de aquí y de la skill correspondiente cuando el usuario confirme):
   condicione la elección.
 - **Función puente de ganadores** (`image-review-firebase-integration`):
   el mecanismo ya está decidido (polling programado cada hora, hoy y ayer
-  en hora de Bogotá, sin historial) y la mezcla está hecha (pieza b1).
-  Falta: la forma real de las entradas y la clave de emparejamiento
-  (`lotteryKey`, PROVISIONAL), qué hacer con `discarded`, escribir siempre
-  o solo si cambió, el handler programado, el secreto y el deploy. (El
+  en hora de Bogotá, sin historial) y la mezcla está hecha (piezas b1 y
+  b1.1: 3 o 4 cifras, `sin-loteria`; decididos la escritura solo si
+  cambió y no escribir nada si el resultado sale vacío).
+  Falta: confirmar la clave de emparejamiento (`lotteryKey`, PROVISIONAL;
+  caso `dorado_mañana`/`doramaña`), qué hacer con `discarded`, implementar la nueva regla de `findMatches` (y decidir si un
+  boleto que acierta a dos ganadores sale como una tarjeta o dos), el handler
+  programado, el secreto y el deploy. (El
   formato de las jornadas ya se vio y se decidió una tabla fija en código,
   2026-09-30.)
 - **Tabla única de jornadas** (`image-review-domain`): actualizar el bot

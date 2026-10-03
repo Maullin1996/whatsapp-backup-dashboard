@@ -75,7 +75,7 @@ cada vez. Antes de tocar código de este feature, lee esta skill completa.
   una sola tabla" más abajo). Todo el feature de revisión se agrupa por jornada.
 - **Números ganadores**: lista del DÍA (`winning_numbers/{fecha}`, nombre
   y forma PROVISIONALES; la escribirá la función puente, todavía no
-  existe; textos de 4 cifras, ver `image-review-firebase-integration`,
+  existe; textos de 3 o 4 cifras, ver `image-review-firebase-integration`,
   "Función puente de ganadores") contra la que se comparan los números registrados por el
   Revisor en todas las jornadas y grupos de esa fecha, para detectar
   coincidencias.
@@ -534,7 +534,21 @@ definitiva".
    solo cuenta el número (igualdad exacta tras `trim`, `findMatches`). La
    pantalla muestra siempre una lista por jornada; una jornada sin
    coincidencias dice "Todavía no hay ganadores". Ya no se muestra si el
-   mensaje de WhatsApp fue editado. **PENDIENTE (no decidido)**: si
+   mensaje de WhatsApp fue editado.
+   **DECIDIDO, NO implementado (pieza b1.1)**: los ganadores pueden ser de
+   3 o 4 cifras ("Cash three" trae 3). Un boleto de 4 cifras gana si es
+   igual al ganador completo; uno de 3 gana si es igual al ganador de 3 o
+   a las últimas 3 cifras de un ganador de 4; cualquier otra longitud del
+   Revisor se ignora sin aviso; si un mismo ganador acierta a boletos de 3
+   y de 4, son coincidencias separadas. Un boleto de 3 cifras puede
+   coincidir **a la vez** con un ganador de 3 y con las últimas 3 de un
+   ganador de 4 ("606" con "606" y con "4606"): la app solo muestra
+   coincidencias y los revisores deciden si corresponde el premio doble.
+   **HECHO (verificado en `find_matches.dart`)**: hoy `findMatches` usa
+   igualdad exacta y devuelve una entrada por registro coincidente, así que
+   un boleto nunca sale dos veces. **PENDIENTE (no decidido)**: si un
+   boleto que acierta a dos ganadores sale como una tarjeta o como dos.
+   **PENDIENTE (no decidido)**: si
    algún día se quiere navegar a la imagen exacta en el visor
    (exigiría cambiar el chat activo y el filtro de fecha).
 

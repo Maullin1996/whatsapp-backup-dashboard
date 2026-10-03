@@ -101,6 +101,10 @@ refactor grande — coherente con la Clean Architecture del proyecto.
   `image-review-domain` regla 6: `String`, con `trim`, conservando
   ceros a la izquierda) — "0123" y "123" nunca coinciden entre sí.
   Implementado en `findMatches` (`features/matches/domain/helpers/`).
+  **Cambio decidido, NO implementado** (pieza b1.1): con ganadores de 3
+  cifras, un boleto de 3 cifras gana contra un ganador de 3 y también
+  contra las últimas 3 de un ganador de 4, aunque sea a la vez (ver
+  "Función puente de ganadores (pieza b)").
 - **Qué se muestra al encontrar coincidencia**: el número que coincidió,
   el grupo (`chatJid`/nombre del grupo) al que pertenece, quién lo
   envió, la hora y la jornada. **Ya no se muestra si el mensaje fue
@@ -176,37 +180,79 @@ tests en `functions/test/winningNumbers.test.js`, `npm test`). No lee ni
 escribe nada, no usa Firebase y no está exportada en `index.js`.
 - `mergeWinningNumbers(automaticDoc, manualList)` →
   `{ numbers, discarded }`.
-- **Forma de las entradas — SUPOSICIÓN** (no hay ejemplos en el repo, a
-  confirmar con datos reales): `automaticDoc` = documento de
-  `resultados_loterias` con `resultados: [{nombreLoteria, slug, numero,
-  serie}]`; `manualList` = documentos de `manual_lotteries` con
-  `{lottery, slug, date, result, series}`. El llamador pasa solo las
-  entradas de **una misma fecha**: la función no mira `date` (su formato
-  no se conoce).
-- **Clave de emparejamiento — PROVISIONAL**, aislada en `lotteryKey(slug)`:
-  el slug en minúsculas, sin tildes y sin espacios sobrantes. Es el único
-  lugar que decide si dos entradas son la misma lotería. Una entrada sin
-  slug no se empareja: cuenta sola.
+- **Forma de las entradas** (vista en datos reales, pieza b1.1):
+  `automaticDoc` = documento de `resultados_loterias` de la fecha con
+  `resultados: [{nombreLoteria, slug, numero, serie}]` (`serie` texto o
+  `null`); `manualList` = `doc.data().list` de
+  `manual_lotteries/{yyyy-MM-dd}` (**un documento por fecha** con un campo
+  `list`), cuyos elementos son `{lottery, slug, date, result, series}`. El
+  `date` de cada elemento **no se usa**: el id del documento ya es la
+  fecha. `serie`/`series` se ignoran.
+- **Clave de emparejamiento — PROVISIONAL**, aislada en `lotteryKey(slug)`
+  (sin cambios en b1.1): el slug en minúsculas, sin tildes y sin espacios
+  sobrantes. Es el único lugar que decide si dos entradas son la misma
+  lotería. Una entrada con nombre pero sin slug no se empareja: cuenta
+  sola. **Hecho observado en datos reales, sin resolver**: la automática
+  trae `dorado_mañana` y la manual `doramaña`; son la misma lotería (mismo
+  número en 6 de 7 días) pero con esta clave no se emparejan (cuentan por
+  separado; si traen el mismo número queda uno solo en `numbers`).
 - Por cada clave presente en la manual cuentan TODAS sus entradas
   manuales y se ignoran las automáticas de esa clave. Una automática
   reemplazada no se evalúa (no aparece en `discarded`).
-- `numbers`: textos de exactamente 4 cifras, con `trim`, ceros a la
-  izquierda conservados, sin duplicados, en orden ascendente (el mismo
-  resultado sin importar el orden de entrada). Es la forma que espera
-  Coincidencias (`numbers`, lista de texto).
+- `numbers`: textos de exactamente **3 o 4 cifras** (pieza b1.1), con
+  `trim`, ceros a la izquierda conservados ("606" y "0606" son valores
+  distintos), sin duplicados, en orden ascendente de texto (`sort()`; el
+  mismo resultado sin importar el orden de entrada). Es la forma que
+  espera Coincidencias (`numbers`, lista de texto).
 - `discarded`: `{lottery, source ('automatica' | 'manual'), value,
-  reason}` de lo que no es un texto de 4 cifras. Motivos: `no-es-texto`
-  (p. ej. un entero, aunque tenga 4 cifras), `vacio` (vacío, solo
-  espacios, `null` o ausente), `no-son-cifras` y `longitud-distinta`. La
-  función solo lo devuelve; qué hacer con él no está decidido.
+  reason}` de lo que no es válido. Motivos: `sin-loteria` (nombre y slug
+  vacíos tras `trim` o ausentes, en cualquiera de las dos fuentes; se
+  descarta sin mirar el número), `no-es-texto` (p. ej. un entero, aunque
+  tenga 4 cifras), `vacio` (vacío, solo espacios, `null` o ausente),
+  `no-son-cifras` y `longitud-distinta` (cualquier longitud que no sea 3
+  ni 4). La función solo lo devuelve; qué hacer con él no está decidido.
+
+**Pieza b1.1 — DECIDIDO por el usuario (2026-10-02)**:
+- Se aceptan ganadores de **3 o 4 cifras**. "Cash three" cuenta, y su
+  ganador de 3 cifras va en el mismo `numbers`.
+- Por ahora un ganador de 3 cifras se compara solo con boletos de 3
+  cifras.
+- **Regla de comparación de `findMatches` — decidida, NO implementada**
+  (`findMatches` sigue con igualdad exacta): un boleto de 4 cifras gana si
+  es igual al ganador completo; uno de 3 gana si es igual a las últimas 3
+  cifras de un ganador de 4; cualquier otra longitud del Revisor se ignora
+  sin aviso; si un mismo ganador acierta a boletos de 3 y de 4, se
+  muestran como coincidencias separadas.
+- **Un boleto de 3 cifras puede coincidir a la vez** con un ganador de 3
+  cifras (p. ej. "Cash three") y con las últimas 3 de un ganador de 4
+  cifras: el boleto "606" coincide con "606" y con "4606". La app solo
+  muestra coincidencias; los revisores deciden si corresponde el premio
+  doble.
+- Una entrada sin nombre ni slug no es válida (`sin-loteria`).
+- El slug sigue como clave PROVISIONAL.
+- La escritura de `winning_numbers/{fecha}` será **solo si cambió** (se
+  aplica en el handler, pieza b2).
+- **Si el resultado de una fecha sale vacío, el handler (pieza b2) no
+  escribe nada** y deja lo que ya había. Razón del usuario: la app solo
+  muestra coincidencias, y si se borran los ganadores los revisores no
+  los revisan.
+
+**Cómo agrupa hoy `findMatches` — HECHO (verificado en
+`lib/features/matches/domain/helpers/find_matches.dart`)**: igualdad
+exacta tras `trim` contra el conjunto (sin duplicados) de ganadores;
+devuelve una entrada por cada registro coincidente, no por ganador. Con
+igualdad exacta un boleto solo puede coincidir con un ganador, así que
+hoy nunca sale dos veces.
 
 **PENDIENTE (no decidido)**:
-- Confirmar con datos reales la forma de las entradas y la clave de
-  emparejamiento (`lotteryKey`).
+- Pieza de `findMatches`: si un boleto que acierta a dos ganadores (p. ej.
+  "606" contra "606" y "4606") sale como una tarjeta o como dos.
+- Confirmar con datos reales la clave de emparejamiento (`lotteryKey`):
+  ver el caso `dorado_mañana` / `doramaña`.
 - Qué hacer con `discarded` (log, alerta, guardarlo).
-- Escribir `winning_numbers/{fecha}` siempre o solo si cambió.
 - El handler programado (pieza b2: `onSchedule`, lectura de las dos
-  colecciones, filtro por fecha, escritura), con su zona horaria.
+  colecciones, filtro por fecha, escritura solo si cambió), con su zona
+  horaria.
 - El secreto con las credenciales de `whats-apuestas` (hoy `functions/` no
   usa ningún secreto) y el deploy.
 - El índice de grupo de colecciones sobre `fechaJornada` y `rol` (el enlace
