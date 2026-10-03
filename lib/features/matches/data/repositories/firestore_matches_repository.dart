@@ -35,8 +35,9 @@ class FirestoreMatchesRepository implements MatchesRepository {
        _messages = messages,
        _groupNames = groupNames;
 
-  /// - Jornadas: las del día (domingo: solo `holiday`; si no, mañana, tarde
-  ///   1, tarde 2 y noche 1) más cualquier otra con registros del Revisor
+  /// - Jornadas: las del día (domingo o festivo: solo `holiday`; si no,
+  ///   mañana, tarde 1, tarde 2 y noche 1) más cualquier otra con registros
+  ///   del Revisor
   ///   (p. ej. `night2`), por el orden del enum. Todas con los MISMOS
   ///   ganadores del día.
   /// - Sin ganadores: esas jornadas vacías, sin leer registros.
@@ -161,11 +162,10 @@ class FirestoreMatchesRepository implements MatchesRepository {
     );
   }
 
-  /// Jornadas de [day] sin contar registros: el domingo solo `holiday`; el
-  /// resto de días, las cuatro de siempre (festivos no se detectan, igual que
-  /// en el resto de la app).
-  static List<Shift> _shiftsOfDay(DateTime day) =>
-      day.weekday == DateTime.sunday
+  /// Jornadas de [day] sin contar registros: domingo o festivo, solo
+  /// `holiday` ([isHolidayOrSunday], igual que el resto de la app); el resto
+  /// de días, las cuatro de siempre.
+  static List<Shift> _shiftsOfDay(DateTime day) => isHolidayOrSunday(day)
       ? const [Shift.holiday]
       : const [Shift.morning, Shift.afternoon1, Shift.afternoon2, Shift.night1];
 

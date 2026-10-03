@@ -95,6 +95,16 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ─── NO PUBLICADO: festivos_colombia (un documento por año, campo fechas) ──
+    // NO PUBLICADO: este bloque todavía NO está en la consola; lo publica el
+    // usuario a mano. Mientras no se publique, la app no puede leer los
+    // festivos y usa la tabla fija (solo domingos). Se cargó con el Admin SDK;
+    // lectura para cualquier usuario con sesión.
+    match /festivos_colombia/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
     // Claim reviewRole ('revisor' | 'sumador'), leído con get() para que un
     // claim ausente dé null y la regla niegue sin error.
     function reviewRole() {

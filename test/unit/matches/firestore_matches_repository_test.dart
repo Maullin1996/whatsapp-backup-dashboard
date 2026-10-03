@@ -248,6 +248,45 @@ void main() {
     expect(d.jornadas.map((j) => j.shift), [shiftNames[Shift.holiday]]);
   });
 
+  group('festivo cargado (2026-10-12, lunes)', () {
+    final holidayMonday = DateTime(2026, 10, 12);
+
+    setUp(
+      () => replaceShiftTable(
+        ShiftTable(
+          weekdayRanges: fixedShiftTable.weekdayRanges,
+          holidayRange: fixedShiftTable.holidayRange,
+          holidays: const {'2026-10-12'},
+        ),
+      ),
+    );
+    tearDown(restoreFixedShiftTable);
+
+    test('un festivo da lo mismo que un domingo: solo holiday', () async {
+      final festivo = await day(holidayMonday);
+      final domingo = await day(_sunday);
+
+      expect(festivo.jornadas.map((j) => j.shift), [shiftNames[Shift.holiday]]);
+      expect(
+        festivo.jornadas.map((j) => j.shift),
+        domingo.jornadas.map((j) => j.shift),
+      );
+    });
+
+    test('un día normal no cambia', () async {
+      final d = await day(_monday);
+      expect(d.jornadas.map((j) => j.shift), [
+        for (final s in [
+          Shift.morning,
+          Shift.afternoon1,
+          Shift.afternoon2,
+          Shift.night1,
+        ])
+          _label(s),
+      ]);
+    });
+  });
+
   test('jornada con registros pero sin coincidencias: aparece con matches '
       'vacíos; night2 solo si tiene registros', () async {
     winners.numbers = ['4521'];
