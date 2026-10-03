@@ -10,6 +10,7 @@
 // PENDIENTE).
 
 const { mergeWinningNumbers } = require("./winningNumbers.js");
+const { syncJornadas } = require("./jornadasSync.js");
 
 // Nombre del secreto con la llave de cuenta de servicio de whats-apuestas.
 // PROVISIONAL. Nunca se imprime su contenido, solo este nombre.
@@ -164,7 +165,8 @@ function firestoreSources(sourceDb, targetDb) {
 
 /**
  * Lo que hace el disparador: lee el secreto, lo parsea como JSON, pide las
- * fuentes a `connect(credentials)` y llama a `syncWinningNumbers`. Si el
+ * fuentes a `connect(credentials)` y llama a `syncWinningNumbers` y, después,
+ * a `syncJornadas` si `connect` devolvió `jornadas` (jornadasSync.js). Si el
  * secreto falta, no se puede parsear o `connect` falla, registra el error (sin
  * su contenido) y termina sin escribir nada.
  *
@@ -202,7 +204,22 @@ async function runWinningNumbersSync({ readSecret, connect, logger, now }) {
     return null;
   }
 
-  return syncWinningNumbers({ ...sources, logger, now });
+  // Ganadores y jornadas, aislados: cada uno en su try/catch, ninguno lanza
+  // al otro. Jornadas usa la misma conexión (`sources.jornadas`).
+  let summary = null;
+  try {
+    summary = await syncWinningNumbers({ ...sources, logger, now });
+  } catch (error) {
+    logger.error(`${LOG_TAG} la sincronización falló`, { errorType: errorType(error) });
+  }
+  if (sources.jornadas) {
+    try {
+      await syncJornadas({ ...sources.jornadas, logger });
+    } catch (error) {
+      logger.error("[JORNADAS] la sincronización falló", { errorType: errorType(error) });
+    }
+  }
+  return summary;
 }
 
 module.exports = {

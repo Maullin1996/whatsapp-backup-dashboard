@@ -9,6 +9,7 @@ const {
   WHATS_APUESTAS_SECRET_NAME,
   WHATS_APUESTAS_APP_NAME,
 } = require("./winningNumbersSync.js");
+const { jornadasFirestoreSources } = require("./jornadasSync.js");
 
 admin.initializeApp();
 
@@ -429,6 +430,7 @@ exports.listGroups = onCall(async (request) => {
 // manual_lotteries de whats-apuestas con una segunda app de Admin (llave en el
 // secreto, nombre PROVISIONAL) y escribe winning_numbers en este proyecto. La
 // lógica vive en winningNumbersSync.js; nunca se imprime el contenido del secreto.
+// Después, con la misma conexión, copia `jornadas` del ERP (jornadasSync.js).
 const whatsApuestasKey = defineSecret(WHATS_APUESTAS_SECRET_NAME);
 
 exports.syncWinningNumbers = onSchedule(
@@ -447,7 +449,11 @@ exports.syncWinningNumbers = onSchedule(
             { credential: admin.credential.cert(credentials) },
             WHATS_APUESTAS_APP_NAME
           );
-        return firestoreSources(admin.firestore(sourceApp), firestore);
+        const sourceDb = admin.firestore(sourceApp);
+        return {
+          ...firestoreSources(sourceDb, firestore),
+          jornadas: jornadasFirestoreSources(sourceDb, firestore),
+        };
       },
       logger,
       now: () => Date.now(),

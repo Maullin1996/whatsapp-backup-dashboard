@@ -84,6 +84,17 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ─── NO PUBLICADO: jornadas (réplica de la colección jornadas del ERP) ──────
+    // NO PUBLICADO: este bloque todavía NO está en la consola; lo publica el
+    // usuario a mano. Mientras no se publique, la app no puede leer jornadas.
+    // Colección de la raíz (nombre PROVISIONAL), distinta de las subcolecciones
+    // image_reviews/{chatJid}/jornadas. La escribe la función programada con el
+    // Admin SDK; lectura para cualquier usuario con sesión.
+    match /jornadas/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
     // Claim reviewRole ('revisor' | 'sumador'), leído con get() para que un
     // claim ausente dé null y la regla niegue sin error.
     function reviewRole() {
