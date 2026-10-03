@@ -141,7 +141,7 @@ refactor grande — coherente con la Clean Architecture del proyecto.
   fecha, `winning_numbers/{yyyy-MM-dd}` con el campo `numbers` (lista de
   texto), definido en una sola constante (`winningNumbersSource`). Es la
   lista del DÍA: todas las jornadas de esa fecha muestran la misma.
-  (`MockMatchesRepository`, sin cablear, los organizaba por fecha y
+  (`MockMatchesRepository`, ya borrado, los organizaba por fecha y
   jornada; era una decisión del mock.)
 - **De dónde sale cada dato de una coincidencia (HECHO, pieza c)**: el
   número, el grupo, la jornada, el `messageId` y el `storagePath`, del
@@ -153,7 +153,8 @@ refactor grande — coherente con la Clean Architecture del proyecto.
 ### Coincidencias real (paso 7, pieza c)
 
 **HECHO**: `matchesRepositoryProvider` usa `FirestoreMatchesRepository`
-(detalle en `image-review-workflow`, "Pieza (c)"). Solo admin y superAdmin
+(detalle en `image-review-workflow`, "Pieza (c)"); `MockMatchesRepository`
+se borró (HECHO). Solo admin y superAdmin
 leen `image_reviews`. La regla de `winning_numbers` (lectura para
 `isAdmin()`, escritura negada) está **PUBLICADA desde el 2026-10-02**
 (verificado por el usuario); la copia está en `firestore.rules.draft`. El
@@ -378,7 +379,6 @@ lectura de `whats-apuestas` del 2026-10-03:
   `[COINCIDENCIAS] falló (firestore): ...`).
 - Caché de Coincidencias y costo en lecturas.
 - Probar "Ver imagen" con una imagen real.
-- Borrar los mocks y el uploader simulado.
 - Borrar los 4 documentos de prueba antes de desplegar el hosting.
 
 ## Jornadas desde otro proyecto de Firebase

@@ -520,9 +520,9 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
   - **Hay que BORRAR esos 4 documentos de prueba (desde la consola)** antes
     de desplegar el hosting o de que otra persona use el Resumen: son
     números de prueba y contarían en el Resumen y en Coincidencias.
-  - `SimulatedReviewUploader` **no se borró**: queda sin cablear ("No
-    cableado en producción; solo tests y referencia; candidato a borrar"),
-    con el mismo contrato.
+  - `SimulatedReviewUploader` **se borró** (HECHO), con su grupo de tests
+    en `review_upload_notifier_test.dart`; sus casos ya estaban cubiertos
+    por los tests de `FirestoreReviewUploader` y de `toUploadDocument`.
   - Tests: ningún test dependía del provider por defecto (los de la subida ya
     sobreescribían `reviewUploaderProvider`). Nuevos, en
     `firestore_review_uploader_test.dart`: con solo
@@ -532,11 +532,7 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
     marca `sincronizado` y el fallo deja `pendiente` sin lanzar. Ningún test
     instancia `FirebaseFirestore` ni lee el `firestoreProvider` real.
 - **PENDIENTE (no decidido)**:
-  - Aviso visible para los registros viejos que no se pueden subir (sin
-    `messageTimestamp` o sin `codigo`): hoy solo cuentan como "no se
-    pudieron subir" en el SnackBar, sin decir cuál ni por qué, y **la
-    píldora los sigue contando** (el índice de pendientes no sabe que les
-    falta el campo).
+  - (El aviso para los registros viejos que no se pueden subir se descartó por decisión del usuario: son datos de prueba.)
   - Borrar los 4 documentos de prueba (ver capa 6) antes de desplegar el
     hosting o de que otra persona use el Resumen.
   - Validar `codigo` y `loteria` en las reglas (hoy no se validan). Si la
@@ -588,7 +584,7 @@ colgado ya no bloquea la jornada con "Subiendo X de N" indefinido. **Sigue
 pendiente** decidir si además se verifica la calidad de conexión antes de
 subir, y qué pasa con una escritura que el SDK dejó en cola y llega después
 del timeout. Desde la capa 6 el provider usa el uploader real; el simulado
-(sin cablear) nunca fallaba ni se colgaba.
+(ya borrado) nunca fallaba ni se colgaba.
 
 ## Forma de trabajo dentro de esta skill
 
@@ -603,7 +599,7 @@ una antes de seguir:
    repositorio (`getPending`), sin UI (esto ya no requiere "detectar
    si está completa", solo listar lo que hay).
 3. ✅ **Subida individual** de un registro pendiente — hecha primero
-   SIMULADA (`SimulatedReviewUploader`, hoy sin cablear); desde el paso 7,
+   SIMULADA (`SimulatedReviewUploader`, ya borrado); desde el paso 7,
    capa 6, REAL (`FirestoreReviewUploader`).
 4. ✅ **Subida por jornada** con éxitos/fallos parciales — hecha (real desde
    la capa 6),

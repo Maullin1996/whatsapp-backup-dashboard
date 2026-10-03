@@ -118,7 +118,7 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    decidido; Revisor y Sumador no la ven, ver `image-review-roles`;
    `SummaryPage` con selector de fecha y
    tarjetas por grupo y jornada, en `features/summary/`). Empezó con datos
-   inventados (`MockSummaryRepository`, hoy sin cablear); **desde el paso
+   inventados (`MockSummaryRepository`, ya borrado); **desde el paso
    7, pieza d, lee datos reales** (ver "Pieza (d)" más abajo). **El Resumen mockeado ya incluye el aviso de imágenes sin
    registrar** (línea bajo cada rol, con `imagenesEnJornada` inventado en el
    mock con el formato real de `shift_image_counts`); falta cambiar solo la
@@ -131,7 +131,7 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    **UI ya hecha con datos INVENTADOS** (página `/matches`, solo para
    `isAdmin`/`isSuperAdmin` vía `canViewMatches`; entrada "Coincidencias"
    en el menú de `ChatList`; `MockMatchesRepository` determinista por
-   fecha, en `features/matches/`). **Desde el paso 7, pieza c, lee datos
+   fecha, en `features/matches/`, ya borrado). **Desde el paso 7, pieza c, lee datos
    reales** (ver "Pieza (c)" más abajo).
 7. **Conexión real a Firebase** (`image-review-firebase-integration`):
    una vez el usuario tenga acceso al proyecto externo, revisar el
@@ -188,8 +188,7 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    fallo deja un `debugPrint` con el messageId y el tipo de `Failure`, sin
    payload ni chatJid. Hasta la publicación de las reglas (2026-10-01) la
    escritura se rechazaba con `permission-denied` y el registro quedaba
-   pendiente. `SimulatedReviewUploader`
-   queda sin cablear (candidato a borrar).
+   pendiente. `SimulatedReviewUploader` se borró (HECHO).
    **Cambio del modelo del registro — HECHO** (antes de la primera
    escritura real; decisión del usuario): el `codigo` pasa a ser **uno por
    imagen** (`ImageReviewForm.codigo`, un solo campo "Código" arriba de
@@ -203,10 +202,8 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    cambios. Detalle en `image-review-domain` (vocabulario y regla 6) y
    `image-review-offline-sync`.
    **PENDIENTES (no decididos)**: validar `codigo` y `loteria` en las
-   reglas (hoy no se validan); si la lotería pasa a ser una lista cerrada;
-   un aviso visible
-   para los registros viejos que no se pueden subir (la píldora los sigue
-   contando).
+   reglas (hoy no se validan); si la lotería pasa a ser una lista cerrada.
+   (El aviso para los registros viejos que no se pueden subir se descartó por decisión del usuario: son datos de prueba.)
    **Reglas publicadas y primera escritura real — HECHO (verificado por el
    usuario el 2026-10-01)**: reglas vigentes desde ese día, 7:37 p.m., con
    el contenido de `firestore.rules.draft`. Primera escritura real: 4
@@ -222,8 +219,7 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    desde la consola** antes de desplegar el hosting o de que otra persona
    use el Resumen. Detalle en `image-review-offline-sync` (capas 5 y 6).
    Siguen **PENDIENTES** (detalle en `image-review-offline-sync` § "Ruta de
-   la subida"): aviso visible para los registros viejos que no se pueden
-   subir (y que la píldora los sigue contando), si conviene subir el
+   la subida"): si conviene subir el
    esquema a v2 (versiones antiguas de la app en caché), borrar los 4
    documentos de prueba, los casos de escritura nunca
    probados en la zona de pruebas,
@@ -264,8 +260,8 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    devuelve `ref.watch(realSummaryRepositoryProvider)`: el Resumen lee
    datos reales (registros de `image_reviews`, contadores de
    `shift_image_counts` y nombres de `group_stats`), solo para admin y
-   superAdmin, con la caché de 5 minutos. `MockSummaryRepository` queda sin
-   cablear ("No cableado; solo tests y referencia; candidato a borrar").
+   superAdmin, con la caché de 5 minutos. `MockSummaryRepository` se
+   borró (HECHO).
    Un `Left` deja un `debugPrint` en `jornadaSummariesProvider`: los errores
    de Firestore y de permisos con su texto completo (si falta un índice,
    trae el enlace para crearlo), los demás solo con el tipo (su texto puede
@@ -337,8 +333,7 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    - Log: `failureLogLine(tag, failure)` en `core/errors/` (Firestore y
      permisos con su texto completo, el resto solo el tipo); un `Left`
      imprime `[COINCIDENCIAS] falló (...)` y el Resumen usa la misma función
-     con `RESUMEN`. `MockMatchesRepository` queda sin cablear ("No
-     cableado; solo tests y referencia; candidato a borrar").
+     con `RESUMEN`. `MockMatchesRepository` se borró (HECHO).
    - **Regla de `winning_numbers` — PUBLICADA el 2026-10-02** (HECHO,
      verificado por el usuario): lectura para `isAdmin()`, escritura
      negada; copia en `firestore.rules.draft`. La colección existe desde
@@ -444,8 +439,7 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    `fechaJornada` y `rol` (el enlace sale del error de la primera consulta
    con ganadores, en el log `[COINCIDENCIAS] falló (firestore): ...`);
    caché; costo en lecturas; que "Ver imagen" no se probó con una imagen
-   real (las reglas de Storage no están en el repo); borrar los mocks y el
-   uploader simulado; borrar los 4 documentos de prueba antes de desplegar
+   real (las reglas de Storage no están en el repo); borrar los 4 documentos de prueba antes de desplegar
    el hosting; y lo ya pendiente.
    **Pieza (e), tabla de jornadas ÚNICA — HECHA** (decisión del usuario):
    el horario de `jornadas` de `whats-apuestas` (leído el 2026-09-30) rige
@@ -471,8 +465,11 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    aviso; caché de la PWA tras desplegar; los mensajes ya guardados se
    reclasifican con la tabla única; que Coincidencias, cuando haya
    ganadores, probablemente pida un índice sobre `rol`; borrar los 4
-   documentos de prueba antes de desplegar el hosting; borrar los mocks y
-   el uploader simulado; y lo ya pendiente.
+   documentos de prueba antes de desplegar el hosting; y lo ya pendiente.
+   **Limpieza — HECHA**: se borraron `MockSummaryRepository`,
+   `MockMatchesRepository` y `SimulatedReviewUploader`, con sus tests
+   propios; el test del menú (`custom_popup_menu_logout_button_test.dart`)
+   usa repositorios falsos vacíos dentro del propio test.
 
 ## Checklist antes de pasar a la siguiente pieza
 

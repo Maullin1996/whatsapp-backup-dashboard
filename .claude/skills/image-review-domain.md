@@ -334,7 +334,7 @@ recomendación de diseño es:
 `FirestoreSummaryRepository` (`features/summary/data/repositories/`,
 nombre provisional) es el repositorio de `summaryRepositoryProvider`: el
 Resumen lee datos reales (solo admin y superAdmin, con la caché de 5
-minutos; el mock quedó sin cablear). **HECHO (verificado por el usuario
+minutos; el mock se borró). **HECHO (verificado por el usuario
 el 2026-10-02)**: funciona con una cuenta admin (leyó registros,
 contadores y nombres): un admin real puede leer los registros y la
 consulta de grupo de colecciones funciona. El índice de grupo de
