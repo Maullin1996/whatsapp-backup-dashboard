@@ -74,7 +74,8 @@ cada vez. Antes de tocar código de este feature, lee esta skill completa.
   queda como valor del enum — ver `lib/core/time/shifts.dart` y "Jornadas:
   una sola tabla" más abajo). Todo el feature de revisión se agrupa por jornada.
 - **Números ganadores**: lista del DÍA (`winning_numbers/{fecha}`, nombre
-  y forma PROVISIONALES; la escribirá la función puente, todavía no
+  y forma PROVISIONALES; la escribirá la función puente (handler escrito,
+  pieza b2, sin desplegar), todavía no
   existe; textos de 3 o 4 cifras, ver `image-review-firebase-integration`,
   "Función puente de ganadores") contra la que se comparan los números registrados por el
   Revisor en todas las jornadas y grupos de esa fecha, para detectar

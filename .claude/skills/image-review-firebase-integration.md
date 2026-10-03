@@ -173,7 +173,8 @@ existe**. Coincidencias **abrió sin error con una cuenta admin** el
   fechas anteriores.
 - **Sin bot**: la función no depende del bot ni lo modifica.
 - **Autorizado** por el usuario: trabajar en `functions/` para esta
-  función y desplegarla cuando esté lista (el deploy todavía no se hizo).
+  función y desplegarla cuando esté lista (el deploy todavía no se hizo;
+  el handler ya está escrito, ver "Pieza b2" más abajo).
 
 **Pieza b1 — HECHA: la mezcla, función pura** (`functions/winningNumbers.js`,
 tests en `functions/test/winningNumbers.test.js`, `npm test`). No lee ni
@@ -244,17 +245,84 @@ devuelve una entrada por cada registro coincidente, no por ganador. Con
 igualdad exacta un boleto solo puede coincidir con un ganador, así que
 hoy nunca sale dos veces.
 
+**Pieza b2 — DECIDIDO por el usuario (diseño del handler)**: disparador
+programado **cada 60 minutos** (`timeZone: "America/Bogota"`); procesa
+**hoy y ayer en hora de Bogotá**; escribe `winning_numbers/{fecha}`
+**solo si cambió**; si el resultado sale **vacío no escribe nada** y deja
+lo que había. Sobre `discarded`: comportamiento actual de la pieza b2: discarded solo se registra en el log; qué hacer con discarded sigue PENDIENTE (no decidido).
+
+**Pieza b2 — HECHA: el handler programado, sin desplegar** (solo código y
+tests con datos falsos; no se leyó ni escribió nada real):
+- **`functions/winningNumbersSync.js`** (no importa `firebase-admin`; todo
+  llega por parámetro):
+  - `syncWinningNumbers({readAutomatic, readManual, readStored,
+    writeNumbers, logger, now})`. Para cada fecha de `[hoy, ayer]`
+    (`bogotaDateIds(now())`, **UTC-5 fijo**, ids `yyyy-MM-dd`): lee
+    `resultados_loterias/{id}` y `manual_lotteries/{id}` (un documento
+    ausente = vacío), llama a `mergeWinningNumbers` (sin cambios) con el
+    documento automático y `list` de la manual, registra cada `discarded`
+    en el log (fecha, lotería, fuente y motivo), y entonces:
+    - si `numbers` sale vacío → no escribe (`omitida-vacia`, con una línea
+      de log);
+    - si no, lee `winning_numbers/{id}` y compara como listas ordenadas:
+      igual → `sin-cambios`; distinto o documento ausente → escribe
+      (`escrita`).
+  - **Escritura**: `set({ numbers })` sin merge, es decir el documento
+    queda con **solo** el campo `numbers` (lista de textos), lo único que
+    lee Flutter. **SUPOSICIÓN**: que el documento no necesite otros campos
+    (fecha de actualización, fuente, `discarded`).
+  - **Errores por fecha**: si falla cualquier lectura (o la escritura) de
+    una fecha, se registra con el id de la fecha y el **tipo** de error
+    (`code` o `name`, nunca el mensaje), no se escribe esa fecha
+    (`error`) y se sigue con la otra; la función no lanza por una fecha.
+  - Devuelve y registra al final un resumen `[{date, status}]` con
+    `escrita` | `sin-cambios` | `omitida-vacia` | `error`. Etiqueta de log
+    `[GANADORES]`.
+  - `runWinningNumbersSync({readSecret, connect, logger, now})`: lee el
+    secreto, lo parsea como JSON, pide las fuentes a `connect` y llama a
+    `syncWinningNumbers`. Si el secreto falta, está vacío, `value()` lanza
+    o no es JSON válido, o `connect` falla: registra el error con el
+    **nombre** del secreto (nunca su contenido) y termina sin escribir.
+  - `firestoreSources(sourceDb, targetDb)`: las cuatro operaciones sobre
+    dos instancias de Firestore ya creadas.
+  - Constantes: `WHATS_APUESTAS_SECRET_NAME = "WHATS_APUESTAS_KEY"`
+    (**PROVISIONAL**, una sola constante), `WHATS_APUESTAS_APP_NAME =
+    "whats-apuestas"`, `COLLECTIONS`.
+- **Disparador en `functions/index.js`** (solo se agregaron los imports y
+  el export; los callables no cambiaron): `exports.syncWinningNumbers =
+  onSchedule({schedule: "every 60 minutes", timeZone: "America/Bogota",
+  secrets: [whatsApuestasKey]}, ...)`, sin región (igual que las demás),
+  con `whatsApuestasKey = defineSecret(WHATS_APUESTAS_SECRET_NAME)`. El
+  wrapper lee `whatsApuestasKey.value()`, crea (o reutiliza, si la
+  instancia ya la tiene) una segunda app de Admin con nombre propio
+  (`admin.initializeApp({credential: admin.credential.cert(json)},
+  "whats-apuestas")`) para leer las dos colecciones, usa la app por
+  defecto para `winning_numbers` y llama a `runWinningNumbersSync`.
+- **Verificado en el paquete instalado** (`firebase-functions` 7.4.0,
+  `firebase-admin` 13.8.0): `ScheduleOptions` tiene `schedule: string`
+  (crontab o sintaxis App Engine) y `timeZone?`; `secrets?` es una opción
+  de `GlobalOptions` que hereda; `SecretParam.value()` devuelve el texto
+  en tiempo de ejecución; cargando `index.js` en local, el endpoint queda
+  con `scheduleTrigger: {schedule: "every 60 minutes", timeZone:
+  "America/Bogota"}`, `secretEnvironmentVariables: [{key:
+  "WHATS_APUESTAS_KEY"}]` y sin región. **SUPOSICIÓN** (solo se comprueba al desplegar): que Cloud Scheduler acepte "every 60 minutes"
+  tal cual; no se desplegó.
+- Tests en `functions/test/winningNumbersSync.test.js` (`node:test`, datos
+  falsos, `mergeWinningNumbers` real).
+
 **PENDIENTE (no decidido)**:
 - Pieza de `findMatches`: si un boleto que acierta a dos ganadores (p. ej.
   "606" contra "606" y "4606") sale como una tarjeta o como dos.
 - Confirmar con datos reales la clave de emparejamiento (`lotteryKey`):
   ver el caso `dorado_mañana` / `doramaña`.
-- Qué hacer con `discarded` (log, alerta, guardarlo).
-- El handler programado (pieza b2: `onSchedule`, lectura de las dos
-  colecciones, filtro por fecha, escritura solo si cambió), con su zona
-  horaria.
-- El secreto con las credenciales de `whats-apuestas` (hoy `functions/` no
-  usa ningún secreto) y el deploy.
+- Qué hacer con `discarded` (hoy solo va al log).
+- Crear el secreto (`WHATS_APUESTAS_KEY`, nombre PROVISIONAL) con la llave
+  de cuenta de servicio de `whats-apuestas`.
+- Desplegar la función.
+- Revisar qué cambia al desplegar el paquete completo de `functions/`: se
+  redesplegarían también los 10 callables y entraría la actualización a
+  `firebase-functions` 7.4.0 (según `PROJECT_DOCUMENTATION.md`, sección
+  10, producción tenía la 7.2.5; no verificado).
 - El índice de grupo de colecciones sobre `fechaJornada` y `rol` (el enlace
   sale del error de la primera consulta con ganadores, en el log
   `[COINCIDENCIAS] falló (firestore): ...`).

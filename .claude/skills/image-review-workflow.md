@@ -388,11 +388,33 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    (verificado en `find_matches.dart`)**: hoy `findMatches` devuelve una
    entrada por registro coincidente, con igualdad exacta, así que un
    boleto nunca sale dos veces.
+   **Pieza b2 — HECHA, sin desplegar** (solo código y tests con datos
+   falsos). **DECIDIDO por el usuario**: disparador cada 60 minutos, hoy y
+   ayer en hora de Bogotá, escribir solo si cambió, un resultado vacío no
+   escribe nada. Sobre `discarded`: comportamiento actual de la pieza b2: discarded solo se registra en el log; qué hacer con discarded sigue PENDIENTE (no decidido). `functions/winningNumbersSync.js`
+   (sin `firebase-admin`, dependencias por parámetro):
+   `syncWinningNumbers` lee `resultados_loterias/{fecha}` y
+   `manual_lotteries/{fecha}` (ausente = vacío), mezcla con
+   `mergeWinningNumbers`, compara con `winning_numbers/{fecha}` como listas
+   ordenadas y escribe `{numbers}` solo si cambió; una fecha que falla se
+   registra (id y tipo de error) sin escribirla y se sigue con la otra;
+   devuelve y registra un resumen por fecha (`escrita`, `sin-cambios`,
+   `omitida-vacia`, `error`). Fecha de Bogotá con UTC-5 fijo.
+   `runWinningNumbersSync` maneja el secreto (falta o JSON inválido → log
+   con el nombre, sin el contenido, y no escribe). En `index.js`, solo un
+   import y el export `syncWinningNumbers` (`onSchedule`, `"every 60
+   minutes"`, `timeZone: "America/Bogota"`, sin región, `secrets:
+   [defineSecret("WHATS_APUESTAS_KEY")]`, nombre PROVISIONAL) con una
+   segunda app de Admin "whats-apuestas" para leer. **SUPOSICIÓN** (solo se comprueba al desplegar): que Cloud Scheduler acepte "every 60 minutes".
+   **SUPOSICIÓN**: el
+   documento lleva solo `numbers`. Detalle en
+   `image-review-firebase-integration` ("Pieza b2").
    **PENDIENTES de la función puente (no decididos)**: en la pieza de
    `findMatches`, si un boleto que acierta a dos ganadores sale como una tarjeta o como dos; confirmar el
-   slug con datos reales; qué hacer
-   con `discarded`; el handler programado (pieza b2); el secreto con las
-   credenciales de `whats-apuestas`; el deploy.
+   slug con datos reales; qué hacer con `discarded`; crear el secreto;
+   desplegar; revisar qué cambia al desplegar el paquete completo de
+   `functions/` (los 10 callables y la actualización a `firebase-functions`
+   7.4.0).
    **PENDIENTES (no decididos)**: el índice de grupo de colecciones sobre
    `fechaJornada` y `rol` (el enlace sale del error de la primera consulta
    con ganadores, en el log `[COINCIDENCIAS] falló (firestore): ...`);
@@ -423,9 +445,9 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    `functions/`; fuente de festivos; el horario del ERP puede cambiar sin
    aviso; caché de la PWA tras desplegar; los mensajes ya guardados se
    reclasifican con la tabla única; que Coincidencias, cuando haya
-   ganadores, probablemente pida un índice sobre `rol`; el handler, el
-   secreto y el deploy de la función puente de ganadores (ver "Función
-   puente (pieza b)" arriba); borrar los 4
+   ganadores, probablemente pida un índice sobre `rol`; crear el secreto y desplegar
+   la función puente de ganadores (el handler ya está escrito, pieza b2;
+   ver "Función puente (pieza b)" arriba); borrar los 4
    documentos de prueba antes de desplegar el hosting; borrar los mocks y
    el uploader simulado; y lo ya pendiente.
 
@@ -479,11 +501,13 @@ de aquí y de la skill correspondiente cuando el usuario confirme):
   el mecanismo ya está decidido (polling programado cada hora, hoy y ayer
   en hora de Bogotá, sin historial) y la mezcla está hecha (piezas b1 y
   b1.1: 3 o 4 cifras, `sin-loteria`; decididos la escritura solo si
-  cambió y no escribir nada si el resultado sale vacío).
-  Falta: confirmar la clave de emparejamiento (`lotteryKey`, PROVISIONAL;
+  cambió y no escribir nada si el resultado sale vacío) y el handler
+  programado está escrito y probado con datos falsos (pieza b2, sin
+  desplegar). Falta: confirmar la clave de emparejamiento (`lotteryKey`, PROVISIONAL;
   caso `dorado_mañana`/`doramaña`), qué hacer con `discarded`, implementar la nueva regla de `findMatches` (y decidir si un
-  boleto que acierta a dos ganadores sale como una tarjeta o dos), el handler
-  programado, el secreto y el deploy. (El
+  boleto que acierta a dos ganadores sale como una tarjeta o dos), crear
+  el secreto, desplegar y revisar qué cambia al desplegar el paquete
+  completo de `functions/` (10 callables y `firebase-functions` 7.4.0). (El
   formato de las jornadas ya se vio y se decidió una tabla fija en código,
   2026-09-30.)
 - **Tabla única de jornadas** (`image-review-domain`): actualizar el bot
