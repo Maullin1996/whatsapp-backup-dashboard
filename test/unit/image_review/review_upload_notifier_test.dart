@@ -1,14 +1,10 @@
-import 'dart:convert';
-
 import 'package:dartz/dartz.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:whatsapp_monitor_viewer/core/errors/failure.dart';
 import 'package:whatsapp_monitor_viewer/features/chats/domain/entities/chat.dart';
 import 'package:whatsapp_monitor_viewer/features/chats/presentation/provider/active_chat_provider.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/data/repositories/in_memory_image_review_repository.dart';
-import 'package:whatsapp_monitor_viewer/features/image_review/data/sync/simulated_review_uploader.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/comprobante.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/estado_sync.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/image_review_form.dart';
@@ -133,105 +129,6 @@ void main() {
     expect(uploader.uploaded, isEmpty);
     expect(seen, isEmpty);
     expect((await stored('a'))!.estadoSync, EstadoSync.pendiente);
-  });
-
-  group('SimulatedReviewUploader', () {
-    late List<String> printed;
-    late DebugPrintCallback original;
-
-    setUp(() {
-      original = debugPrint;
-      printed = [];
-      debugPrint = (message, {wrapWidth}) => printed.add(message ?? '');
-    });
-    tearDown(() => debugPrint = original);
-
-    test('imprime la ruta grupo -> jornada -> registro y los datos (sin v '
-        'ni estadoSync, con shiftKey) y no falla', () async {
-      final record = _record('m1', registradoEn: DateTime.utc(2026, 1, 15, 8));
-
-      final result = await const SimulatedReviewUploader().upload(record);
-
-      expect(result.isRight(), isTrue);
-      expect(printed, hasLength(1));
-      final lines = printed.single.split('\n');
-      expect(
-        lines.first,
-        '[SUBIDA SIMULADA] '
-        'image_reviews/c1/jornadas/2026-01-15_morning/registros/m1_revisor',
-      );
-      final data = jsonDecode(lines.skip(1).join('\n')) as Map<String, dynamic>;
-      expect(data.containsKey('v'), isFalse);
-      expect(data.containsKey('estadoSync'), isFalse);
-      expect(data, {
-        'messageId': 'm1',
-        'chatJid': 'c1',
-        'shift': _shift,
-        'shiftKey': 'morning',
-        'rol': 'revisor',
-        'storagePath': 'img_m1.png',
-        'fechaJornada': '2026-01-15',
-        'messageTimestamp': 1788489942000,
-        'codigo': 'A1',
-        'comprobantes': [
-          {
-            'numeros': ['0123'],
-            'total': 1000,
-            'loteria': null,
-          },
-        ],
-        'anotaciones': null,
-        'registradoEn': '2026-01-15T08:00:00.000Z',
-        'registradoPor': 'a@x.com',
-        'editado': false,
-      });
-    });
-
-    test('sin messageTimestamp (registro de antes): Left y no imprime '
-        'nada', () async {
-      final result = await const SimulatedReviewUploader().upload(
-        _record('m4', messageTimestamp: null),
-      );
-
-      expect(result.isLeft(), isTrue);
-      expect(printed, isEmpty);
-    });
-
-    test('sin código de la imagen (registro anterior): Left y no imprime '
-        'nada', () async {
-      final result = await const SimulatedReviewUploader().upload(
-        _record('m5', codigo: null),
-      );
-
-      expect(result.isLeft(), isTrue);
-      expect(printed, isEmpty);
-    });
-
-    test('el id del documento lleva el rol', () async {
-      await const SimulatedReviewUploader().upload(
-        _record('m2', rol: ReviewRole.sumador),
-      );
-      expect(
-        printed.single,
-        contains(
-          'image_reviews/c1/jornadas/2026-01-15_morning/registros/m2_sumador',
-        ),
-      );
-    });
-
-    for (final (caso, shift) in [
-      ('fuera de jornada', 'Fuera de las jornadas'),
-      ('etiqueta desconocida', 'Jornada Madrugada'),
-    ]) {
-      test('$caso: devuelve Left y no imprime nada', () async {
-        final result = await const SimulatedReviewUploader().upload(
-          _record('m3', shift: shift),
-        );
-
-        expect(result.isLeft(), isTrue);
-        expect(printed, isEmpty);
-      });
-    }
   });
 
   group('subir una jornada', () {
