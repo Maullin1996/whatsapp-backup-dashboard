@@ -466,6 +466,25 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    reclasifican con la tabla única; que Coincidencias, cuando haya
    ganadores, probablemente pida un índice sobre `rol`; borrar los 4
    documentos de prueba antes de desplegar el hosting; y lo ya pendiente.
+   **Horarios dinámicos, pieza 1 — HECHA (código y tests; NO desplegada)**
+   (decisión del usuario, 2026-10-03): el mismo disparador programado de los
+   ganadores, después de ellos y con la misma conexión y el mismo secreto,
+   copia `jornadas` del ERP a una colección `jornadas` de nuestro proyecto
+   (nombre PROVISIONAL): réplica exacta (mismos ids y los 7 campos, tal
+   cual), escribe solo si cambió o no existe, valida solo el formato de
+   `startTime`/`endTime`, nunca borra, cero documentos del ERP no escribe
+   nada; ganadores y jornadas aislados en try/catch separados.
+   `functions/jornadasSync.js` + tests en `functions/test/jornadasSync.test.js`;
+   bloque de reglas de `jornadas` en `firestore.rules.draft`, **NO
+   PUBLICADO** (hasta publicarlo la app no puede leer la colección).
+   DECIDIDO: "Mañana" vale para las mañanas de todos los días excepto
+   domingos y festivos, que usan `festivos`. Conversión de ids y detalle en
+   `image-review-firebase-integration` ("Réplica de jornadas").
+   **PENDIENTES (no decididos)**: pieza 2 (la app lee la colección con la
+   tabla fija de respaldo), pieza 3 (el bot la lee), la lista de festivos,
+   publicar las reglas, desplegar, qué significan `pendingApproval` y
+   `proposed*`. **SUPOSICIÓN**: los horarios que se usan son siempre
+   `startTime` y `endTime`.
    **Limpieza — HECHA**: se borraron `MockSummaryRepository`,
    `MockMatchesRepository` y `SimulatedReviewUploader`, con sus tests
    propios; el test del menú (`custom_popup_menu_logout_button_test.dart`)
@@ -533,6 +552,10 @@ de aquí y de la skill correspondiente cuando el usuario confirme):
   con los mismos rangos y sin night2 (en su repo), retirar night2 de
   `ASSIGNABLE_SHIFTS` en `functions/`, fuente de festivos, horario del ERP
   que puede cambiar sin aviso y caché de la PWA tras desplegar.
+- **Horarios dinámicos** (`image-review-firebase-integration`, "Réplica de
+  jornadas"): pieza 1 hecha y sin desplegar; faltan las piezas 2 (app) y 3
+  (bot), la lista de festivos, publicar la regla de `jornadas`, desplegar y
+  el significado de `pendingApproval`/`proposed*`.
 - **Calidad de conexión en la subida real** (`image-review-offline-sync`,
   paso 7) — el timeout por registro ya existe (15 s, capa 3); falta decidir
   si además se verifica la conexión antes de subir, y qué pasa si una

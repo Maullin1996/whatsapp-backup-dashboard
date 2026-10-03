@@ -444,6 +444,17 @@ definitiva".
   - `shiftFromLabel` de "Fuera de jornada X" da `outOfShift`: el panel de
     formulario no aparece en un hueco y `toUploadDocument` lo rechaza.
 - **Festivos**: sin cambios, solo se detectan domingos.
+- **DECIDIDO por el usuario (2026-10-03)**: "Mañana" vale para las mañanas
+  de todos los días excepto domingos y festivos, que usan `festivos` del
+  ERP. La lista de festivos en Firebase queda como pieza aparte.
+- **Horarios dinámicos, pieza 1 — HECHA (no desplegada)**: la función
+  programada copia `jornadas` del ERP a una colección `jornadas` de nuestro
+  proyecto (réplica exacta, nombre PROVISIONAL). La app **todavía no la
+  lee** (pieza 2) y su regla de lectura **no está publicada**. Conversión de
+  ids del ERP a claves de `Shift`: `manana` → `morning`, `tarde_1` →
+  `afternoon1`, `tarde_2` → `afternoon2`, `noche` → `night1`, `festivos` →
+  `holiday`. Detalle en `image-review-firebase-integration` ("Réplica de
+  jornadas").
 - **Tests**: `test/unit/shifts_test.dart` (bordes, huecos, etiquetas,
   `shiftFromLabel`, panel de control, jornadas asignables) y
   `shifts_end_test.dart` (fin de cada jornada); `shifts_cutover_test.dart`
@@ -462,6 +473,11 @@ definitiva".
 - Caché de la PWA tras desplegar (versiones viejas con la tabla vieja).
 - Consecuencia a tener presente: los mensajes ya guardados se reclasifican
   con la tabla única (su etiqueta del visor se calcula al cargarlos).
+- Horarios dinámicos: pieza 2 (la app lee la réplica, con la tabla fija de
+  respaldo), pieza 3 (el bot la lee), la lista de festivos, publicar la
+  regla de `jornadas`, desplegar, y qué significan `pendingApproval` y
+  `proposed*` en el ERP. **SUPOSICIÓN**: los horarios que se usan son
+  siempre `startTime` y `endTime`.
 
 ## Reglas de negocio (no negociables sin confirmación explícita del usuario)
 

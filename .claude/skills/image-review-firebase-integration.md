@@ -444,12 +444,112 @@ horario (mientras `pendingApproval` sea `true` rigen `startTime`/`endTime`).
   la ofrece, el servidor todavía la acepta).
 - Fuente de festivos (hoy solo se detectan domingos).
 - El horario del ERP (`jornadas` de `whats-apuestas`) puede cambiar sin
-  aviso: la tabla está fija en código.
+  aviso: la tabla está fija en código (la réplica de la pieza 1, abajo, es
+  el primer paso; la app todavía no la lee).
 - Caché de la PWA tras desplegar (versiones viejas con la tabla vieja).
 - Consecuencia a tener presente: los mensajes ya guardados se reclasifican
   con la tabla única (su etiqueta del visor se calcula al cargarlos).
 - Mecanismo de recepción de números ganadores y contrato de la Cloud
   Function puente (ver "Zona gris" al final).
+
+### Réplica de jornadas (horarios dinámicos, pieza 1)
+
+**HECHO (lectura única de solo lectura del 2026-10-03)**: `jornadas` del ERP
+sigue con los mismos 5 documentos, los mismos 7 campos y los mismos horarios
+de la lectura del 2026-09-30 (ver "Tabla definitiva"). La fecha de
+`startTime`/`endTime` es la de `updateTime` del documento en hora de Bogotá.
+
+**DECIDIDO por el usuario (2026-10-03)**:
+- La función programada copia la colección `jornadas` del ERP a una colección
+  `jornadas` de **nuestro** proyecto (nombre **PROVISIONAL**, en una sola
+  constante, `JORNADAS_COLLECTIONS.target`). Es una **réplica exacta**:
+  mismos ids (`festivos`, `manana`, `tarde_1`, `tarde_2`, `noche`) y los
+  mismos 7 campos (`name`, `startTime`, `endTime`, `pendingApproval`,
+  `proposedBy`, `proposedStartTime`, `proposedEndTime`), copiados tal cual,
+  sin convertir nada. Sin historial y sin fechas de vigencia.
+- Por cada documento del ERP: se compara con el nuestro y se escribe solo si
+  es distinto o no existe, con `set` completo (sin merge).
+- Validación mínima antes de escribir: `startTime` y `endTime` son texto
+  `yyyy-MM-ddTHH:mm:ss.000` con hora (00–23) y minuto (00–59) válidos. Un
+  documento inválido se omite y se registra con su id y el motivo, sin
+  copiarlo y sin tocar el guardado. No se valida nada más.
+- Si el ERP devuelve cero documentos, no se escribe ni se borra nada.
+  **Nunca** se borra un documento de nuestra colección.
+- Un fallo en un documento no frena a los demás ni a los ganadores. Ganadores
+  y jornadas van cada uno en su propio try/catch; ninguno lanza al otro.
+- Corre en el **mismo** disparador programado que los ganadores, después de
+  ellos, con la misma conexión al ERP y el mismo secreto. No hay otro export,
+  otro secreto ni otro schedule.
+- **"Mañana" vale para las mañanas de todos los días excepto domingos y
+  festivos, que usan `festivos`.** La lista de festivos en Firebase queda
+  como pieza aparte.
+
+**Conversión de ids del ERP a claves de la app** (enum `Shift`; la función
+no convierte nada, la réplica guarda los ids del ERP):
+
+| Id del ERP (`name`) | Clave de la app |
+|---|---|
+| `manana` ("Mañana") | `morning` |
+| `tarde_1` ("Tarde1") | `afternoon1` |
+| `tarde_2` ("Tarde2") | `afternoon2` |
+| `noche` ("Noche") | `night1` |
+| `festivos` ("Domingos y Festivos") | `holiday` |
+
+`night2` y `outOfShift` no tienen documento en el ERP. La conversión sale de
+comparar los horarios de cada documento con la tabla fija de
+`lib/core/time/shifts.dart` (coinciden uno a uno).
+
+**Pieza 1 — HECHA (código y tests con datos falsos; NO desplegada)**:
+- **`functions/jornadasSync.js`** (no importa `firebase-admin`):
+  - `syncJornadas({readSourceJornadas, readStoredJornada, writeJornada,
+    logger})`: lee todos los documentos del ERP; por cada uno valida, lee el
+    nuestro por id y escribe si cambió o no existe. Devuelve y registra un
+    resumen `[{id, status}]` con `escrito` | `sin-cambios` |
+    `omitido-invalido` | `error`. Etiqueta de log `[JORNADAS]`.
+  - Motivos de omisión: `startTime-no-es-texto`, `startTime-formato-invalido`,
+    `startTime-hora-invalida` (y los mismos con `endTime`), `sin-datos`.
+  - Errores: un documento que falla (lectura del nuestro o escritura) queda
+    `error` con su id y el **tipo** de error (nunca el mensaje), y se sigue.
+    Si no se puede leer el ERP: log y `null`, sin escribir. Cero documentos:
+    `[]`, sin escribir ni borrar.
+  - Lo que se copia es el `data()` completo del documento del ERP, tal cual.
+    Hoy son los 7 campos; si el ERP agregara un campo, también se copiaría.
+  - Comparación: igualdad profunda (orden de claves indiferente; un valor con
+    `isEqual`, como un `Timestamp`, se compara con él).
+  - `jornadasFirestoreSources(sourceDb, targetDb)`: un `get()` de la colección
+    del ERP, un `get()` por id de la nuestra y `set()` sin merge. Ni `delete`,
+    ni `update`, ni batches.
+- **`functions/winningNumbersSync.js`**: `runWinningNumbersSync` ahora envuelve
+  `syncWinningNumbers` en un try/catch (antes, si lanzaba, la promesa se
+  rechazaba; ahora registra `[GANADORES] la sincronización falló` con el tipo
+  y sigue) y después, si `connect` devolvió `jornadas`, llama a
+  `syncJornadas` en su propio try/catch. Su firma y su valor de retorno (el
+  resumen de ganadores, o `null`) no cambiaron. Si el secreto falta o
+  `connect` falla, no corre ninguna de las dos.
+- **`functions/index.js`**: solo el import y el `connect` del handler, que
+  devuelve `{...firestoreSources(...), jornadas:
+  jornadasFirestoreSources(sourceDb, firestore)}` con la misma app
+  `"whats-apuestas"`.
+- Costo por corrida: una consulta de 5 documentos en el ERP, 5 lecturas por id
+  en nuestro proyecto y hasta 5 escrituras (0 si nada cambió), cada hora.
+- Tests en `functions/test/jornadasSync.test.js` (`node:test`, datos falsos).
+- **Reglas**: bloque `match /jornadas/{docId}` en `firestore.rules.draft`
+  (lectura con sesión, escritura negada), **NO PUBLICADO**. Mientras no se
+  publique, la app **no puede leer** esa colección.
+- **Nombre**: la colección de la raíz `jornadas` es distinta de las
+  subcolecciones `image_reviews/{chatJid}/jornadas`. HECHO: hoy ningún código
+  hace una consulta de grupo sobre `jornadas` (que las mezclaría).
+
+**SUPOSICIÓN**: los horarios que se usan son siempre `startTime` y `endTime`
+(de ellos solo la hora).
+
+**PENDIENTE (no decidido)**:
+- Pieza 2: la app lee la colección, con la tabla fija como respaldo.
+- Pieza 3: el bot la lee.
+- La lista de festivos.
+- Publicar el bloque de reglas de `jornadas`.
+- Desplegar la función con este cambio.
+- Qué significan `pendingApproval` y `proposed*` en el ERP.
 
 ### Antecedente: la idea de leer las jornadas del otro proyecto
 

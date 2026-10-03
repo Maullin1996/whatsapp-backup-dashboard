@@ -562,7 +562,9 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
     `ReviewUploadNotifier` solo cuenta los fallos, no muestra su mensaje (el
     tipo solo queda en el `debugPrint`).
   - Nombres definitivos de las colecciones (`image_reviews`, `jornadas`,
-    `registros` son provisionales).
+    `registros` son provisionales). Ojo: esta subcolección `jornadas` no es
+    la colección de la raíz `jornadas` (réplica del ERP, ver
+    `image-review-firebase-integration`, "Réplica de jornadas").
   - Cómo lee Coincidencias los registros de todos los grupos: consulta de
     grupo de colecciones sobre `registros` o una Cloud Function. (El
     Resumen real, ya conectado, usa la consulta de grupo por
