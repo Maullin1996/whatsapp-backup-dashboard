@@ -338,15 +338,66 @@ describe("mergeWinningNumbers", () => {
     });
 
     test("dorado_mañana (automática) y doramaña (manual): un solo valor", () => {
-      // Hecho observado en datos reales: es la misma lotería, pero con la
-      // clave PROVISIONAL no se emparejan (confirmar la clave queda PENDIENTE).
-      assert.notEqual(lotteryKey("dorado_mañana"), lotteryKey("doramaña"));
+      // Ajuste del alias: antes fijaba que las claves eran distintas; ahora
+      // `LOTTERY_KEY_ALIASES` las empareja (misma lotería, 118 fechas).
+      assert.equal(lotteryKey("dorado_mañana"), lotteryKey("doramaña"));
       const result = mergeWinningNumbers(
         autoDoc(auto("dorado_mañana", "4821", { nombreLoteria: "Dorado Mañana" })),
         [manual("doramaña", "4821", { lottery: "Dorado Mañana" })],
       );
       assert.deepEqual(result.numbers, ["4821"]);
       assert.deepEqual(result.discarded, []);
+    });
+  });
+
+  describe("alias doramaña → dorado_mañana", () => {
+    test("la manual doramaña reemplaza a la automática Dorado mañana", () => {
+      const result = mergeWinningNumbers(
+        autoDoc(auto("dorado_mañana", "1288", { nombreLoteria: "Dorado Mañana" })),
+        [manual("doramaña", "4828", { lottery: "Doramaña" })],
+      );
+      assert.ok(result.numbers.includes("4828"));
+      assert.ok(!result.numbers.includes("1288"));
+      assert.deepEqual(result.discarded, []);
+    });
+
+    test("con el mismo número en las dos queda uno solo", () => {
+      const result = mergeWinningNumbers(
+        autoDoc(auto("dorado_mañana", "4828")),
+        [manual("doramaña", "4828")],
+      );
+      assert.deepEqual(result.numbers, ["4828"]);
+    });
+
+    test("una manual dorado_mañana sigue reemplazando a la automática", () => {
+      const result = mergeWinningNumbers(
+        autoDoc(auto("dorado_mañana", "1288"), auto("boyaca", "2222")),
+        [manual("dorado_mañana", "4828")],
+      );
+      assert.deepEqual(result.numbers, ["2222", "4828"]);
+    });
+
+    test("una manual doramaña sin automática de dorado_mañana cuenta como una más", () => {
+      const result = mergeWinningNumbers(autoDoc(auto("boyaca", "2222")), [
+        manual("doramaña", "4828"),
+      ]);
+      assert.deepEqual(result.numbers, ["2222", "4828"]);
+    });
+
+    test("doradotarde y dorado_tarde no se emparejan", () => {
+      assert.notEqual(lotteryKey("doradotarde"), lotteryKey("dorado_tarde"));
+      const result = mergeWinningNumbers(
+        autoDoc(auto("dorado_tarde", "1111")),
+        [manual("doradotarde", "2222")],
+      );
+      assert.deepEqual(result.numbers, ["1111", "2222"]);
+    });
+
+    test("una manual doradotarde sola cuenta como una más", () => {
+      const result = mergeWinningNumbers(autoDoc(auto("boyaca", "3333")), [
+        manual("doradotarde", "2222"),
+      ]);
+      assert.deepEqual(result.numbers, ["2222", "3333"]);
     });
   });
 

@@ -33,21 +33,32 @@ const DISCARD_REASONS = {
   noLottery: "sin-loteria",
 };
 
+// Alias de lotería: clave normalizada → clave normalizada con la que se
+// empareja. Se aplica después de normalizar, a las entradas de las dos
+// fuentes. Única entrada: `doramaña` (manual) es `dorado_mañana` (automática).
+const LOTTERY_KEY_ALIASES = {
+  doramana: "dorado_manana",
+};
+
 // Clave para emparejar la misma lotería entre las dos colecciones.
-// PROVISIONAL, a confirmar con datos reales: el slug en minúsculas, sin tildes
-// y sin espacios sobrantes. Es el ÚNICO lugar que decide si dos entradas son
-// la misma lotería; para cambiar el criterio basta con cambiar esta función.
-// Hecho observado en datos reales, SIN resolver (PENDIENTE): la automática trae
-// `dorado_mañana` y la manual `doramaña`; son la misma lotería (mismo número en
-// 6 de 7 días) pero con esta clave no se emparejan y cuentan por separado.
+// PROVISIONAL: el slug en minúsculas, sin tildes y sin espacios sobrantes, y
+// después la tabla `LOTTERY_KEY_ALIASES`. Es el ÚNICO lugar que decide si dos
+// entradas son la misma lotería; para cambiar el criterio basta con cambiar
+// esta función. Alias respaldado por una lectura de whats-apuestas del
+// 2026-10-03: doramaña coincide con dorado_mañana en 118 fechas entre
+// 2026-01-19 y 2026-10-03; los demás pares probados aparecieron en una sola
+// fecha y no se usan.
 function lotteryKey(slug) {
   if (typeof slug !== "string") return "";
-  return slug
+  const key = slug
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
     .trim()
     .replace(/\s+/g, " ");
+  return Object.hasOwn(LOTTERY_KEY_ALIASES, key)
+    ? LOTTERY_KEY_ALIASES[key]
+    : key;
 }
 
 // El texto con `trim`, o "" si no es texto.
