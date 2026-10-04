@@ -319,8 +319,8 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    `image_reviews`.
    - **Comparación**: los ganadores de una fecha se comparan contra los
      números del Revisor de **TODAS las jornadas y grupos** de esa fecha;
-     solo cuenta el número (`findMatches`; desde la pieza de 3 y 4 cifras,
-     ver "Pieza b1.1" más abajo). Solo las
+     solo cuenta el número (`findMatches`; regla de 2, 3 y 4 cifras, ver
+     "Pieza `findMatches`" más abajo). Solo las
      coincidencias leen su mensaje (una vez por `messageId`) y su grupo (una
      vez por `chatJid`); cualquier lectura fallida → `Left`.
    - **Pantalla**: siempre una lista por jornada (las del día: domingo solo
@@ -364,26 +364,24 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    forma real de las entradas documentada (`manualList` = `doc.data().list`
    de `manual_lotteries/{yyyy-MM-dd}`, sin usar `date`). **DECIDIDO por el
    usuario**: ganadores de 3 o 4 cifras en el mismo `numbers` ("Cash
-   three" cuenta); por ahora un ganador de 3 cifras se compara solo con
-   boletos de 3; la regla de `findMatches` (boleto de 4 = ganador completo,
-   boleto de 3 = últimas 3 del ganador de 4, otras longitudes se ignoran
-   sin aviso, aciertos de 3 y de 4 como coincidencias separadas) está
-   decidida e **IMPLEMENTADA** (ver abajo); una entrada sin nombre ni slug no es
+   three" cuenta); la regla de `findMatches` es ahora la de 2, 3 y 4
+   cifras (ver "Pieza `findMatches`" abajo); una entrada sin nombre ni slug no es
    válida; el slug sigue PROVISIONAL, con un alias **DECIDIDO por el
    usuario e IMPLEMENTADO**: `doramaña` (manual) se empareja con
    `dorado_mañana` (automática) mediante `LOTTERY_KEY_ALIASES` en
    `lotteryKey`, respaldado por 118 fechas en una lectura de
    `whats-apuestas` del 2026-10-03; los demás pares se descartan por
    aparecer en una sola fecha; la escritura será solo si cambió (pieza b2);
-   un boleto de 3 cifras puede coincidir a la vez con un ganador de 3 (p.
-   ej. "Cash three") y con las últimas 3 de un ganador de 4 ("606" con
+   un boleto puede coincidir a la vez con varios ganadores ("606" con
    "606" y con "4606"): la app solo muestra coincidencias y los revisores
    deciden si corresponde el premio doble; si el resultado de una fecha
    sale vacío, el handler no escribe nada y deja lo que había (si se
    borran los ganadores, los revisores no los revisan).
-   **Pieza `findMatches` (3 y 4 cifras) — HECHA**: **DECIDIDO por el usuario e IMPLEMENTADO**: tras `trim` en ambos lados, sin normalizar ni quitar ceros a la izquierda, un boleto de 4 cifras coincide si es igual a un ganador de 4; uno de 3, si es igual a las últimas 3 de un ganador de 4 o a un ganador de 3 (las dos vías a la vez); un ganador de 3 nunca coincide con un boleto de 4; boletos y ganadores de otra longitud se ignoran sin aviso; una entrada por registro, nunca dos veces
-   ("606" contra "606" y "4606" sale una sola vez; la entrada no lleva el
-   ganador). Tests en `test/unit/matches/find_matches_test.dart`.
+   **Pieza `findMatches` (2, 3 y 4 cifras) — HECHA**: **DECIDIDO por el usuario (aclaración del cliente) e IMPLEMENTADO**: tras `trim` en ambos lados, sin normalizar ni quitar ceros a la izquierda y sin validar que sean cifras; con un ganador de 4 cifras, un boleto de 4 coincide si es igual al ganador completo, uno de 3 si es igual a sus últimas 3 y uno de 2 si es igual a sus últimas 2; con un ganador de 3 cifras, un boleto de 3 coincide si es igual al ganador completo y uno de 2 si es igual a sus últimas 2; un boleto de 4 nunca coincide con un ganador de 3; boletos de otra longitud (1, 5 o más) y ganadores de longitud distinta de 3 o 4 se ignoran sin aviso; una entrada por registro, nunca dos veces
+   ("606" contra "606" y "4606", o "41" contra "5241" y "0341", sale una
+   sola vez; la entrada no lleva el ganador). La función puente no cambia:
+   los ganadores siguen siendo de 3 o 4 cifras. Tests en
+   `test/unit/matches/find_matches_test.dart`.
    **Pieza b2 — HECHA** (código y tests con datos falsos; desplegada el
    2026-10-03, ver abajo). **DECIDIDO por el usuario**: disparador cada 60 minutos, hoy y
    ayer en hora de Bogotá, escribir solo si cambió, un resultado vacío no

@@ -95,21 +95,27 @@ refactor grande — coherente con la Clean Architecture del proyecto.
   el chat que se está viendo en ese momento — así que esta comparación
   necesita mirar los registros ya subidos de todos los grupos, no ser
   una función local de una sola conversación.
-- **Cómo se comparan los números — regla de 3 y 4 cifras, DECIDIDA por
-  el usuario e IMPLEMENTADA** en `findMatches`
+- **Cómo se comparan los números — regla de 2, 3 y 4 cifras, DECIDIDA por
+  el usuario (aclaración del cliente) e IMPLEMENTADA** en `findMatches`
   (`features/matches/domain/helpers/`). Todo después de `trim` en ambos
   lados, sin normalizar mayúsculas ni quitar ceros a la izquierda
   (coherente con cómo el Revisor anota el número, `image-review-domain`
   regla 6) y sin validar que sean cifras (no está decidido):
-  - un boleto de 4 cifras coincide si es igual a un ganador de 4;
-  - un boleto de 3 coincide si es igual a las últimas 3 de un ganador de
-    4, o si es igual a un ganador de 3; las dos vías valen a la vez
-    ("606" coincide con "606" y con "4606");
-  - un ganador de 3 solo se compara con boletos de 3: un boleto de 4 nunca
-    coincide con él ("0606" contra "606" no coincide);
-  - un boleto o un ganador de otra longitud se ignora, sin aviso.
+  - ganador de 4 cifras: un boleto de 4 coincide si es igual al ganador
+    completo; uno de 3, si es igual a sus últimas 3; uno de 2, si es
+    igual a sus últimas 2;
+  - ganador de 3 cifras: un boleto de 3 coincide si es igual al ganador
+    completo; uno de 2, si es igual a sus últimas 2;
+  - un boleto de 4 nunca coincide con un ganador de 3 ("0606" contra
+    "606" no coincide);
+  - un boleto puede coincidir por varias vías a la vez ("606" coincide con
+    "606" y con "4606");
+  - un boleto de cualquier otra longitud (1, 5 o más) se ignora sin
+    aviso, y un ganador de longitud distinta de 3 o 4 también.
   Ceros a la izquierda: "0123" coincide con "0123"; "123" coincide con
-  "0123" (últimas 3); "0123" no coincide con el ganador "123".
+  "0123" (últimas 3); "0123" no coincide con el ganador "123"; "07"
+  coincide con "4607" y no con "0770". La función puente no cambia por
+  esta regla: los ganadores siguen siendo de 3 o 4 cifras.
 - **Qué se muestra al encontrar coincidencia**: el número que coincidió,
   el grupo (`chatJid`/nombre del grupo) al que pertenece, quién lo
   envió, la hora y la jornada. **Ya no se muestra si el mensaje fue
@@ -230,20 +236,21 @@ escribe nada, no usa Firebase y no está exportada en `index.js`.
 **Pieza b1.1 — DECIDIDO por el usuario (2026-10-02)**:
 - Se aceptan ganadores de **3 o 4 cifras**. "Cash three" cuenta, y su
   ganador de 3 cifras va en el mismo `numbers`.
-- Por ahora un ganador de 3 cifras se compara solo con boletos de 3
-  cifras.
-- **Regla de comparación de `findMatches` — decidida e IMPLEMENTADA**
-  (ver "Cómo se comparan los números" arriba): un boleto de 4 cifras gana
-  si es igual al ganador completo; uno de 3 gana si es igual a las
-  últimas 3 cifras de un ganador de 4 o a un ganador de 3; cualquier otra
-  longitud del Revisor se ignora sin aviso; si un mismo ganador acierta a
-  boletos de 3 y de 4, se muestran como coincidencias separadas (son
-  registros distintos).
-- **Un boleto de 3 cifras puede coincidir a la vez** con un ganador de 3
-  cifras (p. ej. "Cash three") y con las últimas 3 de un ganador de 4
-  cifras: el boleto "606" coincide con "606" y con "4606". La app solo
-  muestra coincidencias; los revisores deciden si corresponde el premio
-  doble.
+- **Regla de comparación de `findMatches` — reemplazada por la de 2, 3 y
+  4 cifras, DECIDIDA por el usuario (aclaración del cliente) e
+  IMPLEMENTADA** (ver "Cómo se comparan los números" arriba): con un
+  ganador de 4, un boleto de 4 gana si es igual al ganador completo, uno
+  de 3 si es igual a sus últimas 3 y uno de 2 si es igual a sus últimas
+  2; con un ganador de 3, un boleto de 3 gana si es igual al ganador
+  completo y uno de 2 si es igual a sus últimas 2; un boleto de 4 nunca
+  coincide con un ganador de 3; boletos de otra longitud y ganadores de
+  longitud distinta de 3 o 4 se ignoran sin aviso; si un mismo ganador
+  acierta a boletos de distinta longitud, se muestran como coincidencias
+  separadas (son registros distintos).
+- **Un boleto puede coincidir a la vez** con varios ganadores: "606"
+  coincide con "606" (p. ej. "Cash three") y con "4606"; "41" con "5241" y
+  con "0341". La app solo muestra coincidencias; los revisores deciden si
+  corresponde el premio doble.
 - Una entrada sin nombre ni slug no es válida (`sin-loteria`).
 - El slug sigue como clave PROVISIONAL.
 - La escritura de `winning_numbers/{fecha}` será **solo si cambió** (se
