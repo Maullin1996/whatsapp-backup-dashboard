@@ -128,10 +128,12 @@ void main() {
       expect(findMatches(['606'], [_entry('4606')]), isEmpty);
     });
 
-    test('boletos de 1, 2 y 5 cifras se ignoran', () {
+    // Ajuste (regla de 2 cifras): antes también fijaba que "41" se ignoraba;
+    // ahora un boleto de 2 cifras coincide con las últimas 2 de "5241", así
+    // que sale de esta lista (se cubre en el grupo de 2 cifras).
+    test('boletos de 1 y 5 cifras se ignoran', () {
       final entries = [
         _entry('1', messageId: 'a'),
-        _entry('41', messageId: 'b'),
         _entry('15241', messageId: 'c'),
       ];
 
@@ -190,6 +192,91 @@ void main() {
       final b = _entry('606', messageId: 'b');
 
       expect(findMatches(['606', '4606', '1606'], [a, b]), [a, b]);
+    });
+  });
+
+  group('findMatches: boletos de 2 cifras', () {
+    test('ganador "5241": "5241", "241" y "41" coinciden; "524", "52" y '
+        '"24" no', () {
+      final completo = _entry('5241', messageId: 'a');
+      final ultimas3 = _entry('241', messageId: 'b');
+      final ultimas2 = _entry('41', messageId: 'c');
+      final primeras3 = _entry('524', messageId: 'd');
+      final primeras2 = _entry('52', messageId: 'e');
+      final medio = _entry('24', messageId: 'f');
+
+      expect(
+        findMatches(
+          ['5241'],
+          [completo, ultimas3, ultimas2, primeras3, primeras2, medio],
+        ),
+        [completo, ultimas3, ultimas2],
+      );
+    });
+
+    test('ganador "606": "606" y "06" coinciden; "60" y "0606" no', () {
+      final completo = _entry('606', messageId: 'a');
+      final ultimas2 = _entry('06', messageId: 'b');
+      final primeras2 = _entry('60', messageId: 'c');
+      final cuatro = _entry('0606', messageId: 'd');
+
+      expect(findMatches(['606'], [completo, ultimas2, primeras2, cuatro]), [
+        completo,
+        ultimas2,
+      ]);
+    });
+
+    test('un ganador de 3 cifras sigue sin coincidir con un boleto de 4', () {
+      expect(findMatches(['241'], [_entry('5241')]), isEmpty);
+      expect(findMatches(['606'], [_entry('4606')]), isEmpty);
+    });
+
+    test('"41" contra "5241" y "0341": una sola entrada', () {
+      final entry = _entry('41');
+
+      expect(findMatches(['5241', '0341'], [entry]), [entry]);
+    });
+
+    test('ceros a la izquierda: "07" coincide con "4607" y no con "0770"', () {
+      expect(findMatches(['4607'], [_entry('07')]), [_entry('07')]);
+      expect(findMatches(['0770'], [_entry('07')]), isEmpty);
+    });
+
+    test('trim en ambos lados, también para las últimas 2', () {
+      expect(findMatches([' 5241 '], [_entry(' 41 ')]), [_entry(' 41 ')]);
+      expect(findMatches(['606 '], [_entry(' 06')]), [_entry(' 06')]);
+    });
+
+    test('boletos de 1 y de 5 cifras se ignoran', () {
+      expect(findMatches(['5241'], [_entry('1')]), isEmpty);
+      expect(findMatches(['5241'], [_entry('15241')]), isEmpty);
+    });
+
+    test('ganadores de 2 y de 5 cifras se ignoran', () {
+      final entries = [
+        _entry('41', messageId: 'a'),
+        _entry('241', messageId: 'b'),
+        _entry('5241', messageId: 'c'),
+      ];
+
+      expect(findMatches(['41', '15241'], entries), isEmpty);
+    });
+
+    test('no modifica las listas', () {
+      final winners = [' 5241 ', '606'];
+      final entries = [
+        _entry(' 41 ', messageId: 'a'),
+        _entry('06', messageId: 'b'),
+        _entry('60', messageId: 'c'),
+      ];
+      final winnersBefore = List.of(winners);
+      final entriesBefore = List.of(entries);
+
+      final result = findMatches(winners, entries);
+
+      expect(result, [entries[0], entries[1]]);
+      expect(winners, winnersBefore);
+      expect(entries, entriesBefore);
     });
   });
 }

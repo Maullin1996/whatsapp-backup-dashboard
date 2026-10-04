@@ -9,7 +9,9 @@ import 'package:whatsapp_monitor_viewer/features/matches/domain/entities/match_e
 /// - Un registro de 3 coincide si es igual a las últimas 3 de un ganador de
 ///   4, o si es igual a un ganador de 3 (las dos vías valen a la vez:
 ///   "606" coincide con "606" y con "4606").
-/// - Un ganador de 3 solo se compara con registros de 3: "0606" nunca
+/// - Un registro de 2 coincide si es igual a las últimas 2 de un ganador de
+///   4 o de 3 ("41" coincide con "5241"; "06" con "606").
+/// - Un registro de 4 nunca coincide con un ganador de 3: "0606" no
 ///   coincide con "606".
 /// - Un registro o un ganador de otra longitud se ignora, sin aviso.
 ///
@@ -23,13 +25,16 @@ List<MatchEntry> findMatches(
 ) {
   final fourDigit = <String>{};
   final threeDigit = <String>{};
+  final twoDigit = <String>{};
   for (final raw in winningNumbers) {
     final winner = raw.trim();
     if (winner.length == 4) {
       fourDigit.add(winner);
       threeDigit.add(winner.substring(1));
+      twoDigit.add(winner.substring(2));
     } else if (winner.length == 3) {
       threeDigit.add(winner);
+      twoDigit.add(winner.substring(1));
     }
   }
 
@@ -38,6 +43,7 @@ List<MatchEntry> findMatches(
     return switch (numero.length) {
       4 => fourDigit.contains(numero),
       3 => threeDigit.contains(numero),
+      2 => twoDigit.contains(numero),
       _ => false,
     };
   }
