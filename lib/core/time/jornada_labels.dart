@@ -35,3 +35,9 @@ String? jornadaDateLabel(String fechaJornada, {DateTime? now}) {
   if (parts.length != 3) return fechaJornada;
   return '${parts[2]}/${parts[1]}/${parts[0]}';
 }
+
+final _hours = RegExp(r'\((\d{2}:\d{2}\s*–\s*\d{2}:\d{2})\)$');
+
+/// Horario que trae la etiqueta de una jornada ("Jornada Mañana (05:30 –
+/// 10:51)" -> "05:30 – 10:51"), o `null` si la etiqueta no lo trae.
+String? shiftHoursText(String label) => _hours.firstMatch(label)?.group(1);

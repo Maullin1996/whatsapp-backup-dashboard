@@ -44,4 +44,17 @@ void main() {
       expect(jornadaDateLabel('2025-12-31', now: now), '31/12/2025');
     });
   });
+
+  group('shiftHoursText', () {
+    test('saca el horario de la etiqueta', () {
+      expect(shiftHoursText(shiftNames[Shift.morning]!), '05:30 – 10:51');
+      expect(shiftHoursText(shiftNames[Shift.holiday]!), '06:00 – 19:15');
+      expect(shiftHoursText(legacyShiftNames[Shift.night2]!), '22:25 – 22:30');
+    });
+
+    test('null si la etiqueta no trae horario', () {
+      expect(shiftHoursText(shiftNames[Shift.outOfShift]!), isNull);
+      expect(shiftHoursText('Fuera de jornada Mañana'), isNull);
+    });
+  });
 }

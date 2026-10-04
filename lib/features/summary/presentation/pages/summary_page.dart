@@ -6,12 +6,18 @@ import 'package:whatsapp_monitor_viewer/core/shared/widget/pick_single_date.dart
 import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/domain/entities/jornada_summary.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/presentation/providers/summary_providers.dart';
-import 'package:whatsapp_monitor_viewer/features/summary/presentation/widgets/jornada_summary_card.dart';
+import 'package:whatsapp_monitor_viewer/features/summary/domain/helpers/summary_overview.dart';
+import 'package:whatsapp_monitor_viewer/features/summary/presentation/widgets/summary_group_section.dart';
+import 'package:whatsapp_monitor_viewer/features/summary/presentation/widgets/summary_overview_panel.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/presentation/widgets/summary_skeleton.dart';
 import 'package:whatsapp_monitor_viewer/helpers/format_long_date.dart';
 import 'package:whatsapp_monitor_viewer/helpers/map_failure_to_message.dart';
 
 /// Resumen por grupo y jornada de un día: qué registró cada rol y si cuadra.
+///
+/// Arriba, un panel informativo con lo que hay que atender (descuadres,
+/// pendientes, imágenes sin registrar) que también filtra; debajo, las
+/// jornadas por grupo, con los grupos con problemas primero.
 ///
 /// Lee datos reales de Firestore (ver `summaryRepositoryProvider`); solo para
 /// admin y superAdmin.
@@ -73,11 +79,11 @@ class _SummaryScaffold extends ConsumerWidget {
           ),
         ],
       ),
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.screenBackground,
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(
-            maxWidth: AppSizes.adminPanelMaxWidth,
+            maxWidth: AppSizes.summaryPanelMaxWidth,
           ),
           child: const Column(
             children: [
@@ -103,7 +109,7 @@ class _DateBar extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.lg,
-        vertical: AppSpacing.sm,
+        vertical: AppSpacing.md,
       ),
       child: Row(
         children: [
@@ -173,7 +179,8 @@ class _SummaryContent extends ConsumerWidget {
   }
 }
 
-/// Tarjetas de jornada agrupadas por grupo (en el orden en que llegan).
+/// Panel informativo arriba y, debajo, las jornadas por grupo (los grupos
+/// que necesitan atención primero), filtradas según la cifra elegida.
 class _SummaryList extends ConsumerWidget {
   final List<JornadaSummary> summaries;
 
@@ -181,37 +188,84 @@ class _SummaryList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Una sola lectura del reloj para todas las tarjetas de esta construcción.
+    // Una sola lectura del reloj para todo lo que se construye aquí.
     final now = ref.watch(clockProvider)();
-    final byGroup = <String, List<JornadaSummary>>{};
-    for (final summary in summaries) {
-      byGroup.putIfAbsent(summary.chatJid, () => []).add(summary);
-    }
+    final filter = ref.watch(summaryFilterProvider);
+    final filterNotifier = ref.read(summaryFilterProvider.notifier);
+    final overview = SummaryOverview.of(summaries, now);
+    final groups = groupsBySeverity([
+      for (final s in summaries)
+        if (matchesSummaryFilter(s, filter, now)) s,
+    ], now);
 
     return ListView(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        0,
+        AppSpacing.md,
+        AppSpacing.xl,
+      ),
       children: [
-        for (final group in byGroup.values) ...[
-          Padding(
-            padding: const EdgeInsets.only(
-              left: AppSpacing.xs,
-              bottom: AppSpacing.sm,
-            ),
-            child: Text(
-              group.first.groupName,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: AppColors.accentTeal,
-              ),
-            ),
+        SummaryOverviewPanel(
+          overview: overview,
+          filter: filter,
+          onFilter: filterNotifier.toggle,
+        ),
+        const SizedBox(height: AppSpacing.md),
+        if (filter != SummaryFilter.todas) ...[
+          _ActiveFilter(
+            filter: filter,
+            count: overview.countOf(filter),
+            onClear: filterNotifier.clear,
           ),
-          for (final summary in group) ...[
-            JornadaSummaryCard(summary: summary, now: now),
-            const SizedBox(height: AppSpacing.sm),
-          ],
           const SizedBox(height: AppSpacing.md),
         ],
+        if (groups.isEmpty)
+          _MessageState(
+            icon: Icons.filter_alt_off_rounded,
+            message: 'Ninguna jornada en «${_filterLabel(filter)}»',
+            actionLabel: 'Ver todas',
+            onAction: filterNotifier.clear,
+          ),
+        SummaryGroupGrid(groups: groups, now: now),
       ],
+    );
+  }
+}
+
+String _filterLabel(SummaryFilter filter) => switch (filter) {
+  SummaryFilter.todas => 'Todas',
+  SummaryFilter.descuadre => 'Descuadres',
+  SummaryFilter.pendiente => 'Pendientes',
+  SummaryFilter.imagenes => 'Imágenes sin registrar',
+  SummaryFilter.cuadra => 'Cuadran',
+};
+
+/// Qué filtro está activo, con cuántas jornadas, y cómo quitarlo.
+class _ActiveFilter extends StatelessWidget {
+  final SummaryFilter filter;
+  final int count;
+  final VoidCallback onClear;
+
+  const _ActiveFilter({
+    required this.filter,
+    required this.count,
+    required this.onClear,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: InputChip(
+        avatar: const Icon(Icons.filter_alt_rounded, size: 18),
+        label: Text(
+          'Mostrando: ${_filterLabel(filter)} ($count)',
+          style: AppTypography.badge,
+        ),
+        onDeleted: onClear,
+        deleteButtonTooltipMessage: 'Quitar filtro',
+      ),
     );
   }
 }

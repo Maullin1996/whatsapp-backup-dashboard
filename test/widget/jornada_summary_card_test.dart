@@ -44,6 +44,18 @@ Future<void> _pump(WidgetTester tester, JornadaSummary summary, DateTime now) =>
 final _aviso = RegExp(r'por registrar$');
 
 void main() {
+  group('cabecera', () {
+    testWidgets('muestra el horario y "En curso" mientras no termina', (
+      tester,
+    ) async {
+      await _pump(tester, _summary(), _enCurso);
+      expect(find.text('05:30 – 10:51 · En curso'), findsOneWidget);
+
+      await _pump(tester, _summary(), _terminada);
+      expect(find.text('05:30 – 10:51'), findsOneWidget);
+    });
+  });
+
   group('aviso de imágenes sin registrar', () {
     testWidgets('jornada terminada, rol registrado y faltantes > 0: aparece '
         'bajo el rol, en plural', (tester) async {
@@ -55,14 +67,15 @@ void main() {
 
       expect(find.text('Faltan 3 imágenes por registrar'), findsOneWidget);
       expect(find.textContaining(_aviso), findsOneWidget);
-      // Va debajo de la fila del Revisor y encima de la del Sumador.
-      final revisor = tester.getTopLeft(find.textContaining('Revisor:')).dy;
-      final aviso = tester
-          .getTopLeft(find.text('Faltan 3 imágenes por registrar'))
-          .dy;
-      final sumador = tester.getTopLeft(find.textContaining('Sumador:')).dy;
-      expect(aviso, greaterThan(revisor));
-      expect(aviso, lessThan(sumador));
+      // Va debajo de la tabla, con el nombre del rol al lado.
+      final total = tester.getTopLeft(find.text('Total')).dy;
+      final aviso = find.text('Faltan 3 imágenes por registrar');
+      expect(tester.getTopLeft(aviso).dy, greaterThan(total));
+      final row = find.ancestor(of: aviso, matching: find.byType(Row)).first;
+      expect(
+        find.descendant(of: row, matching: find.text('Revisor')),
+        findsOneWidget,
+      );
     });
 
     testWidgets('singular: "Falta 1 imagen por registrar"', (tester) async {

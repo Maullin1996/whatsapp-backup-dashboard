@@ -12,6 +12,13 @@ abstract class AppSizes {
   /// Ancho máximo de las listas/paneles del panel de admin.
   static const double adminPanelMaxWidth = 800;
 
+  /// Ancho máximo del panel del Resumen (cuadrícula de jornadas).
+  static const double summaryPanelMaxWidth = 1200;
+
+  /// Ancho mínimo de la tarjeta de un grupo en la cuadrícula del Resumen: de
+  /// él sale cuántas columnas caben (máximo 3).
+  static const double summaryGroupMinWidth = 340;
+
   /// Ancho máximo de una burbuja de mensaje en desktop.
   static const double messageBubbleMaxWidth = 420;
 

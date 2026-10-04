@@ -4,6 +4,7 @@ import 'package:whatsapp_monitor_viewer/core/errors/failure.dart';
 import 'package:whatsapp_monitor_viewer/core/errors/failure_log.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/data/cache/summary_cache.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/domain/entities/jornada_summary.dart';
+import 'package:whatsapp_monitor_viewer/features/summary/domain/helpers/summary_overview.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/domain/repositories/summary_repository.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/presentation/providers/real_summary_providers.dart';
 
@@ -20,6 +21,24 @@ class SummaryDateNotifier extends Notifier<DateTime> {
 final summaryDateProvider = NotifierProvider<SummaryDateNotifier, DateTime>(
   SummaryDateNotifier.new,
 );
+
+/// Filtro del panel del Resumen (las tarjetas de cifras). Se conserva al
+/// cambiar de fecha y se pierde al salir de la pantalla.
+class SummaryFilterNotifier extends Notifier<SummaryFilter> {
+  @override
+  SummaryFilter build() => SummaryFilter.todas;
+
+  /// Elige [filter]; elegir el que ya está activo vuelve a "todas".
+  void toggle(SummaryFilter filter) =>
+      state = state == filter ? SummaryFilter.todas : filter;
+
+  void clear() => state = SummaryFilter.todas;
+}
+
+final summaryFilterProvider =
+    NotifierProvider.autoDispose<SummaryFilterNotifier, SummaryFilter>(
+      SummaryFilterNotifier.new,
+    );
 
 /// Reloj del Resumen: devuelve la hora actual. Inyectable para que los tests
 /// fijen "ahora" (el aviso de imágenes sin registrar depende de si la jornada
