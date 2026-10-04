@@ -1,60 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
-import 'package:whatsapp_monitor_viewer/features/chats/presentation/provider/active_chat_provider.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/pending_jornada.dart';
 import 'package:whatsapp_monitor_viewer/core/time/jornada_labels.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/models/review_key.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/image_review_providers.dart';
-import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/pending_uploads_provider.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/review_upload_notifier.dart';
 import 'package:whatsapp_monitor_viewer/helpers/map_failure_to_message.dart';
 
-/// Una píldora por jornada del chat activo con registros pendientes de
-/// subir. Al tocarla se confirma y se sube esa jornada a Firestore (ver
-/// `reviewUploaderProvider`). Sin pendientes no ocupa espacio.
-class PendingUploadIndicators extends ConsumerWidget {
-  const PendingUploadIndicators({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final chatJid = ref.watch(activeChatProvider.select((c) => c?.chatJid));
-    // Sin rol no se muestra nada, sin depender de que la lista venga vacía.
-    if (ref.watch(currentReviewRoleProvider) == null) {
-      return const SizedBox.shrink();
-    }
-    // `value` conserva la lista anterior mientras se recalcula: sin parpadeo.
-    final jornadas = ref.watch(pendingUploadsProvider).value;
-    if (chatJid == null || jornadas == null || jornadas.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        for (final jornada in jornadas)
-          Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.sm),
-            child: _PendingUploadPill(
-              key: ValueKey('${jornada.fechaJornada}|${jornada.shift}'),
-              chatJid: chatJid,
-              jornada: jornada,
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class _PendingUploadPill extends ConsumerWidget {
+/// Píldora de subida de UNA jornada: tocarla confirma y sube sus pendientes
+/// con `ReviewUploadNotifier`. La usa el "Subir" de la pantalla de llenado
+/// `/review` (la cápsula del chat que la mostraba se quitó, capa 5).
+class PendingUploadPill extends ConsumerWidget {
   final String chatJid;
   final PendingJornada jornada;
 
-  const _PendingUploadPill({
+  /// `false`: en reposo dice "Subir · N pendientes" (en `/review` ya se sabe
+  /// de qué rol y jornada se trata). `true`: "Rol · jornada · N pendientes".
+  final bool showJornada;
+
+  const PendingUploadPill({
     super.key,
     required this.chatJid,
     required this.jornada,
+    this.showJornada = true,
   });
 
   static const _minHeight = 40.0;
@@ -146,10 +115,13 @@ class _PendingUploadPill extends ConsumerWidget {
       final total = progress.total > 0 ? progress.total : jornada.cantidad;
       label = 'Subiendo ${progress.hechos} de $total';
     } else {
-      label =
-          '${rol.label} · $_jornadaLabel${date == null ? '' : ', $date'} · '
+      final pendientes =
           '${jornada.cantidad} '
           '${jornada.cantidad == 1 ? 'pendiente' : 'pendientes'}';
+      label = showJornada
+          ? '${rol.label} · $_jornadaLabel${date == null ? '' : ', $date'} · '
+                '$pendientes'
+          : 'Subir · $pendientes';
     }
 
     const color = AppColors.warning;

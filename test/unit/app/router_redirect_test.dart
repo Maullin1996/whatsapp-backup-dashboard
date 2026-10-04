@@ -166,4 +166,67 @@ void main() {
       );
     });
   });
+
+  group('/review (sesión de llenado)', () {
+    final revisor = AuthSessionState.authenticated(
+      _user(reviewRole: ReviewRole.revisor),
+    );
+
+    String? go(String location, {required bool session}) => computeAuthRedirect(
+      authState: revisor,
+      location: location,
+      reviewSessionActive: session,
+    );
+
+    test('con sesión, /review se queda', () {
+      expect(go('/review', session: true), isNull);
+    });
+
+    test('con sesión, cualquier otra ruta vuelve a /review (también el '
+        '"atrás" del navegador hacia /home o /login)', () {
+      for (final location in [
+        '/home',
+        '/login',
+        '/admin',
+        '/summary',
+        '/matches',
+        '/home/viewer/0',
+      ]) {
+        expect(go(location, session: true), '/review', reason: location);
+      }
+    });
+
+    test('sin sesión, /review lleva a /home', () {
+      expect(go('/review', session: false), '/home');
+    });
+
+    test('sin sesión, el resto se comporta como antes', () {
+      expect(go('/home', session: false), isNull);
+      expect(go('/login', session: false), '/home');
+      expect(go('/summary', session: false), '/home');
+    });
+
+    test('sin sesión de Firebase manda a /login aunque haya sesión de '
+        'llenado', () {
+      expect(
+        computeAuthRedirect(
+          authState: const AuthSessionState.unauthenticated(),
+          location: '/review',
+          reviewSessionActive: true,
+        ),
+        '/login',
+      );
+    });
+
+    test('cargando la sesión de Firebase no redirige', () {
+      expect(
+        computeAuthRedirect(
+          authState: const AuthSessionState.loading(),
+          location: '/home',
+          reviewSessionActive: true,
+        ),
+        isNull,
+      );
+    });
+  });
 }

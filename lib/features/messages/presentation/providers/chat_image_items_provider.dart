@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:whatsapp_monitor_viewer/core/time/fecha_jornada.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/domain/entities/image_view_item.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/providers/messages_provider.dart';
 
@@ -9,20 +8,7 @@ final chatImageItemsProvider = Provider<List<ImageViewItem>>((ref) {
   return messagesAsync.maybeWhen(
     data: (messages) => messages
         .where((m) => m.isImage)
-        .map(
-          (m) => ImageViewItem(
-            messageId: m.id,
-            chatJid: m.chatJid,
-            storagePath: m.storagePath!,
-            senderName: m.senderName,
-            messageTimestamp: m.messageTimestamp,
-            localTime: m.localTime,
-            shift: m.shift,
-            fechaJornada: fechaJornadaDe(m.messageTimestamp),
-            isEdited: m.isEdited,
-            shiftImageIndex: m.shiftImageIndex,
-          ),
-        )
+        .map(ImageViewItem.fromMessage)
         .toList(growable: false),
     orElse: () => const [],
   );

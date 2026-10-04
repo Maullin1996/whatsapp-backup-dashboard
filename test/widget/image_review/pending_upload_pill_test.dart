@@ -17,10 +17,10 @@ import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/im
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/repositories/review_uploader.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/image_review_providers.dart';
-import 'package:whatsapp_monitor_viewer/features/image_review/presentation/widgets/pending_upload_indicators.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/pending_uploads_provider.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/presentation/widgets/pending_upload_pill.dart';
 
 final _morning = shiftNames[Shift.morning]!;
-final _afternoon = shiftNames[Shift.afternoon1]!;
 final _today = fechaJornadaDe(DateTime.now().millisecondsSinceEpoch);
 
 ImageReviewRecord _record(
@@ -75,6 +75,25 @@ class _FixedChat extends ActiveChatProvider {
       Chat(chatJid: 'c1', groupName: 'g', lastMessageAt: 0, totalImages: 0);
 }
 
+/// Monta una `PendingUploadPill` por jornada con pendientes del chat activo
+/// (la cápsula que hacía esto se quitó en la capa 5; `/review` monta la de su
+/// jornada igual, ver `review_session_page_test.dart`).
+class _Host extends ConsumerWidget {
+  const _Host();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final jornadas = ref.watch(pendingUploadsProvider).value ?? const [];
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final jornada in jornadas)
+          PendingUploadPill(chatJid: 'c1', jornada: jornada),
+      ],
+    );
+  }
+}
+
 void main() {
   late InMemoryImageReviewRepository repo;
   late _GatedUploader uploader;
@@ -95,7 +114,7 @@ void main() {
           if (withChat) activeChatProvider.overrideWith(_FixedChat.new),
         ],
         child: const MaterialApp(
-          home: Scaffold(body: Align(child: PendingUploadIndicators())),
+          home: Scaffold(body: Align(child: _Host())),
         ),
       ),
     );
@@ -174,17 +193,6 @@ void main() {
       await pumpIndicators(tester, withChat: false);
 
       expect(find.byType(InkWell), findsNothing);
-    });
-
-    testWidgets('una píldora por jornada', (tester) async {
-      await repo.save(_record('a'));
-      await repo.save(_record('b', shift: _afternoon));
-      await repo.save(_record('c', shift: _afternoon));
-      await pumpIndicators(tester);
-
-      expect(pill('Revisor · Mañana · 1 pendiente'), findsOneWidget);
-      expect(pill('Revisor · Tarde 1 · 2 pendientes'), findsOneWidget);
-      expect(find.byType(InkWell), findsNWidgets(2));
     });
   });
 
