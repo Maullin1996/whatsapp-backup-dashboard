@@ -1,4 +1,4 @@
-const CACHE_NAME = 'whatsapp-monitor-v4';
+const CACHE_NAME = 'whatsapp-monitor-v5';
 const urlsToCache = [
   '/',
   '/index.html',
