@@ -5,15 +5,15 @@ description: >
   feature de revisión de imágenes de whatsapp_monitor_viewer: los
   formularios se llenan y guardan en local (la PWA ya cachea imágenes),
   nunca se sincronizan automáticamente mientras se diligencian, y la
-  subida a Firebase se dispara **por jornada**, de forma manual, con un
-  indicador/botón que vive en el listado de mensajes del chat (arriba
-  del botón flotante de ir al último mensaje) — visible en cuanto hay
-  al menos un registro pendiente, sin depender de contar imágenes para
+  subida a Firebase se dispara **por jornada**, de forma manual, con el
+  botón "Subir" de la pantalla de llenado `/review` (desde el 2026-10-04;
+  antes era una cápsula en el listado de mensajes, ya retirada) — visible
+  en cuanto hay al menos un registro pendiente, sin depender de contar imágenes para
   saber si la jornada "ya terminó" (esa idea se descartó, ver
-  `image-review-domain` § Cierre de jornada). **La conexión real a
-  Firestore/Cloud Functions no se activa hasta que el usuario lo
-  autorice explícitamente — hasta entonces, toda "subida" se simula
-  imprimiendo en consola.** Consulta esta skill SIEMPRE que se trabaje
+  `image-review-domain` § Cierre de jornada). **La subida por jornada
+  es REAL a Firestore desde el paso 7, capa 6 (autorizada por el
+  usuario); cualquier otra escritura nueva sigue necesitando su
+  autorización explícita.** Consulta esta skill SIEMPRE que se trabaje
   en: cualquier mecanismo de guardado local de un registro de
   Revisor/Sumador, el botón/flujo de subida por jornada, el manejo de
   conflictos o reintentos al sincronizar con Firestore, o cualquier
@@ -71,7 +71,11 @@ no dé esa autorización explícita en la conversación:
    ni por temporizador — cero llamadas a Firestore mientras el Revisor
    o Sumador está trabajando.
 2. **La subida a Firebase es por jornada, no un botón único "subir
-   todo"**: el indicador/botón vive **dentro del listado de mensajes
+   todo"**. **CAMBIO DELIBERADO (2026-10-04, capa 5)**: la cápsula del
+   chat descrita en el resto de este punto YA NO EXISTE; el botón es el
+   "Subir" de la pantalla de llenado `/review` (solo la jornada abierta,
+   ver "Indicador de subida por jornada"). Lo que sigue queda como
+   historia del diseño original: el indicador/botón vivía **dentro del listado de mensajes
    del chat, arriba del botón flotante "ir al último mensaje"
    (`GoToLatestMessageButton`)** — no en `ChatHeader` ni en
    `ChatDrawer`. **No depende de detectar "jornada completa" contando
@@ -128,7 +132,12 @@ no dé esa autorización explícita en la conversación:
    reabrir el formulario). No hace falta un historial completo tipo
    `edit_attempts` a menos que se pida explícitamente — con el flag
    booleano alcanza por ahora.
-7. **Navegación para editar: sin atajo, se busca navegando.** El
+7. **CAMBIO DELIBERADO (2026-10-04, capa 5)**: corregir un registro
+   (también uno ya subido) ahora SOLO se hace entrando a esa jornada y
+   fecha desde "Llenar formularios" (pantalla `/review`): el visor del chat
+   ya no tiene formulario ni botón "Editar". Lo que sigue es el diseño
+   anterior, como historia.
+   **Navegación para editar: sin atajo, se busca navegando.** El
    usuario confirmó que no hay una lista/acceso directo a "mis
    registros ya diligenciados" — la persona **navega el visor
    normalmente** (como cualquier imagen) hasta encontrar la imagen que
@@ -271,7 +280,20 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
 
 ## Indicador de subida por jornada (paso 4 — HECHO; subida REAL desde el paso 7, capa 6)
 
-- **Dónde vive**: `PendingUploadIndicators`
+> **CAMBIO DELIBERADO (2026-10-04, pedido por los usuarios) — HECHO**: la
+> cápsula del chat (`PendingUploadIndicators`) **se quitó** (capa 5). La
+> subida vive en el "Subir" de la cabecera de `/review` (capa 3b): la misma
+> píldora (`PendingUploadPill`, ahora en `widgets/pending_upload_pill.dart`,
+> "Subir · N pendientes"), el mismo diálogo de confirmación, el mismo
+> `ReviewUploadNotifier` y los mismos SnackBars, solo para la jornada abierta
+> (los pendientes de `pendingUploadsProvider` de esa fecha y jornada). Los
+> pendientes de días viejos solo se suben entrando a esa fecha desde el
+> diálogo "Llenar formularios" (aceptado por el usuario). Lo que sigue
+> describe la cápsula retirada (dónde vivía y qué mostraba); las reglas de
+> la subida (progreso, guarda contra ediciones, corte al salir del chat,
+> fallos) siguen valiendo tal cual para el "Subir" de `/review`.
+
+- **Dónde vivía (RETIRADA en la capa 5)**: `PendingUploadIndicators`
   (`image_review/presentation/widgets/pending_upload_indicators.dart`), un
   `Positioned` dentro del `Stack` de `MessageList`, encima del hueco de
   `GoToLatestMessageButton` (`bottom = 20 + 56 + AppSpacing.md`, mismo `right`
@@ -491,7 +513,7 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
   - **Cuándo se construye**: solo al iniciar una subida. El único lector de
     `reviewUploaderProvider` es `ReviewUploadNotifier._upload`
     (`ref.read`), que corre al confirmar "Subir" en la píldora
-    (`PendingUploadIndicators._onTap` → `upload`). Abrir la app, el visor o
+    (`PendingUploadPill._onTap` → `upload`, hoy desde `/review`). Abrir la app, el visor o
     la lista de mensajes no lo construye.
   - **Log de fallo**: todo `Left` del uploader deja
     `debugPrint('[SUBIDA] falló <messageId>: <tipo>')`, con el tipo
@@ -517,9 +539,7 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
     También verificado: el claim `reviewRole` real se evalúa bien para los
     dos roles, y la comparación de `messageTimestamp` y `chatJid` contra
     `whatsapp_messages` funciona con mensajes reales.
-  - **Hay que BORRAR esos 4 documentos de prueba (desde la consola)** antes
-    de desplegar el hosting o de que otra persona use el Resumen: son
-    números de prueba y contarían en el Resumen y en Coincidencias.
+  - Esos 4 documentos de prueba fueron borrados por el usuario desde la consola el 2026-10-04.
   - `SimulatedReviewUploader` **se borró** (HECHO), con su grupo de tests
     en `review_upload_notifier_test.dart`; sus casos ya estaban cubiertos
     por los tests de `FirestoreReviewUploader` y de `toUploadDocument`.
@@ -533,8 +553,6 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
     instancia `FirebaseFirestore` ni lee el `firestoreProvider` real.
 - **PENDIENTE (no decidido)**:
   - (El aviso para los registros viejos que no se pueden subir se descartó por decisión del usuario: son datos de prueba.)
-  - Borrar los 4 documentos de prueba (ver capa 6) antes de desplegar el
-    hosting o de que otra persona use el Resumen.
   - Validar `codigo` y `loteria` en las reglas (hoy no se validan). Si la
     lotería pasa a ser una lista cerrada.
   - Si conviene subir el esquema a v2 igual (por ejemplo, para que una
@@ -607,7 +625,9 @@ una antes de seguir:
    la capa 6),
    ver "Indicador de subida por jornada".
 5. ✅ **UI del indicador/botón por jornada** en el listado de mensajes,
-   arriba de `GoToLatestMessageButton` — hecha.
+   arriba de `GoToLatestMessageButton` — hecha y luego **retirada**
+   (2026-10-04, capa 5, cambio deliberado): reemplazada por el "Subir" de
+   `/review`.
 
 ## Zona gris / a confirmar antes de implementar
 

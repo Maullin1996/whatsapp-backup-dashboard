@@ -102,6 +102,9 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    `getPendingJornadas` (pendientes de cualquier día), progreso "Subiendo X de
    N", corte al salir del chat y la limpieza de índices huérfanos en
    `pending()`. Detalle en `image-review-offline-sync`.
+   **Retirado el 2026-10-04 (cambio deliberado, ver paso 8)**: la píldora ya
+   no está en `MessageList`; la misma lógica de subida vive en el "Subir" de
+   `/review`.
 5. **Pantalla de resumen por jornada/grupo** (`image-review-domain` +
    `image-review-roles`): reconciliación agregada (suma de totales del
    Revisor vs. suma de totales del Sumador, por jornada), alertas de
@@ -215,13 +218,11 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    `fechaJornada`/`shiftKey` coherentes con la hora de Colombia); claim
    `reviewRole` real y comparación contra `whatsapp_messages` verificados.
    En la zona de pruebas, un usuario sin claim de admin no lee `registros`
-   ni `shift_image_counts`. **Hay que BORRAR los 4 documentos de prueba
-   desde la consola** antes de desplegar el hosting o de que otra persona
-   use el Resumen. Detalle en `image-review-offline-sync` (capas 5 y 6).
+   ni `shift_image_counts`. Los 4 documentos de prueba fueron borrados por el usuario desde la consola el 2026-10-04.
+   Detalle en `image-review-offline-sync` (capas 5 y 6).
    Siguen **PENDIENTES** (detalle en `image-review-offline-sync` § "Ruta de
    la subida"): si conviene subir el
-   esquema a v2 (versiones antiguas de la app en caché), borrar los 4
-   documentos de prueba, los casos de escritura nunca
+   esquema a v2 (versiones antiguas de la app en caché), los casos de escritura nunca
    probados en la zona de pruebas,
    si validar `reviewShifts` o `allowedGroups`, reglas de Storage,
    verificación de conexión antes de subir, si una escritura en
@@ -295,7 +296,7 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    grupo; el nombre `registros` aplica a toda colección con ese nombre) y
    `shift_image_counts` con lectura de admin y escritura negada.
    **`functions/set-admin.js` — HECHO**: ahora fusiona los claims existentes (`{...claimsActuales, admin: true, superAdmin: true}`, leídos del `UserRecord` de `getUserByEmail`) en vez de reemplazarlos, así que ya no borra `reviewRole`; tests en `functions/test/setAdmin.test.js`. **SUPOSICIÓN**: un claim que ya se hubiera perdido por una corrida anterior del script no se recupera solo.
-   **PENDIENTES (no decididos)**: borrar los 4 documentos de prueba antes de desplegar o de que otra persona use el Resumen; `lastIndex` puede ser mayor que las imágenes reales; el costo en lecturas por consulta (hasta unas 3600; la caché de 5 minutos evita repetirla); el desfase de claims
+   **PENDIENTES (no decididos)**: `lastIndex` puede ser mayor que las imágenes reales; el costo en lecturas por consulta (hasta unas 3600; la caché de 5 minutos evita repetirla); el desfase de claims
    (se leen solo al iniciar sesión); no hay
    contadores de días anteriores a la publicación inicial (ver
    `image-review-domain`); el día se arma con `fechaJornadaDe` (`toLocal()`)
@@ -444,8 +445,7 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    `fechaJornada` y `rol` (el enlace sale del error de la primera consulta
    con ganadores, en el log `[COINCIDENCIAS] falló (firestore): ...`);
    caché; costo en lecturas; que "Ver imagen" no se probó con una imagen
-   real (las reglas de Storage no están en el repo); borrar los 4 documentos de prueba antes de desplegar
-   el hosting; y lo ya pendiente.
+   real (las reglas de Storage no están en el repo); y lo ya pendiente.
    **Pieza (e), tabla de jornadas ÚNICA — HECHA** (decisión del usuario):
    el horario de `jornadas` de `whats-apuestas` (leído el 2026-09-30) rige
    en toda la app, para todas las fechas y todos los mensajes; la tabla
@@ -470,8 +470,7 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    horario del ERP que cambia sin aviso, para la app: resueltos por la pieza
    2 de horarios dinámicos, más abajo); los mensajes ya guardados se
    reclasifican con la tabla única; que Coincidencias, cuando haya
-   ganadores, probablemente pida un índice sobre `rol`; borrar los 4
-   documentos de prueba antes de desplegar el hosting; y lo ya pendiente.
+   ganadores, probablemente pida un índice sobre `rol`; y lo ya pendiente.
    **Horarios dinámicos, pieza 1 — HECHA (código y tests; NO desplegada)**
    (decisión del usuario, 2026-10-03): el mismo disparador programado de los
    ganadores, después de ellos y con la misma conexión y el mismo secreto,
@@ -521,6 +520,34 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    `MockMatchesRepository` y `SimulatedReviewUploader`, con sus tests
    propios; el test del menú (`custom_popup_menu_logout_button_test.dart`)
    usa repositorios falsos vacíos dentro del propio test.
+
+8. **Flujo "Llenar formularios" — HECHO (2026-10-04, CAMBIO DELIBERADO
+   pedido por los usuarios; sin desplegar)**: contradice a propósito tres
+   decisiones anteriores: la cápsula de subida en el chat (paso 4), el
+   formulario en el visor del chat (paso 2) y el cierre de jornada sin
+   contar imágenes (`image-review-domain`). Capas, todas con tests:
+   1. `jornadaImagesProvider`: imágenes de una jornada de un chat en un día,
+      de la PRIMERA a la ÚLTIMA (día completo con `fetchByDateRange`; en vivo
+      solo si el día es hoy; sin reintento automático; los huecos entre
+      jornadas quedan fuera).
+   2. `ImageDetailPage` reutilizable (`items`, `reverse`, `paginate`,
+      `showClose`/`onClose`/`closeLabel`, `actions`, `reviewForm`).
+   3. Pantalla `/review` (`ReviewSessionPage`) con sesión de llenado en
+      memoria (`reviewSessionProvider`) y guard en `computeAuthRedirect` (no
+      se sale salvo con "Cerrar" o recargando); "Subir" (`PendingUploadPill` +
+      `ReviewUploadNotifier`), "Cerrar" (solo con TODAS las imágenes con
+      registro guardado; con la lista vacía también) y aviso con ancho < 840.
+   4. Botón "Llenar formularios" (`FillFormsButton`) en `MessageList` y su
+      diálogo (fecha con flechas, jornadas asignadas que aplican al día).
+   5. Limpieza: sin cápsula; el visor del chat volvió a ser solo visor
+      (`reviewForm: false`); corregir un registro (también uno subido) solo
+      se hace desde `/review`.
+   Detalle en `image-review-roles` ("Pantalla de llenado `/review`"),
+   `image-review-domain` ("Cierre de jornada") e `image-review-offline-sync`.
+   El `debugPrint` temporal de lecturas se quitó tras medir (32 mensajes
+   en `holiday` del 2026-10-04). `CACHE_NAME` subió a `whatsapp-monitor-v5`.
+   **PENDIENTE**: desplegar el hosting (primero se muestra al cliente en un
+   canal de vista previa).
 
 ## Checklist antes de pasar a la siguiente pieza
 

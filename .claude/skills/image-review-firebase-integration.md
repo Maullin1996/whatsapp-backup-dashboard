@@ -390,7 +390,6 @@ lectura de `whats-apuestas` del 2026-10-03:
   `[COINCIDENCIAS] falló (firestore): ...`).
 - Caché de Coincidencias y costo en lecturas.
 - Probar "Ver imagen" con una imagen real.
-- Borrar los 4 documentos de prueba antes de desplegar el hosting.
 
 ## Jornadas desde otro proyecto de Firebase
 

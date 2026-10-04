@@ -118,7 +118,7 @@ toca al otro y ninguno lee al otro)
  ├── storagePath = referencia de la imagen (nunca la imagen ni una URL)
  ├── estadoSync = `pendiente` | `sincronizado` (nace pendiente; re-guardar
  │    lo devuelve a pendiente; pasa a sincronizado con la subida por
- │    jornada, `ReviewUploadNotifier` — hoy SIMULADA, ver
+ │    jornada, `ReviewUploadNotifier` — REAL desde el paso 7, capa 6, ver
  │    image-review-offline-sync). Es solo local: no viaja en la subida.
  ├── fecha del registro (`registradoEn`) = momento en que se diligenció
  │    el formulario (NO la fecha del mensaje: esa es `fechaJornada` —
@@ -214,6 +214,23 @@ Consecuencias para el feature de revisión:
   condición dura para habilitar el botón de subida.
 
 ## Cierre de jornada: decisión de diseño (reemplaza la hipótesis de `shiftImageIndex`)
+
+> **CAMBIO DELIBERADO (2026-10-04, pedido por los usuarios; pantalla
+> `/review`, capa 3b — HECHO)**: en la pantalla de llenado `/review` (una
+> jornada de un chat en un día, ver `image-review-roles`), **"terminar" la
+> jornada SÍ depende de las imágenes**: el botón "Cerrar" solo aparece cuando
+> TODAS las imágenes de la lista tienen registro guardado del rol activo
+> (`reviewSessionCompleteProvider`; el mismo criterio que el bloqueo de
+> navegación: registro en local, pendiente o ya subido). Con la lista vacía
+> también aparece (decisión del usuario). Si llega una imagen nueva (la
+> lista es en vivo cuando la fecha es hoy), "Cerrar" se oculta hasta que
+> también tenga registro. Lo que sigue abajo **sigue valiendo** en lo demás:
+> la subida NO depende de contar imágenes ("Subir" aparece con el primer
+> pendiente de esa jornada y se puede repetir), la validación de que todo
+> cuadra sigue siendo la reconciliación del Resumen, y el contador del bot
+> (`shiftImageIndex` / `shift_image_counts`) sigue sin usarse como condición:
+> "Cerrar" cuenta las imágenes de la lista que se leyó de `whatsapp_messages`,
+> no un total esperado. "Cerrar" no exige haber subido.
 
 Dado que no existe un conteo confiable de "cuántas imágenes va a tener
 esta jornada en total" (ver arriba), y dado que **cada jornada+grupo
@@ -342,8 +359,7 @@ contadores y nombres): un admin real puede leer los registros y la
 consulta de grupo de colecciones funciona. El índice de grupo de
 colecciones sobre `fechaJornada` (ascendente) se creó desde la consola,
 como exención de `registros.fechaJornada`, con el enlace que trajo el
-error. **PENDIENTE (no decidido)**: borrar los 4 documentos de prueba antes de desplegar o de que
-otra persona use el Resumen; `lastIndex` puede ser mayor que las imágenes
+error. **PENDIENTE (no decidido)**: `lastIndex` puede ser mayor que las imágenes
 reales; el costo en lecturas por consulta (hasta unas 3600; la caché de 5
 minutos evita repetirla).
 
