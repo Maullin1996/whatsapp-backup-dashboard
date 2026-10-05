@@ -85,7 +85,7 @@ void main() {
     chatJid: _g1,
     groupName: 'Grupo Uno',
     fechaJornada: _fecha,
-    shift: shiftNamesAt(_day.millisecondsSinceEpoch)[Shift.morning]!,
+    shift: shiftNames[Shift.morning]!,
     revisor: const RoleSummary(
       registrado: true,
       cantidadImagenes: 1,

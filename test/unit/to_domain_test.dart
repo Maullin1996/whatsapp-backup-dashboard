@@ -5,7 +5,7 @@ import 'package:whatsapp_monitor_viewer/features/messages/domain/helpers/to_doma
 
 void main() {
   test('toDomain maps raw message and derives fields', () {
-    final date = DateTime(2024, 1, 2, 15, 24);
+    final date = DateTime(2024, 1, 2, 15, 28);
     final raw = RawMessageModel(
       id: 'm1',
       senderName: 'Juan',
@@ -13,7 +13,7 @@ void main() {
       hasMedia: true,
       storagePath: 'images/pic.jpg',
       messageTimestamp: date.millisecondsSinceEpoch,
-      localTime: '15:24',
+      localTime: '15:28',
       caption: 'hola',
     );
 
@@ -22,6 +22,6 @@ void main() {
     expect(msg.id, 'm1');
     expect(msg.isImage, true);
     expect(msg.shift, shiftNames[Shift.night1]);
-    expect(msg.messageDate, '15:24');
+    expect(msg.messageDate, '15:28');
   });
 }

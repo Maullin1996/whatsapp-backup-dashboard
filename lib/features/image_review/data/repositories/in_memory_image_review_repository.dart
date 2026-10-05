@@ -26,6 +26,19 @@ class InMemoryImageReviewRepository implements ImageReviewRepository {
   }
 
   @override
+  Future<Either<Failure, bool>> deleteSynced(
+    String messageId,
+    ReviewRole rol,
+  ) async {
+    final key = (messageId: messageId, rol: rol);
+    if (_records[key]?.estadoSync != EstadoSync.sincronizado) {
+      return const Right(false);
+    }
+    _records.remove(key);
+    return const Right(true);
+  }
+
+  @override
   Future<Either<Failure, List<ImageReviewRecord>>> getPending({
     required String chatJid,
     required String fechaJornada,

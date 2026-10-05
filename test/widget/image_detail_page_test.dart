@@ -93,10 +93,15 @@ class _CountingMessagesNotifier extends MessagesNotifier {
 }
 
 /// Abre el visor (initialIndex 1 de 3 imágenes) desde una pantalla de inicio.
+///
+/// [reviewForm] `true` (por defecto en este archivo): el visor CON formulario,
+/// como lo usa la pantalla de llenado `/review` (capa 5: el visor del chat ya
+/// no lo tiene; ver el grupo "visor del chat").
 Future<void> _openViewer(
   WidgetTester tester, {
   required double width,
   int initialIndex = 1,
+  bool reviewForm = true,
   ReviewRole? role = ReviewRole.revisor,
   List<ReviewShift> reviewShifts = _defaultReviewShifts,
 }) async {
@@ -126,7 +131,10 @@ Future<void> _openViewer(
               child: ElevatedButton(
                 onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
-                    builder: (_) => ImageDetailPage(initialIndex: initialIndex),
+                    builder: (_) => ImageDetailPage(
+                      initialIndex: initialIndex,
+                      reviewForm: reviewForm,
+                    ),
                   ),
                 ),
                 child: const Text('abrir'),
@@ -262,6 +270,42 @@ void main() {
     PaintingBinding.instance.imageCache
       ..clear()
       ..clearLiveImages();
+  });
+
+  // Capa 5 (cambio deliberado): el formulario solo vive en `/review`. El
+  // visor del chat (reviewForm: false, el valor por defecto) es solo visor
+  // para cualquier usuario, con o sin rol, como antes del formulario.
+  group('visor del chat (sin formulario)', () {
+    for (final (name, role) in [
+      ('con rol Revisor y asignación', ReviewRole.revisor),
+      ('con rol Sumador y asignación', ReviewRole.sumador),
+      ('sin rol', null),
+    ]) {
+      testWidgets('$name, a 1200 px: sin panel, sin bloqueo, teclas y '
+          'chevrons navegan, Esc cierra', (tester) async {
+        await _openViewer(tester, width: 1200, role: role, reviewForm: false);
+
+        expect(find.byType(ImageReviewPanel), findsNothing);
+        expect(_pos(2), findsOneWidget);
+        for (final icon in [Icons.chevron_left, Icons.chevron_right]) {
+          final chevron = tester.widget<NavButton>(_chevron(icon));
+          expect(chevron.enabled, isTrue);
+          expect(chevron.tooltip, isNull);
+        }
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+        await _settle(tester);
+        expect(_pos(1), findsOneWidget);
+        await tester.tap(_chevron(Icons.chevron_left));
+        await _settle(tester);
+        expect(_pos(2), findsOneWidget);
+        expect(find.text(_blockedMessage), findsNothing);
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+        await _settle(tester);
+        expect(find.byType(ImageDetailPage), findsNothing);
+      });
+    }
   });
 
   // Las teclas no cambian: → va al índice−1 y ← al índice+1 (más viejo).
@@ -856,8 +900,10 @@ void main() {
                     child: ElevatedButton(
                       onPressed: () => Navigator.of(context).push(
                         MaterialPageRoute<void>(
-                          builder: (_) =>
-                              const ImageDetailPage(initialIndex: 1),
+                          builder: (_) => const ImageDetailPage(
+                            initialIndex: 1,
+                            reviewForm: true,
+                          ),
                         ),
                       ),
                       child: const Text('abrir'),

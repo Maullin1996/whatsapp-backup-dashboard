@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
@@ -49,7 +48,9 @@ class _ComprobanteCardState extends ConsumerState<ComprobanteCard> {
   late final TextEditingController _numero;
   late final TextEditingController _loteria;
   final FocusNode _totalFocus = FocusNode();
-  late final FocusNode _numeroFocus = FocusNode(onKeyEvent: _onNumeroKey);
+  // Sin atajo de teclado: un número registrado solo se quita con la "x" de su
+  // chip (mantener Retroceso apretado llegó a borrarlos todos).
+  final FocusNode _numeroFocus = FocusNode();
 
   ReviewDraftNotifier get _notifier =>
       ref.read(reviewDraftProvider(widget.reviewKey).notifier);
@@ -110,21 +111,6 @@ class _ComprobanteCardState extends ConsumerState<ComprobanteCard> {
   void _addNumero() {
     _notifier.addNumero(widget.draft.id);
     _numeroFocus.requestFocus(); // permite seguir agregando con Enter
-  }
-
-  /// Patrón de campo de chips: Backspace con el input vacío quita el último
-  /// número. Con texto, Backspace borra caracteres como siempre.
-  KeyEventResult _onNumeroKey(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
-      return KeyEventResult.ignored;
-    }
-    if (event.logicalKey != LogicalKeyboardKey.backspace ||
-        _numero.text.isNotEmpty ||
-        widget.draft.numeros.isEmpty) {
-      return KeyEventResult.ignored;
-    }
-    _notifier.removeNumero(widget.draft.id, widget.draft.numeros.length - 1);
-    return KeyEventResult.handled;
   }
 
   Future<void> _confirmRemove() async {

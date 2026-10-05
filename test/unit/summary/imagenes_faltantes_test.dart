@@ -29,9 +29,9 @@ JornadaSummary _summary({
   imagenesEnJornada: contador,
 );
 
-// La mañana del 28 termina a las 10:55 en Bogotá (15:55 UTC).
+// La mañana del 28 termina a las 10:52 en Bogotá (15:52 UTC).
 final _despues = DateTime.utc(2026, 9, 28, 16);
-final _antes = DateTime.utc(2026, 9, 28, 15, 54, 59);
+final _antes = DateTime.utc(2026, 9, 28, 15, 51, 59);
 
 void main() {
   group('shiftImageCountDocId', () {

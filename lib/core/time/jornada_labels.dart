@@ -11,15 +11,15 @@ String _base(String label) =>
 /// ("Jornada Mañana (06:00 – 10:54)" -> "Mañana").
 ///
 /// Si dos jornadas DE LA MISMA TABLA darían el mismo nombre corto (las dos
-/// "Noche" de la tabla vieja), se agrega la hora de inicio para distinguirlas
-/// ("Noche (15:24)"); la única "Noche" de la tabla nueva queda "Noche". Un
-/// texto que no sigue el formato (por ejemplo "Fuera de jornada Mañana") se
-/// devuelve tal cual.
+/// "Noche" de las etiquetas viejas, [legacyShiftNames]), se agrega la hora de
+/// inicio para distinguirlas ("Noche (15:24)"); la única "Noche" de la tabla
+/// actual queda "Noche". Un texto que no sigue el formato (por ejemplo "Fuera
+/// de jornada Mañana") se devuelve tal cual.
 String shortShiftName(String label) {
   final base = _base(label);
-  final table = newShiftNames.containsValue(label)
-      ? newShiftNames.values
-      : shiftNames.values;
+  final table = shiftNames.containsValue(label)
+      ? shiftNames.values
+      : legacyShiftNames.values;
   final collides = table.where((other) => _base(other) == base).length > 1;
   if (!collides) return base;
   final start = _range.firstMatch(label)?.group(1);
@@ -35,3 +35,9 @@ String? jornadaDateLabel(String fechaJornada, {DateTime? now}) {
   if (parts.length != 3) return fechaJornada;
   return '${parts[2]}/${parts[1]}/${parts[0]}';
 }
+
+final _hours = RegExp(r'\((\d{2}:\d{2}\s*–\s*\d{2}:\d{2})\)$');
+
+/// Horario que trae la etiqueta de una jornada ("Jornada Mañana (05:30 –
+/// 10:51)" -> "05:30 – 10:51"), o `null` si la etiqueta no lo trae.
+String? shiftHoursText(String label) => _hours.firstMatch(label)?.group(1);

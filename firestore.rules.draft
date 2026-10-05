@@ -1,8 +1,12 @@
-// BORRADOR. No referenciado en firebase.json, no se despliega. Se publica a
-// mano pegándolo en la consola de Firebase; esa publicación REEMPLAZA todo el
-// conjunto de reglas, por eso incluye los bloques existentes. Antes de
-// publicar, confirmar que las reglas de la consola siguen siendo las del
-// bloque existente.
+// Copia de las reglas PUBLICADAS a mano en la consola de Firebase: este
+// archivo COMPLETO se publicó el 2026-10-04 (el usuario lo pegó en la
+// consola sin compararlo antes con lo que había; comprobó después que las
+// lecturas de mensajes, grupos e imágenes siguen funcionando). Desde ahí, la
+// consola = este archivo. No referenciado en firebase.json: se publica a mano
+// pegándolo en la consola; esa publicación REEMPLAZA todo el conjunto de
+// reglas. Antes de publicar un cambio, confirmar que las reglas de la consola
+// siguen siendo las de esta copia. Pruebas en el emulador:
+// firestore-rules-test/.
 //
 // Bloques existentes (copia exacta de las reglas actuales de la consola, sin
 // cambios): whatsapp_messages, group_stats, edit_attempts y users.
@@ -12,10 +16,16 @@
 //   para Revisor/Sumador; sin delete.
 // - Lectura (get/list) de los registros, solo para admin o superAdmin
 //   (isAdmin()), con comodín recursivo para la consulta de grupo de
-//   colecciones sobre `registros` (Resumen y Coincidencias). Revisor y
-//   Sumador no leen nada de image_reviews.
+//   colecciones sobre `registros` (Resumen y Coincidencias).
+// - PUBLICADO 2026-10-04: lectura de los registros de SU rol para el
+//   Revisor/Sumador asignado EN ESE MOMENTO a ese grupo y esa jornada
+//   (puedeLeerRegistro; la usa /review para traer lo ya subido). CAMBIO
+//   DELIBERADO: antes Revisor y Sumador no leían nada de image_reviews.
 // - shift_image_counts: lectura solo para admin o superAdmin; escritura
 //   negada (el bot escribe con el Admin SDK, que no pasa por estas reglas).
+// - winning_numbers (PUBLICADO 2026-10-02): lectura solo para admin o superAdmin
+//   (Coincidencias); escritura negada (la escribe la función puente
+//   syncWinningNumbers con el Admin SDK, cada hora desde el 2026-10-03).
 
 rules_version = '2';
 service cloud.firestore {
@@ -37,17 +47,20 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // ─── Nuevo: registros de Revisor/Sumador (BORRADOR) ──────────────────
+    // ─── Nuevo: registros de Revisor/Sumador (PUBLICADO 2026-10-01) ──────────────────
     // Ruta que arma ImageReviewRecordModel.toUploadDocument():
     // image_reviews/{chatJid}/jornadas/{fechaJornada}_{shiftKey}/registros/{messageId}_{rol}
-    // get/list de esta ruta: solo los permite la regla recursiva de lectura
-    // de más abajo, para admin y superAdmin. Revisor y Sumador no leen.
+    // get/list de esta ruta: admin y superAdmin por la regla recursiva de más
+    // abajo; Revisor/Sumador por puedeLeerRegistro (PUBLICADO 2026-10-04).
+    // RIESGO CONOCIDO: la escritura NO exige la asignación; hoy solo lo
+    // evita la interfaz.
     match /image_reviews/{chatJid}/jornadas/{jornadaId}/registros/{registroId} {
       allow create, update: if puedeEscribirRegistro(chatJid, jornadaId, registroId);
       allow delete: if false;
+      allow read: if puedeLeerRegistro(chatJid, jornadaId);
     }
 
-    // ─── Nuevo: lectura solo para admin o superAdmin (BORRADOR) ──────────
+    // ─── Nuevo: lectura solo para admin o superAdmin (PUBLICADO 2026-10-01) ──────────
     // Claims booleanos: `admin` puede faltar o valer false; `superAdmin` vale
     // true o no existe. Se leen con get() para que un claim ausente dé false
     // sin error.
@@ -70,6 +83,31 @@ service cloud.firestore {
     // Contadores que publica el bot (lo lee el Resumen).
     match /shift_image_counts/{docId} {
       allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // Números ganadores del día, un documento por fecha (lo lee
+    // Coincidencias). Nombre PROVISIONAL; PUBLICADO 2026-10-02.
+    match /winning_numbers/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // ─── jornadas (réplica de la colección jornadas del ERP) — PUBLICADO ──────
+    // PUBLICADO a mano por el usuario en la consola (confirmado el 2026-10-04).
+    // Colección de la raíz (nombre PROVISIONAL), distinta de las subcolecciones
+    // image_reviews/{chatJid}/jornadas. La escribe la función programada con el
+    // Admin SDK; lectura para cualquier usuario con sesión.
+    match /jornadas/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // ─── festivos_colombia (un documento por año, campo fechas) — PUBLICADO ──
+    // PUBLICADO a mano por el usuario en la consola (confirmado el 2026-10-04).
+    // Se cargó con el Admin SDK; lectura para cualquier usuario con sesión.
+    match /festivos_colombia/{docId} {
+      allow read: if request.auth != null;
       allow write: if false;
     }
 
@@ -114,6 +152,30 @@ service cloud.firestore {
       let mensaje = get(/databases/$(database)/documents/whatsapp_messages/$(data.messageId)).data;
       return mensaje.messageTimestamp == data.messageTimestamp
         && mensaje.chatJid == data.chatJid;
+    }
+
+    // ─── Lectura del Revisor/Sumador asignado (PUBLICADO 2026-10-04) ─────────
+    // Asignación vigente: users/{uid}.reviewShifts tiene exactamente
+    // {chatJid, shift} (así lo escribe updateReviewShifts). Si el documento
+    // no existe, get() falla y la regla niega.
+    function asignadoA(chatJid, shiftKey) {
+      return {'chatJid': chatJid, 'shift': shiftKey}
+        in get(/databases/$(database)/documents/users/$(request.auth.uid))
+             .data.get('reviewShifts', []);
+    }
+
+    // Solo registros de SU rol (doble verificación a ciegas): una consulta
+    // debe filtrar `rol == <su rol>` o se rechaza entera. La jornada sale de
+    // la ruta ({fechaJornada}_{shiftKey}; la fecha no lleva '_'). Solo cubre
+    // esta ruta concreta: una consulta de grupo de colecciones de un
+    // Revisor/Sumador no coincide aquí y sigue negada.
+    function puedeLeerRegistro(chatJid, jornadaId) {
+      let partes = jornadaId.split('_');
+      return request.auth != null
+        && reviewRole() in ['revisor', 'sumador']
+        && resource.data.rol == reviewRole()
+        && partes.size() == 2
+        && asignadoA(chatJid, partes[1]);
     }
 
     // Orden: sesión y claim primero, la lectura del mensaje al final (&& corta).

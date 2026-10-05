@@ -24,6 +24,12 @@ class UnavailableImageReviewRepository implements ImageReviewRepository {
       Left(failure);
 
   @override
+  Future<Either<Failure, bool>> deleteSynced(
+    String messageId,
+    ReviewRole rol,
+  ) async => Left(failure);
+
+  @override
   Future<Either<Failure, List<ImageReviewRecord>>> getPending({
     required String chatJid,
     required String fechaJornada,

@@ -11,9 +11,13 @@ void main() {
       expect(shortShiftName(shiftNames[Shift.holiday]!), 'Domingo / Festivo');
     });
 
-    test('las dos "Noche" se distinguen por su hora de inicio', () {
-      expect(shortShiftName(shiftNames[Shift.night1]!), 'Noche (15:24)');
-      expect(shortShiftName(shiftNames[Shift.night2]!), 'Noche (22:25)');
+    test('la única "Noche" de la tabla queda "Noche"', () {
+      expect(shortShiftName(shiftNames[Shift.night1]!), 'Noche');
+    });
+
+    test('las dos "Noche" viejas se distinguen por su hora de inicio', () {
+      expect(shortShiftName(legacyShiftNames[Shift.night1]!), 'Noche (15:24)');
+      expect(shortShiftName(legacyShiftNames[Shift.night2]!), 'Noche (22:25)');
     });
 
     test('"Fuera de las jornadas" queda igual', () {
@@ -38,6 +42,19 @@ void main() {
     test('otro día se muestra como dd/MM/yyyy', () {
       expect(jornadaDateLabel('2026-03-08', now: now), '08/03/2026');
       expect(jornadaDateLabel('2025-12-31', now: now), '31/12/2025');
+    });
+  });
+
+  group('shiftHoursText', () {
+    test('saca el horario de la etiqueta', () {
+      expect(shiftHoursText(shiftNames[Shift.morning]!), '05:30 – 10:51');
+      expect(shiftHoursText(shiftNames[Shift.holiday]!), '06:00 – 19:15');
+      expect(shiftHoursText(legacyShiftNames[Shift.night2]!), '22:25 – 22:30');
+    });
+
+    test('null si la etiqueta no trae horario', () {
+      expect(shiftHoursText(shiftNames[Shift.outOfShift]!), isNull);
+      expect(shiftHoursText('Fuera de jornada Mañana'), isNull);
     });
   });
 }

@@ -102,6 +102,9 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    `getPendingJornadas` (pendientes de cualquier día), progreso "Subiendo X de
    N", corte al salir del chat y la limpieza de índices huérfanos en
    `pending()`. Detalle en `image-review-offline-sync`.
+   **Retirado el 2026-10-04 (cambio deliberado, ver paso 8)**: la píldora ya
+   no está en `MessageList`; la misma lógica de subida vive en el "Subir" de
+   `/review`.
 5. **Pantalla de resumen por jornada/grupo** (`image-review-domain` +
    `image-review-roles`): reconciliación agregada (suma de totales del
    Revisor vs. suma de totales del Sumador, por jornada), alertas de
@@ -118,7 +121,7 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    decidido; Revisor y Sumador no la ven, ver `image-review-roles`;
    `SummaryPage` con selector de fecha y
    tarjetas por grupo y jornada, en `features/summary/`). Empezó con datos
-   inventados (`MockSummaryRepository`, hoy sin cablear); **desde el paso
+   inventados (`MockSummaryRepository`, ya borrado); **desde el paso
    7, pieza d, lee datos reales** (ver "Pieza (d)" más abajo). **El Resumen mockeado ya incluye el aviso de imágenes sin
    registrar** (línea bajo cada rol, con `imagenesEnJornada` inventado en el
    mock con el formato real de `shift_image_counts`); falta cambiar solo la
@@ -131,10 +134,8 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    **UI ya hecha con datos INVENTADOS** (página `/matches`, solo para
    `isAdmin`/`isSuperAdmin` vía `canViewMatches`; entrada "Coincidencias"
    en el menú de `ChatList`; `MockMatchesRepository` determinista por
-   fecha, en `features/matches/`). **Sigue pendiente conectar datos
-   reales** (paso 7: reemplazar el mock por un `MatchesRepository`
-   real; de dónde lee —y si hay o no lectura directa de Firestore— se
-   define en el paso 7).
+   fecha, en `features/matches/`, ya borrado). **Desde el paso 7, pieza c, lee datos
+   reales** (ver "Pieza (c)" más abajo).
 7. **Conexión real a Firebase** (`image-review-firebase-integration`):
    una vez el usuario tenga acceso al proyecto externo, revisar el
    formato real de jornadas/números ganadores y reemplazar los mocks
@@ -161,8 +162,7 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    `firestore.rules.draft` (raíz del repo, no referenciado en
    `firebase.json`) es la copia de lo publicado a mano en la consola, que
    reemplaza todo el conjunto (por eso copia tal cual las reglas que ya
-   había). Su comentario de encabezado todavía dice "BORRADOR... no se
-   despliega" (también en lo publicado): hay que corregirlo. Agrega create/update de
+   había). Agrega create/update de
    `image_reviews/.../registros/{registroId}` (delete negado; la lectura
    de admin se agregó después, ver más abajo):
    sesión, claim `reviewRole`, `rol` == claim, ids de registro y de jornada
@@ -191,8 +191,7 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    fallo deja un `debugPrint` con el messageId y el tipo de `Failure`, sin
    payload ni chatJid. Hasta la publicación de las reglas (2026-10-01) la
    escritura se rechazaba con `permission-denied` y el registro quedaba
-   pendiente. `SimulatedReviewUploader`
-   queda sin cablear (candidato a borrar).
+   pendiente. `SimulatedReviewUploader` se borró (HECHO).
    **Cambio del modelo del registro — HECHO** (antes de la primera
    escritura real; decisión del usuario): el `codigo` pasa a ser **uno por
    imagen** (`ImageReviewForm.codigo`, un solo campo "Código" arriba de
@@ -206,10 +205,8 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    cambios. Detalle en `image-review-domain` (vocabulario y regla 6) y
    `image-review-offline-sync`.
    **PENDIENTES (no decididos)**: validar `codigo` y `loteria` en las
-   reglas (hoy no se validan); si la lotería pasa a ser una lista cerrada;
-   un aviso visible
-   para los registros viejos que no se pueden subir (la píldora los sigue
-   contando).
+   reglas (hoy no se validan); si la lotería pasa a ser una lista cerrada.
+   (El aviso para los registros viejos que no se pueden subir se descartó por decisión del usuario: son datos de prueba.)
    **Reglas publicadas y primera escritura real — HECHO (verificado por el
    usuario el 2026-10-01)**: reglas vigentes desde ese día, 7:37 p.m., con
    el contenido de `firestore.rules.draft`. Primera escritura real: 4
@@ -221,24 +218,17 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    `fechaJornada`/`shiftKey` coherentes con la hora de Colombia); claim
    `reviewRole` real y comparación contra `whatsapp_messages` verificados.
    En la zona de pruebas, un usuario sin claim de admin no lee `registros`
-   ni `shift_image_counts`. **Hay que BORRAR los 4 documentos de prueba
-   desde la consola** antes de desplegar el hosting o de que otra persona
-   use el Resumen. Detalle en `image-review-offline-sync` (capas 5 y 6).
+   ni `shift_image_counts`. Los 4 documentos de prueba fueron borrados por el usuario desde la consola el 2026-10-04.
+   Detalle en `image-review-offline-sync` (capas 5 y 6).
    Siguen **PENDIENTES** (detalle en `image-review-offline-sync` § "Ruta de
-   la subida"): aviso visible para los registros viejos que no se pueden
-   subir (y que la píldora los sigue contando), si conviene subir el
-   esquema a v2 (versiones antiguas de la app en caché), borrar los 4
-   documentos de prueba, corregir el encabezado de `firestore.rules.draft`
-   y republicar cuando cambie otra regla, los casos de escritura nunca
-   probados en la zona de pruebas, probar la lectura de un admin real
-   conectando el Resumen,
+   la subida"): si conviene subir el
+   esquema a v2 (versiones antiguas de la app en caché), los casos de escritura nunca
+   probados en la zona de pruebas,
    si validar `reviewShifts` o `allowedGroups`, reglas de Storage,
    verificación de conexión antes de subir, si una escritura en
    cola del SDK web llega tarde después de un timeout,
    mensajes de error visibles en español en la interfaz, nombres definitivos de las
-   colecciones, cómo lee
-   Coincidencias entre grupos (consulta de grupo de colecciones o Cloud
-   Function), si `fechaJornada`
+   colecciones, si `fechaJornada`
    usa `toLocal()` o UTC-5 (ahora es parte de la ruta), límites de tamaño
    (tampoco los imponen las reglas).
    **Acceso al Resumen — HECHO**: `/summary` y su entrada "Resumen" del
@@ -251,7 +241,10 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    **Lectura de `image_reviews` — DECIDIDO por el usuario**: solo la leen
    cuentas con claim `admin` o `superAdmin`; Revisor y Sumador no leen nada
    de `image_reviews` (sus registros siguen en local). La regla está
-   publicada desde el 2026-10-01 (ver más abajo).
+   publicada desde el 2026-10-01 (ver más abajo). **CAMBIO DELIBERADO
+   (2026-10-04; regla PUBLICADA ese día)**: lo subido pasa a ser la fuente
+   de verdad de `/review`; Revisor/Sumador leen los registros de SU rol del
+   grupo y la jornada que tienen asignados en ese momento (ver paso 9).
    **Pieza (d), Resumen real — capa 1 HECHA y CONECTADA**: capa de datos
    en `features/summary/data/` (nombres provisionales), probada con
    datasources falsos. Tres datasources en Dart puro con su clase Firestore
@@ -271,15 +264,20 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    devuelve `ref.watch(realSummaryRepositoryProvider)`: el Resumen lee
    datos reales (registros de `image_reviews`, contadores de
    `shift_image_counts` y nombres de `group_stats`), solo para admin y
-   superAdmin, con la caché de 5 minutos. `MockSummaryRepository` queda sin
-   cablear ("No cableado; solo tests y referencia; candidato a borrar").
+   superAdmin, con la caché de 5 minutos. `MockSummaryRepository` se
+   borró (HECHO).
    Un `Left` deja un `debugPrint` en `jornadaSummariesProvider`: los errores
    de Firestore y de permisos con su texto completo (si falta un índice,
    trae el enlace para crearlo), los demás solo con el tipo (su texto puede
    nombrar un registro). `SummaryPage` no cambió: muestra el texto completo
-   del `Failure` con "Reintentar". **No se ejecutó**: nada de esto se probó
-   todavía contra Firestore. Coincidencias **sigue con datos inventados**,
-   así que el hosting sigue sin desplegarse con esa pantalla visible.
+   del `Failure` con "Reintentar". **HECHO (verificado por el usuario el
+   2026-10-02)**: el Resumen real FUNCIONA con una cuenta admin (leyó los
+   registros, los contadores y los nombres); un admin real puede leer los
+   registros y la consulta de grupo de colecciones funciona. El índice de
+   grupo de colecciones sobre `fechaJornada` (ascendente) se creó desde la
+   consola, como exención de `registros.fechaJornada`, con el enlace que
+   trajo el error. Coincidencias lee datos reales desde la
+   pieza c (ver más abajo).
    **Caché del Resumen — HECHA** (hoy sobre el repositorio real): `SummaryCache`
    en memoria, por fecha (`fechaJornadaDe`), TTL de 5 minutos
    (`summaryCacheTtl`), solo éxitos (un `Left` nunca se guarda), una sola
@@ -294,32 +292,282 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    aparecer (el botón "Actualizar" lo evita).
    **Reglas de lectura de admin — PUBLICADAS el 2026-10-01** (en la zona de
    pruebas, un usuario sin claim de admin no lee `registros` ni
-   `shift_image_counts`; la lectura de un admin real no está verificada):
+   `shift_image_counts`; la lectura de un admin real quedó verificada el
+   2026-10-02 con el Resumen):
    `isAdmin()` (claims `admin` o `superAdmin` leídos con `get`), `match
    /{path=**}/registros/{registroId}` solo lectura (sirve a la consulta de
    grupo; el nombre `registros` aplica a toda colección con ese nombre) y
    `shift_image_counts` con lectura de admin y escritura negada.
-   **PENDIENTES (no decididos)**: la primera lectura real y el índice de grupo de colecciones sobre `fechaJornada` (se crea desde la consola con el enlace del error, que queda en el log `[RESUMEN] falló (firestore): ...`); que un admin real puede leer (no verificado hasta ejecutar); borrar los 4 documentos de prueba antes de desplegar o de que otra persona use el Resumen; `lastIndex` puede ser mayor que las imágenes reales; el costo en lecturas por consulta (hasta unas 3600; la caché de 5 minutos evita repetirla); el desfase de claims
-   (se leen solo al iniciar sesión); qué hacer con
-   `functions/set-admin.js`, que reemplaza los claims sin fusionarlos
-   (borraría `reviewRole`); no hay
+   **`functions/set-admin.js` — HECHO**: ahora fusiona los claims existentes (`{...claimsActuales, admin: true, superAdmin: true}`, leídos del `UserRecord` de `getUserByEmail`) en vez de reemplazarlos, así que ya no borra `reviewRole`; tests en `functions/test/setAdmin.test.js`. **SUPOSICIÓN**: un claim que ya se hubiera perdido por una corrida anterior del script no se recupera solo.
+   **PENDIENTES (no decididos)**: `lastIndex` puede ser mayor que las imágenes reales; el costo en lecturas por consulta (hasta unas 3600; la caché de 5 minutos evita repetirla); el desfase de claims
+   (se leen solo al iniciar sesión); no hay
    contadores de días anteriores a la publicación inicial (ver
    `image-review-domain`); el día se arma con `fechaJornadaDe` (`toLocal()`)
-   y `shiftDate` es UTC-5 fijo; qué colección de resultados manda para las
-   coincidencias; y lo ya pendiente.
-   **Jornadas — tabla definitiva, código HECHO, corte SIN fijar**: se leyó
-   una vez `jornadas` de `whats-apuestas` (2026-09-30) y el usuario decidió
-   usar ese horario como tabla fija en código, sin lectura dinámica. Tabla
-   vieja y nueva coexisten en `shifts.dart`; `newShiftsEffectiveFromMs`
-   sigue en `null` (tabla vieja en toda la app) hasta que el usuario lo fije
-   el día del despliegue. night2 retirado de la tabla nueva; los huecos se
-   ven en el visor ("Fuera de jornada X") pero no cuentan para reportes.
-   Detalle en `image-review-domain` ("Jornadas: tabla vieja, tabla nueva y
-   corte") y en `image-review-firebase-integration` ("Tabla definitiva").
-   **PENDIENTES**: fecha fija del corte y despliegue coordinado con el bot;
-   actualizar el bot (rangos y claves de `shift_image_counts`) en su repo;
-   retirar night2 de `ASSIGNABLE_SHIFTS` en `functions/`; fuente de
-   festivos; caché de la PWA tras el despliegue.
+   y `shiftDate` es UTC-5 fijo; y lo ya pendiente (qué colección de
+   resultados manda para las coincidencias ya se decidió, ver "Pieza (c)").
+   **Pieza (c), Coincidencias real — HECHA y CONECTADA** (decisiones del
+   usuario): `matchesRepositoryProvider` devuelve
+   `ref.watch(realMatchesRepositoryProvider)` (`FirestoreMatchesRepository`,
+   nombres provisionales). Tres datasources nuevos en
+   `features/matches/data/datasources/` (Dart puro + clase Firestore con
+   `.withReader`; nunca lanzan; `FirebaseException` → `mapFirestoreError`; un
+   documento malformado da `Left` con su id): registros del **Revisor** del
+   día (`collectionGroup('registros')` por `fechaJornada` y `rol`), números
+   ganadores del día (`winning_numbers/{fecha}`, campo `numbers`, nombre y
+   forma **PROVISIONALES** en una sola constante; documento ausente = lista
+   vacía) y el mensaje por id (`whatsapp_messages`: `senderName` y
+   `localTime`). El nombre del grupo reutiliza el
+   `groupNameDatasourceProvider` del Resumen, con su caché (sin documento →
+   el `chatJid`; error → `Left`). Solo admin y superAdmin leen
+   `image_reviews`.
+   - **Comparación**: los ganadores de una fecha se comparan contra los
+     números del Revisor de **TODAS las jornadas y grupos** de esa fecha;
+     solo cuenta el número (`findMatches`; regla de 2, 3 y 4 cifras, ver
+     "Pieza `findMatches`" más abajo). Solo las
+     coincidencias leen su mensaje (una vez por `messageId`) y su grupo (una
+     vez por `chatJid`); cualquier lectura fallida → `Left`.
+   - **Pantalla**: siempre una lista por jornada (las del día: domingo solo
+     `holiday`, si no mañana, tarde 1, tarde 2 y noche 1, más cualquier otra
+     con registros del Revisor), cada una con los mismos ganadores del día;
+     sin coincidencias: "Todavía no hay ganadores". El vacío de página queda
+     solo para un día sin jornadas. Sin ganadores, no se leen registros.
+   - Se quitó `messageEdited` (de `MatchEntry` y del diálogo de detalle).
+     **"Ver imagen" activado** (HECHO: `realImageEnabled` en `true` por
+     defecto, carga la imagen real desde el `storagePath` del registro).
+   - Log: `failureLogLine(tag, failure)` en `core/errors/` (Firestore y
+     permisos con su texto completo, el resto solo el tipo); un `Left`
+     imprime `[COINCIDENCIAS] falló (...)` y el Resumen usa la misma función
+     con `RESUMEN`. `MockMatchesRepository` se borró (HECHO).
+   - **Regla de `winning_numbers` — PUBLICADA el 2026-10-02** (HECHO,
+     verificado por el usuario): lectura para `isAdmin()`, escritura
+     negada; copia en `firestore.rules.draft`. La colección existe desde
+     el 2026-10-03: la escribe la función puente desplegada.
+   - **Coincidencias abrió sin error con una cuenta admin** (HECHO,
+     verificado por el usuario el 2026-10-02), mostrando "Todavía no hay
+     ganadores".
+   **Función puente (pieza b) — DECIDIDO por el usuario**:
+   el número de `manual_lotteries` reemplaza al de `resultados_loterias`
+   cuando es la misma lotería y la misma fecha; una lotería que solo está
+   en la manual cuenta como un número más; solo importa el número (la serie
+   se ignora); la función normaliza tildes y mayúsculas entre colecciones
+   (a confirmar con datos reales). Función programada **cada hora**, que
+   procesa **hoy y ayer en hora de Bogotá** (la manual se corrige después),
+   **sin historial** y **sin bot**. El usuario **autorizó** trabajar en
+   `functions/` para esta función y desplegarla cuando esté lista.
+   **Pieza b1 — HECHA**: la mezcla, como función pura sin Firebase
+   (`mergeWinningNumbers` en `functions/winningNumbers.js`, con tests
+   `node:test`; no exportada en `index.js`). Devuelve `{numbers,
+   discarded}`: `numbers` son textos de 3 o 4 cifras (desde b1.1), ceros a
+   la izquierda conservados, sin duplicados, en orden ascendente;
+   `discarded`, lo que no lo es (o no tiene nombre ni slug, `sin-loteria`),
+   con su lotería y el motivo. La clave de emparejamiento (`lotteryKey`)
+   es PROVISIONAL. Detalle en `image-review-firebase-integration`
+   ("Función puente de ganadores (pieza b)").
+   **Pieza b1.1 — HECHA** (solo lógica pura y tests con datos falsos):
+   forma real de las entradas documentada (`manualList` = `doc.data().list`
+   de `manual_lotteries/{yyyy-MM-dd}`, sin usar `date`). **DECIDIDO por el
+   usuario**: ganadores de 3 o 4 cifras en el mismo `numbers` ("Cash
+   three" cuenta); la regla de `findMatches` es ahora la de 2, 3 y 4
+   cifras (ver "Pieza `findMatches`" abajo); una entrada sin nombre ni slug no es
+   válida; el slug sigue PROVISIONAL, con un alias **DECIDIDO por el
+   usuario e IMPLEMENTADO**: `doramaña` (manual) se empareja con
+   `dorado_mañana` (automática) mediante `LOTTERY_KEY_ALIASES` en
+   `lotteryKey`, respaldado por 118 fechas en una lectura de
+   `whats-apuestas` del 2026-10-03; los demás pares se descartan por
+   aparecer en una sola fecha; la escritura será solo si cambió (pieza b2);
+   un boleto puede coincidir a la vez con varios ganadores ("606" con
+   "606" y con "4606"): la app solo muestra coincidencias y los revisores
+   deciden si corresponde el premio doble; si el resultado de una fecha
+   sale vacío, el handler no escribe nada y deja lo que había (si se
+   borran los ganadores, los revisores no los revisan).
+   **Pieza `findMatches` (2, 3 y 4 cifras) — HECHA**: **DECIDIDO por el usuario (aclaración del cliente) e IMPLEMENTADO**: tras `trim` en ambos lados, sin normalizar ni quitar ceros a la izquierda y sin validar que sean cifras; con un ganador de 4 cifras, un boleto de 4 coincide si es igual al ganador completo, uno de 3 si es igual a sus últimas 3 y uno de 2 si es igual a sus últimas 2; con un ganador de 3 cifras, un boleto de 3 coincide si es igual al ganador completo y uno de 2 si es igual a sus últimas 2; un boleto de 4 nunca coincide con un ganador de 3; boletos de otra longitud (1, 5 o más) y ganadores de longitud distinta de 3 o 4 se ignoran sin aviso; una entrada por registro, nunca dos veces
+   ("606" contra "606" y "4606", o "41" contra "5241" y "0341", sale una
+   sola vez; la entrada no lleva el ganador). La función puente no cambia:
+   los ganadores siguen siendo de 3 o 4 cifras. Tests en
+   `test/unit/matches/find_matches_test.dart`.
+   **Pieza b2 — HECHA** (código y tests con datos falsos; desplegada el
+   2026-10-03, ver abajo). **DECIDIDO por el usuario**: disparador cada 60 minutos, hoy y
+   ayer en hora de Bogotá, escribir solo si cambió, un resultado vacío no
+   escribe nada. Sobre `discarded`: comportamiento actual de la pieza b2: discarded solo se registra en el log; qué hacer con discarded sigue PENDIENTE (no decidido). `functions/winningNumbersSync.js`
+   (sin `firebase-admin`, dependencias por parámetro):
+   `syncWinningNumbers` lee `resultados_loterias/{fecha}` y
+   `manual_lotteries/{fecha}` (ausente = vacío), mezcla con
+   `mergeWinningNumbers`, compara con `winning_numbers/{fecha}` como listas
+   ordenadas y escribe `{numbers}` solo si cambió; una fecha que falla se
+   registra (id y tipo de error) sin escribirla y se sigue con la otra;
+   devuelve y registra un resumen por fecha (`escrita`, `sin-cambios`,
+   `omitida-vacia`, `error`). Fecha de Bogotá con UTC-5 fijo.
+   `runWinningNumbersSync` maneja el secreto (falta o JSON inválido → log
+   con el nombre, sin el contenido, y no escribe). En `index.js`, solo un
+   import y el export `syncWinningNumbers` (`onSchedule`, `"every 60
+   minutes"`, `timeZone: "America/Bogota"`, sin región, `secrets:
+   [defineSecret("WHATS_APUESTAS_KEY")]`, nombre PROVISIONAL) con una
+   segunda app de Admin "whats-apuestas" para leer. **SUPOSICIÓN**: el
+   documento lleva solo `numbers`. Detalle en
+   `image-review-firebase-integration` ("Pieza b2").
+   **Función puente DESPLEGADA y corriendo — HECHO (verificado por el
+   usuario el 2026-10-03)**: secreto `WHATS_APUESTAS_KEY` creado en
+   `whatsapp-pro-3d483` (versión 1); deploy con `firebase deploy --only
+   functions:syncWinningNumbers` (solo esa función, sin `--force`) hacia las
+   00:39 de Bogotá: v2 programada, `us-central1`, 256 MB, `nodejs24`; el CLI
+   habilitó Cloud Scheduler y dio acceso al secreto a la cuenta de servicio
+   de Compute por defecto; los 10 callables no se redesplegaron
+   (`functions:list` los muestra intactos) y `setReviewAssignment` ya no
+   está en producción. Primera corrida (forzada a las 00:44): `escrita` para
+   2026-10-03 y 2026-10-02, sin errores; la llave lee el ERP, la función
+   escribe `winning_numbers` con el formato esperado ("606" incluido, ceros
+   a la izquierda, orden de texto) y la entrada manual vacía del 2026-10-02
+   se descartó con `sin-loteria`. El cron corre solo (02:44, 03:44 y 04:44,
+   `sin-cambios`): queda CONFIRMADO que Cloud Scheduler acepta `"every 60
+   minutes"`. El aviso `sin-loteria` se repite en cada corrida mientras
+   exista esa entrada manual vacía (esperado).
+   **DECIDIDO por el usuario**: los resultados del día D valen hasta las
+   5:30 a.m. (Bogotá) del día D+1; la función no cambia (procesa hoy y ayer)
+   y no se agrega ninguna regla de horas.
+   **OBSERVADO (HECHO, sin causa)**: en una lectura del 2026-10-03, 258 de
+   259 documentos de `resultados_loterias` tienen su última actualización a
+   las 13:30 de Bogotá, y cada documento se crea a las 20:30 del día
+   anterior. `resultados_loterias/2026-10-03` tuvo 20 entradas a las 20:30,
+   32 a las 06:30 y 9 a las 13:30: la actualización de las 13:30 reemplaza
+   el contenido (corrige la nota anterior de 20 entradas);
+   `resultados_loterias/2026-10-02`, `updatedAt` 13:30 y 9 entradas;
+   `manual_lotteries/2026-10-03` no existía en la primera lectura. Por eso,
+   antes de las 13:30, `winning_numbers/2026-10-03` contenía resultados de
+   otra jornada y `winning_numbers/2026-10-02` tiene solo los 9 de las 13:30. "Play four día" figuraba como 5362 en una
+   lectura anterior y como 9252 después, sin explicación. **SUPOSICIÓN**
+   (no verificada): que quien escribe `resultados_loterias` arma el id con
+   la fecha en UTC. Detalle en `image-review-firebase-integration`.
+   **PENDIENTES de la función puente (no decididos)**: hasta las 13:30 de
+   su fecha, el documento de la API trae datos de otra jornada, y por eso
+   `winning_numbers` de ese día puede mostrar números que no son de ese día
+   hasta esa hora (el usuario dijo que los ganadores se revisan al día
+   siguiente); qué hacer con `discarded` (hoy solo se registra en el log).
+   **PENDIENTES (no decididos)**: el índice de grupo de colecciones sobre
+   `fechaJornada` y `rol` (el enlace sale del error de la primera consulta
+   con ganadores, en el log `[COINCIDENCIAS] falló (firestore): ...`);
+   caché; costo en lecturas; que "Ver imagen" no se probó con una imagen
+   real (las reglas de Storage no están en el repo); y lo ya pendiente.
+   **Pieza (e), tabla de jornadas ÚNICA — HECHA** (decisión del usuario):
+   el horario de `jornadas` de `whats-apuestas` (leído el 2026-09-30) rige
+   en toda la app, para todas las fechas y todos los mensajes; la tabla
+   vieja y el corte (`newShiftsEffectiveFromMs`, `usesNewShiftTable`,
+   `shiftNamesAt`, `effectiveFromMs`) se retiraron. `shiftNames` tiene
+   ahora las etiquetas ACTUALES y las viejas están en `legacyShiftNames`
+   (solo para reconocer lo guardado y como respaldo de night2). night2 solo
+   queda como valor del enum: `getCurrentShift` nunca lo devuelve, el
+   diálogo de horarios no lo ofrece y el panel de control no tiene su fila.
+   Los huecos se ven en el visor ("Fuera de jornada X") pero no cuentan
+   para reportes. Detalle en `image-review-domain` ("Jornadas: una sola
+   tabla") y en `image-review-firebase-integration` ("Tabla definitiva").
+   **HECHOS verificados por el usuario el 2026-10-02**: la regla de
+   `winning_numbers` está publicada; Coincidencias abre sin error con la
+   cuenta admin y muestra "Todavía no hay ganadores"; el Resumen real
+   funciona con la cuenta admin (ver "Pieza (d)").
+   **PENDIENTES (no decididos)**: actualizar el BOT con los mismos rangos y
+   sin night2 (en su repo; hasta entonces `shift_image_counts` sigue la
+   tabla vieja y el "imágenes en la jornada" del Resumen puede estar
+   desfasado en los bordes); retirar night2 de `ASSIGNABLE_SHIFTS` en
+   `functions/`; caché de la PWA tras desplegar (fuente de festivos y
+   horario del ERP que cambia sin aviso, para la app: resueltos por la pieza
+   2 de horarios dinámicos, más abajo); los mensajes ya guardados se
+   reclasifican con la tabla única; que Coincidencias, cuando haya
+   ganadores, probablemente pida un índice sobre `rol`; y lo ya pendiente.
+   **Horarios dinámicos, pieza 1 — HECHA (código y tests; NO desplegada)**
+   (decisión del usuario, 2026-10-03): el mismo disparador programado de los
+   ganadores, después de ellos y con la misma conexión y el mismo secreto,
+   copia `jornadas` del ERP a una colección `jornadas` de nuestro proyecto
+   (nombre PROVISIONAL): réplica exacta (mismos ids y los 7 campos, tal
+   cual), escribe solo si cambió o no existe, valida solo el formato de
+   `startTime`/`endTime`, nunca borra, cero documentos del ERP no escribe
+   nada; ganadores y jornadas aislados en try/catch separados.
+   `functions/jornadasSync.js` + tests en `functions/test/jornadasSync.test.js`;
+   bloque de reglas de `jornadas` en `firestore.rules.draft`, **PUBLICADO**
+   a mano por el usuario (confirmado el 2026-10-04).
+   DECIDIDO: "Mañana" vale para las mañanas de todos los días excepto
+   domingos y festivos, que usan `festivos`. Conversión de ids y detalle en
+   `image-review-firebase-integration` ("Réplica de jornadas").
+   **SUPOSICIÓN**: los horarios que se usan son siempre `startTime` y
+   `endTime`.
+   **Festivos en Firebase — HECHO (2026-10-03)**: `festivos_colombia`, diez
+   documentos (`"2026"` a `"2035"`, campo `fechas`, lista `yyyy-MM-dd`; 18
+   por año, 2030 con 17), cargados con el Admin SDK desde una lista generada
+   con reglas y revisada por el usuario, y verificados releyéndolos.
+   **Horarios dinámicos, pieza 2 — HECHA (código y tests; sin desplegar)**
+   (DECIDIDO por el usuario e IMPLEMENTADO, opción A, versión simple): la app
+   lee `jornadas` y `festivos_colombia` y clasifica con ellos; **la tabla
+   fija actual es el respaldo**. `shifts.dart` guarda una sola tabla activa
+   (`ShiftTable`, inicializada con `fixedShiftTable`; `replaceShiftTable`,
+   `restoreFixedShiftTable` solo para tests); `shiftLastMinute` sale de los
+   rangos; `isHolidayOrSunday` hace que un festivo se comporte como un
+   domingo (también en `_shiftsOfDay` de Coincidencias); etiquetas fijas;
+   zona horaria sin cambios. Datasource y cargador en
+   `lib/features/shift_schedule/` (lectura única por sesión, disparada con
+   `ref.listen` en `app.dart`, sin reintentos ni timeout; falla →
+   `[JORNADAS] falló (...)` y tabla fija; tabla distinta → reemplaza e
+   invalida `shiftStatsProvider`). Regla de `festivos_colombia` en
+   `firestore.rules.draft`, **PUBLICADA** (confirmado el 2026-10-04).
+   Limitaciones aceptadas: los
+   mensajes ya cargados mantienen su etiqueta hasta cambiar de chat o de
+   filtro, y lo guardado antes del deploy puede quedar con etiquetas
+   desfasadas. Detalle en `image-review-firebase-integration` ("Lectura en
+   la app").
+   **PENDIENTES (no decididos)**: pieza 3 (el bot sigue con su tabla vieja;
+   **RIESGO CONOCIDO (hasta actualizar el bot)**: en cada festivo entre semana, empezando por el **lunes 2026-10-12**, la app (con la pieza 2) trata el día como domingo (solo la jornada `holiday`, 06:00–19:15; lo de fuera queda "fuera de jornada") y el bot lo clasifica como un día normal con su tabla vieja: `shift_image_counts` de ese día no coincide con lo que ve la app, y el Resumen mostrará diferencias en "imágenes en la jornada".); el texto de las etiquetas no se
+   actualiza si el ERP cambia un horario (cosmético); la zona horaria del
+   dispositivo para los festivos; qué hacer con `pendingApproval: true` o
+   `proposed*` (hoy se ignoran); desplegar.
+   **Limpieza — HECHA**: se borraron `MockSummaryRepository`,
+   `MockMatchesRepository` y `SimulatedReviewUploader`, con sus tests
+   propios; el test del menú (`custom_popup_menu_logout_button_test.dart`)
+   usa repositorios falsos vacíos dentro del propio test.
+
+8. **Flujo "Llenar formularios" — HECHO (2026-10-04, CAMBIO DELIBERADO
+   pedido por los usuarios; sin desplegar)**: contradice a propósito tres
+   decisiones anteriores: la cápsula de subida en el chat (paso 4), el
+   formulario en el visor del chat (paso 2) y el cierre de jornada sin
+   contar imágenes (`image-review-domain`). Capas, todas con tests:
+   1. `jornadaImagesProvider`: imágenes de una jornada de un chat en un día,
+      de la PRIMERA a la ÚLTIMA (día completo con `fetchByDateRange`; en vivo
+      solo si el día es hoy; sin reintento automático; los huecos entre
+      jornadas quedan fuera).
+   2. `ImageDetailPage` reutilizable (`items`, `reverse`, `paginate`,
+      `showClose`/`onClose`/`closeLabel`, `actions`, `reviewForm`).
+   3. Pantalla `/review` (`ReviewSessionPage`) con sesión de llenado en
+      memoria (`reviewSessionProvider`) y guard en `computeAuthRedirect` (no
+      se sale salvo con "Cerrar" o recargando); "Subir" (`PendingUploadPill` +
+      `ReviewUploadNotifier`), "Cerrar" (solo con TODAS las imágenes con
+      registro guardado; con la lista vacía también) y aviso con ancho < 840.
+   4. Botón "Llenar formularios" (`FillFormsButton`) en `MessageList` y su
+      diálogo (fecha con flechas, jornadas asignadas que aplican al día).
+   5. Limpieza: sin cápsula; el visor del chat volvió a ser solo visor
+      (`reviewForm: false`); corregir un registro (también uno subido) solo
+      se hace desde `/review`.
+   Detalle en `image-review-roles` ("Pantalla de llenado `/review`"),
+   `image-review-domain` ("Cierre de jornada") e `image-review-offline-sync`.
+   El `debugPrint` temporal de lecturas se quitó tras medir (32 mensajes
+   en `holiday` del 2026-10-04). `CACHE_NAME` subió a `whatsapp-monitor-v5`.
+   **PENDIENTE**: desplegar el hosting (primero se muestra al cliente en un
+   canal de vista previa).
+9. **Lo subido es la fuente de verdad de `/review` — HECHO (2026-10-04,
+   CAMBIO DELIBERADO; sin desplegar)**: contradice a propósito que "tiene
+   formulario" dependía solo de Hive y que Revisor/Sumador no leían
+   `image_reviews`. Capas, todas con tests:
+   1. Documentación: reglas de `jornadas` y `festivos_colombia` publicadas;
+      riesgo de los festivos entre semana hasta actualizar el bot.
+   2. Regla de lectura del Revisor/Sumador asignado (solo su rol) en
+      `firestore.rules.draft`, probada en el emulador
+      (`firestore-rules-test/`, 33 casos y una prueba de mutación);
+      publicada por el usuario el 2026-10-04 (el borrador completo, sin
+      comparar antes con la consola).
+   3. Lectura (`FirestoreReviewRemoteRecordsDatasource`).
+   4. Mezcla con Hive (`syncJornadaFromRemote`, `deleteSynced`).
+   5. `/review` espera la mezcla y abre en la primera imagen sin formulario;
+      "Subir" solo con la mezcla terminada y "Cerrar" oculto mientras se
+      sube esa jornada (para que no se crucen).
+   Detalle en `image-review-offline-sync` ("Lo subido es la fuente de verdad
+   de `/review`"). **Prueba a mano de `/review` con la regla publicada —
+   HECHA (verificada por el usuario el 2026-10-04)**: funciona. Solo cubre
+   `/review`; no da por probado nada más. **PENDIENTE**: desplegar.
 
 ## Checklist antes de pasar a la siguiente pieza
 
@@ -367,17 +615,28 @@ de aquí y de la skill correspondiente cuando el usuario confirme):
 - **`sqflite`/`drift` vs. `Hive`** (`image-review-offline-sync`) —
   decisión libre, a tomar en Claude Code; no hay nada existente que
   condicione la elección.
-- **Dos puntos diferidos del proyecto externo de Firebase**
-  (`image-review-firebase-integration`): mecanismo de recepción de números
-  ganadores (webhook vs. polling) y el contrato completo de la Cloud
-  Function puente. El usuario dijo que los revisamos juntos — no intentar
-  adivinarlos antes. (El formato de las jornadas ya se vio y se decidió
-  una tabla fija en código, 2026-09-30.)
-- **Corte de la tabla de jornadas** (`image-review-domain`): fecha fija de
-  `newShiftsEffectiveFromMs` y despliegue coordinado con el bot (rangos y
-  claves de `shift_image_counts` en su repo), retirar night2 de
-  `ASSIGNABLE_SHIFTS` en `functions/`, fuente de festivos y caché de la PWA
-  tras el despliegue.
+- **Función puente de ganadores** (`image-review-firebase-integration`):
+  el mecanismo ya está decidido (polling programado cada hora, hoy y ayer
+  en hora de Bogotá, sin historial) y la mezcla está hecha (piezas b1 y
+  b1.1: 3 o 4 cifras, `sin-loteria`; decididos la escritura solo si
+  cambió y no escribir nada si el resultado sale vacío) y el handler
+  programado está **desplegado y corriendo cada hora** desde el 2026-10-03
+  (pieza b2); alias `doramaña` → `dorado_mañana` decidido e implementado
+  (118 fechas). Falta: qué hacer con `discarded` y con los números de otra
+  jornada que trae el documento de la API hasta las 13:30 de su fecha. (El
+  formato de las jornadas ya se vio y se decidió una tabla fija en código,
+  2026-09-30.)
+- **Tabla única de jornadas** (`image-review-domain`): actualizar el bot
+  con los mismos rangos y sin night2 (en su repo), retirar night2 de
+  `ASSIGNABLE_SHIFTS` en `functions/` y caché de la PWA tras desplegar.
+- **Horarios dinámicos** (`image-review-firebase-integration`, "Réplica de
+  jornadas" y "Lectura en la app"): piezas 1 y 2 hechas y sin desplegar,
+  festivos cargados en `festivos_colombia`, reglas de las dos colecciones
+  publicadas (confirmado el 2026-10-04); faltan la pieza 3 (bot; mientras
+  tanto, riesgo del lunes 2026-10-12 y de cada festivo entre semana, ver
+  `image-review-firebase-integration`), desplegar, el texto de
+  las etiquetas con horas fijas, la zona horaria del dispositivo para los
+  festivos y el significado de `pendingApproval`/`proposed*`.
 - **Calidad de conexión en la subida real** (`image-review-offline-sync`,
   paso 7) — el timeout por registro ya existe (15 s, capa 3); falta decidir
   si además se verifica la conexión antes de subir, y qué pasa si una

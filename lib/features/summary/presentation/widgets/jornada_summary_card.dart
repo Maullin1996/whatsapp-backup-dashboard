@@ -1,18 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
 import 'package:whatsapp_monitor_viewer/core/time/jornada_labels.dart';
+import 'package:whatsapp_monitor_viewer/core/time/shifts.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
-import 'package:whatsapp_monitor_viewer/helpers/format_pesos.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/models/review_key.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/domain/entities/jornada_estado.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/domain/entities/jornada_summary.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/domain/entities/role_summary.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/domain/helpers/imagenes_faltantes.dart';
+import 'package:whatsapp_monitor_viewer/features/summary/presentation/widgets/summary_status_pill.dart';
+import 'package:whatsapp_monitor_viewer/helpers/format_pesos.dart';
 
-/// Tarjeta de una jornada de un grupo: qué registró cada rol y si cuadra.
+/// Una jornada de un grupo, dentro de la tarjeta del grupo
+/// (`SummaryGroupSection`): cabecera con el estado (fondo teñido de su
+/// color), una tabla compacta con Revisor y Sumador en filas (imágenes,
+/// tickets y total en columnas) y debajo los avisos: quién registró de más si
+/// hay descuadre e imágenes sin registrar.
 ///
-/// [now] decide si la jornada ya terminó, que es cuando aparece, bajo cada
-/// rol, el aviso informativo de imágenes sin registrar.
+/// [now] decide si la jornada ya terminó: solo entonces aparece el aviso
+/// informativo de imágenes sin registrar; mientras no termina, la cabecera
+/// dice "En curso".
 class JornadaSummaryCard extends StatelessWidget {
   final JornadaSummary summary;
   final DateTime now;
@@ -23,176 +30,323 @@ class JornadaSummaryCard extends StatelessWidget {
     required this.now,
   });
 
+  /// Avisos que muestra la jornada (descuadre e imágenes por rol): sirve
+  /// para estimar su alto al repartir los grupos en columnas.
+  static int noticeCount(JornadaSummary summary, DateTime now) =>
+      (summary.estado is JornadaDescuadre ? 1 : 0) +
+      [
+        ReviewRole.revisor,
+        ReviewRole.sumador,
+      ].where((rol) => (imagenesFaltantes(summary, rol, now) ?? 0) > 0).length;
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: AppRadius.cardAll,
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    final estado = summary.estado;
+    final (_, _, color) = summaryStatusStyle(estado);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _Header(summary: summary, now: now, color: color),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.xs,
+            AppSpacing.md,
+            AppSpacing.md,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                child: Text(
+              _ComparisonTable(
+                revisor: summary.revisor,
+                sumador: summary.sumador,
+                descuadre: estado is JornadaDescuadre,
+              ),
+              if (estado is JornadaDescuadre) _DifferenceLine(summary: summary),
+              for (final rol in ReviewRole.values)
+                _MissingImagesLine(
+                  rol: rol,
+                  missing: imagenesFaltantes(summary, rol, now),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Nombre corto de la jornada, su horario (y "En curso" si no ha terminado)
+/// y la pastilla de estado, sobre un fondo levemente teñido del color del
+/// estado. Si no cabe en una línea, la pastilla baja a la siguiente en vez
+/// de recortarse.
+class _Header extends StatelessWidget {
+  final JornadaSummary summary;
+  final DateTime now;
+  final Color color;
+
+  const _Header({
+    required this.summary,
+    required this.now,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final shift = shiftFromLabel(summary.shift);
+    final enCurso =
+        shift != null && !jornadaTerminada(summary.fechaJornada, shift, now);
+    final hours = shiftHoursText(summary.shift);
+    final subtitle = [?hours, if (enCurso) 'En curso'].join(' · ');
+
+    return ColoredBox(
+      color: color.withValues(alpha: 0.06),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
+        child: Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.xs,
+          children: [
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
                   shortShiftName(summary.shift),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTypography.headerTitle(context),
                 ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Flexible(child: _StatusBadge(estado: summary.estado)),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          _RoleLine(rol: ReviewRole.revisor, summary: summary.revisor),
-          _MissingImagesLine(
-            missing: imagenesFaltantes(summary, ReviewRole.revisor, now),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          _RoleLine(rol: ReviewRole.sumador, summary: summary.sumador),
-          _MissingImagesLine(
-            missing: imagenesFaltantes(summary, ReviewRole.sumador, now),
-          ),
-        ],
+                if (subtitle.isNotEmpty)
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.timestamp(
+                      context,
+                    ).copyWith(color: Colors.grey.shade700),
+                  ),
+              ],
+            ),
+            SummaryStatusPill.of(summary.estado),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _RoleLine extends StatelessWidget {
-  final ReviewRole rol;
-  final RoleSummary summary;
+/// Revisor y Sumador en filas, con imágenes, tickets y total en columnas. Si
+/// hay descuadre, la columna del total va en rojo. Un rol sin registrar
+/// muestra "Sin registrar" bajo su nombre y guiones en sus cifras.
+class _ComparisonTable extends StatelessWidget {
+  final RoleSummary revisor;
+  final RoleSummary sumador;
+  final bool descuadre;
 
-  const _RoleLine({required this.rol, required this.summary});
+  const _ComparisonTable({
+    required this.revisor,
+    required this.sumador,
+    required this.descuadre,
+  });
 
-  static String _plural(int n, String singular, String plural) =>
-      '$n ${n == 1 ? singular : plural}';
+  static const _empty = '—';
 
   @override
   Widget build(BuildContext context) {
-    final detail = summary.registrado
-        ? '${_plural(summary.cantidadImagenes, 'imagen', 'imágenes')} · '
-              '${_plural(summary.cantidadTickets, 'ticket', 'tickets')} · '
-              '${formatPesos(summary.totalSuma)}'
-        : 'Sin registrar';
+    final textTheme = Theme.of(context).textTheme;
+    final headerStyle = textTheme.bodySmall?.copyWith(
+      color: Colors.grey.shade700,
+    );
+    final valueStyle = textTheme.bodyMedium?.merge(AppTypography.tabular);
+    final totalStyle = valueStyle?.copyWith(
+      fontWeight: FontWeight.w700,
+      color: descuadre ? AppColors.errorMessage : null,
+    );
 
-    return Text.rich(
-      TextSpan(
+    TableRow row(ReviewRole rol, RoleSummary role) {
+      String value(String Function() format) =>
+          role.registrado ? format() : _empty;
+      return TableRow(
         children: [
-          TextSpan(
-            text: '${rol.label}: ',
-            style: const TextStyle(fontWeight: FontWeight.w600),
+          _RoleCell(rol: rol, summary: role),
+          _Cell(
+            Text(value(() => '${role.cantidadImagenes}'), style: valueStyle),
           ),
-          TextSpan(
-            text: detail,
-            style: summary.registrado
-                ? null
-                : TextStyle(color: Colors.grey.shade600),
+          _Cell(
+            Text(value(() => '${role.cantidadTickets}'), style: valueStyle),
           ),
+          _Cell(
+            Text(value(() => formatPesos(role.totalSuma)), style: totalStyle),
+          ),
+        ],
+      );
+    }
+
+    return Table(
+      columnWidths: const {
+        0: FlexColumnWidth(1.3),
+        1: FlexColumnWidth(1),
+        2: FlexColumnWidth(1),
+        3: FlexColumnWidth(1.6),
+      },
+      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+      children: [
+        TableRow(
+          children: [
+            const SizedBox.shrink(),
+            _Cell(Text('Imágenes', style: headerStyle)),
+            _Cell(Text('Tickets', style: headerStyle)),
+            _Cell(Text('Total', style: headerStyle)),
+          ],
+        ),
+        row(ReviewRole.revisor, revisor),
+        row(ReviewRole.sumador, sumador),
+      ],
+    );
+  }
+}
+
+/// Celda de cifra: alineada a la derecha y encogida si no cabe.
+class _Cell extends StatelessWidget {
+  final Widget child;
+
+  const _Cell(this.child);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: FittedBox(fit: BoxFit.scaleDown, child: child),
+      ),
+    );
+  }
+}
+
+class _RoleCell extends StatelessWidget {
+  final ReviewRole rol;
+  final RoleSummary summary;
+
+  const _RoleCell({required this.rol, required this.summary});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            rol.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(
+              context,
+            ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          if (!summary.registrado)
+            Text(
+              'Sin registrar',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.badge.copyWith(
+                fontSize: 11,
+                color: AppColors.warning,
+              ),
+            ),
         ],
       ),
     );
   }
 }
 
-/// Aviso informativo bajo la fila de un rol: cuántas imágenes de la jornada
-/// no registró. Solo con [missing] > 0. Tono neutro (gris, nunca rojo: el rojo
-/// es del descuadre de dinero) y solo la diferencia, no el total del contador.
+/// Quién registró más dinero y por cuánto (el badge solo dice el monto).
+class _DifferenceLine extends StatelessWidget {
+  final JornadaSummary summary;
+
+  const _DifferenceLine({required this.summary});
+
+  @override
+  Widget build(BuildContext context) {
+    final diff = summary.revisor.totalSuma - summary.sumador.totalSuma;
+    final (mayor, menor) = diff > 0
+        ? (ReviewRole.revisor, ReviewRole.sumador)
+        : (ReviewRole.sumador, ReviewRole.revisor);
+
+    return _Notice(
+      icon: Icons.compare_arrows_rounded,
+      color: AppColors.errorMessage,
+      text:
+          'El ${mayor.label} registró ${formatPesos(diff.abs())} más que el '
+          '${menor.label}',
+    );
+  }
+}
+
+/// Aviso informativo de un rol: cuántas imágenes de la jornada no registró.
+/// Solo con [missing] > 0. Tono neutro (gris, nunca rojo: el rojo es del
+/// descuadre de dinero) y solo la diferencia, no el total del contador.
 class _MissingImagesLine extends StatelessWidget {
+  final ReviewRole rol;
   final int? missing;
 
-  const _MissingImagesLine({required this.missing});
+  const _MissingImagesLine({required this.rol, required this.missing});
 
   @override
   Widget build(BuildContext context) {
     final count = missing;
     if (count == null || count <= 0) return const SizedBox.shrink();
 
-    final color = Colors.grey.shade600;
-    final text = count == 1
-        ? 'Falta 1 imagen por registrar'
-        : 'Faltan $count imágenes por registrar';
-
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.xs),
-      child: Row(
-        children: [
-          Icon(Icons.info_outline_rounded, size: AppSpacing.lg, color: color),
-          const SizedBox(width: AppSpacing.xs),
-          Expanded(
-            child: Text(
-              text,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: color),
-            ),
-          ),
-        ],
-      ),
+    return _Notice(
+      icon: Icons.info_outline_rounded,
+      color: Colors.grey.shade600,
+      prefix: rol.label,
+      text: count == 1
+          ? 'Falta 1 imagen por registrar'
+          : 'Faltan $count imágenes por registrar',
     );
   }
 }
 
-/// Badge de estado (patrón de `ReviewStatusChip`: fondo al 12 % de alpha,
-/// texto e icono del mismo color, radio pill).
-class _StatusBadge extends StatelessWidget {
-  final JornadaEstado estado;
+class _Notice extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String? prefix;
+  final String text;
 
-  const _StatusBadge({required this.estado});
+  const _Notice({
+    required this.icon,
+    required this.color,
+    required this.text,
+    this.prefix,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final (label, icon, color) = switch (estado) {
-      JornadaCuadra() => (
-        'Cuadra',
-        Icons.check_circle_rounded,
-        AppColors.success,
-      ),
-      JornadaDescuadre(:final diferencia) => (
-        'Descuadre de ${formatPesos(diferencia)}',
-        Icons.warning_amber_rounded,
-        AppColors.errorMessage,
-      ),
-      JornadaPendiente(:final faltan) => (
-        faltan.length == 2
-            ? 'Faltan Revisor y Sumador'
-            : 'Falta ${faltan.single.label}',
-        Icons.hourglass_top_rounded,
-        AppColors.warning,
-      ),
-    };
+    final style = Theme.of(context).textTheme.bodySmall?.copyWith(color: color);
+    final prefix = this.prefix;
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: AppRadius.pillAll,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.xs,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: AppSpacing.lg, color: color),
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.sm),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: AppSpacing.lg, color: color),
+          const SizedBox(width: AppSpacing.xs),
+          if (prefix != null) ...[
+            Text(prefix, style: style?.copyWith(fontWeight: FontWeight.w700)),
             const SizedBox(width: AppSpacing.xs),
-            Flexible(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppTypography.badge.copyWith(color: color),
-              ),
-            ),
           ],
-        ),
+          Expanded(child: Text(text, style: style)),
+        ],
       ),
     );
   }

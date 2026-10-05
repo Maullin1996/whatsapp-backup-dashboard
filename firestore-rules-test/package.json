@@ -1,0 +1,13 @@
+{
+  "name": "firestore-rules-test",
+  "private": true,
+  "description": "Pruebas de firestore.rules.draft en el emulador local de Firestore",
+  "type": "module",
+  "scripts": {
+    "test": "firebase emulators:exec --only firestore --project demo-review-rules \"node rules.test.mjs\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "4.0.1",
+    "firebase": "11.10.0"
+  }
+}

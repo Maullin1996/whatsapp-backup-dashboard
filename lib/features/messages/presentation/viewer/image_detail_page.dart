@@ -2,6 +2,7 @@ import 'package:extended_image/extended_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show ProviderListenable;
 import 'package:whatsapp_monitor_viewer/core/responsive/breakpoints.dart';
 import 'package:whatsapp_monitor_viewer/core/responsive/responsive_layout.dart';
 import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
@@ -57,7 +58,54 @@ ImageViewItem? _itemById(List<ImageViewItem> items, String id) {
 class ImageDetailPage extends ConsumerStatefulWidget {
   final int initialIndex;
 
-  const ImageDetailPage({super.key, required this.initialIndex});
+  /// De dónde salen las imágenes. `null` (por defecto): las del chat activo
+  /// (`chatImageItemsProvider`, índice 0 = la más nueva).
+  final ProviderListenable<List<ImageViewItem>>? items;
+
+  /// `true` (por defecto, el chat): el índice 0 se dibuja a la DERECHA, así
+  /// que la flecha derecha va hacia el índice 0 (la más nueva). `false`: el
+  /// índice 0 a la IZQUIERDA y la flecha derecha avanza en el índice (de la
+  /// primera a la última).
+  final bool reverse;
+
+  /// Pide la página siguiente del chat (`messagesProvider.loadMore`) al
+  /// acercarse al final de la lista. Solo tiene sentido con las imágenes del
+  /// chat.
+  final bool paginate;
+
+  /// Si se muestra el botón de cerrar (y Esc cierra). Sin él, el visor no se
+  /// cierra desde aquí.
+  final bool showClose;
+
+  /// Qué hace cerrar. `null` (por defecto): `Navigator.pop`.
+  final VoidCallback? onClose;
+
+  /// Con texto, el botón de cerrar es un botón con ese texto en vez del icono.
+  final String? closeLabel;
+
+  /// Botones extra en la barra superior, antes del de cerrar.
+  final List<Widget> actions;
+
+  /// Formulario de revisión: solo la pantalla de llenado `/review` lo pide
+  /// (`true`). Con `false` (por defecto, el visor del chat) el visor es solo
+  /// visor, como antes del formulario: sin panel, sin bloqueo de navegación y
+  /// sin el foco extra; ni siquiera lee el rol, `reviewShifts` o los
+  /// registros guardados. Con `true` el panel sigue sus condiciones de
+  /// siempre (ancho, rol y asignación).
+  final bool reviewForm;
+
+  const ImageDetailPage({
+    super.key,
+    required this.initialIndex,
+    this.items,
+    this.reverse = true,
+    this.paginate = true,
+    this.showClose = true,
+    this.onClose,
+    this.closeLabel,
+    this.actions = const [],
+    this.reviewForm = false,
+  });
 
   @override
   ConsumerState<ImageDetailPage> createState() => _ImageDetailPageState();
@@ -67,9 +115,9 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage>
     with SingleTickerProviderStateMixin {
   late final ExtendedPageController _controller;
 
-  /// Posición actual dentro de `chatImageItemsProvider` (0 = el más nuevo).
-  /// Se mantiene sincronizada con [_anchorId]: cuando llegan imágenes nuevas
-  /// (se insertan al principio) el índice cambia pero la imagen no.
+  /// Posición actual dentro de la lista de imágenes ([_itemsSource]). Se
+  /// mantiene sincronizada con [_anchorId]: cuando la lista cambia por tiempo
+  /// real el índice puede cambiar, pero la imagen no.
   late int _index;
 
   /// messageId de la imagen que se está viendo. El visor se ancla a ella y no
@@ -102,6 +150,9 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage>
   /// empezó desde una imagen ya registrada.
   String? _dragOriginId;
 
+  ProviderListenable<List<ImageViewItem>> get _itemsSource =>
+      widget.items ?? chatImageItemsProvider;
+
   @override
   void initState() {
     super.initState();
@@ -111,11 +162,11 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage>
       vsync: this,
       duration: AppDurations.quick,
     );
-    final items = ref.read(chatImageItemsProvider);
+    final items = ref.read(_itemsSource);
     if (items.isNotEmpty) _resolveIndex(items);
     // El listener corre antes del rebuild: el pager se reposiciona antes de
     // que se dibuje una imagen distinta a la que el usuario está viendo.
-    ref.listenManual(chatImageItemsProvider, (_, items) {
+    ref.listenManual(_itemsSource, (_, items) {
       _onItemsChanged(items);
     });
   }
@@ -182,14 +233,15 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage>
     }
   }
 
-  /// El panel del formulario (y el bloqueo de navegación) solo existen en
-  /// pantallas anchas, con rol activo, y cuando [item] pertenece a un
+  /// El panel del formulario (y el bloqueo de navegación) solo existen con
+  /// [ImageDetailPage.reviewForm], en pantallas anchas, con rol activo, y
+  /// cuando [item] pertenece a un
   /// (chatJid, shift) que ese rol tiene en `reviewShiftsProvider`. Mientras
   /// esa lectura esté cargando o falle se trata como "sin asignación" (sin
   /// panel), para no mostrar el formulario y ocultarlo después al llegar el
   /// dato. `null` (sin item resuelto, p. ej. lista vacía) tampoco tiene panel.
   bool _showReviewPanelFor(ImageViewItem? item) {
-    if (item == null) return false;
+    if (!widget.reviewForm || item == null) return false;
     if (MediaQuery.sizeOf(context).width < AppBreakpoints.reviewForm) {
       return false;
     }
@@ -212,7 +264,7 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage>
   /// [originId]: imagen sobre la que se evalúa (por defecto, la actual).
   bool _isNavigationBlocked({String? originId}) {
     if (!mounted) return false;
-    final items = ref.read(chatImageItemsProvider);
+    final items = ref.read(_itemsSource);
     if (items.isEmpty) return false;
     final id = originId ?? items[_index.clamp(0, items.length - 1)].messageId;
     final item = _itemById(items, id);
@@ -260,12 +312,12 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage>
     // Los saltos del ancla no son navegación del usuario.
     if (_anchoring || index == _index) return;
     setState(() => _index = index);
-    final items = ref.read(chatImageItemsProvider);
+    final items = ref.read(_itemsSource);
     final newItem = index < items.length ? items[index] : null;
     if (newItem != null) _anchorId = newItem.messageId;
     // Si el campo enfocado era de la imagen anterior, su foco se perdió.
     if (_showReviewPanelFor(newItem)) _viewerFocus.requestFocus();
-    if (index >= items.length - 3) {
+    if (widget.paginate && index >= items.length - 3) {
       ref.read(messagesProvider.notifier).loadMore();
     }
   }
@@ -284,6 +336,33 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage>
       return false;
     }
     return true;
+  }
+
+  /// Hay imagen a la derecha / a la izquierda de la actual (ver
+  /// [ImageDetailPage.reverse]).
+  bool _canGoRight(int length) =>
+      widget.reverse ? _index > 0 : _index < length - 1;
+  bool _canGoLeft(int length) =>
+      widget.reverse ? _index < length - 1 : _index > 0;
+
+  /// Pasa a la imagen de la derecha / de la izquierda (sin mirar el bloqueo).
+  void _goRight() => widget.reverse ? _previousPage() : _nextPage();
+  void _goLeft() => widget.reverse ? _nextPage() : _previousPage();
+
+  void _nextPage() =>
+      _controller.nextPage(duration: AppDurations.quick, curve: Curves.easeOut);
+  void _previousPage() => _controller.previousPage(
+    duration: AppDurations.quick,
+    curve: Curves.easeOut,
+  );
+
+  void _close() {
+    final onClose = widget.onClose;
+    if (onClose != null) {
+      onClose();
+    } else {
+      Navigator.pop(context);
+    }
   }
 
   void _handleDoubleTap(ExtendedImageGestureState state) {
@@ -337,7 +416,7 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage>
 
   @override
   Widget build(BuildContext context) {
-    final items = ref.watch(chatImageItemsProvider);
+    final items = ref.watch(_itemsSource);
     if (items.isEmpty) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
@@ -356,8 +435,9 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage>
 
     final width = MediaQuery.sizeOf(context).width;
     // El registro y el bloqueo son del rol activo: lo guardado por el otro rol
-    // no cuenta. Sin rol no hay panel, ni clave, ni bloqueo.
-    final rol = ref.watch(currentReviewRoleProvider);
+    // no cuenta. Sin formulario (el visor del chat) o sin rol no hay panel, ni
+    // clave, ni bloqueo, y no se lee nada del feature de revisión.
+    final rol = widget.reviewForm ? ref.watch(currentReviewRoleProvider) : null;
     // "Cargando" o error se tratan igual que "sin asignación": nada de
     // mostrar el panel y ocultarlo después al resolver reviewShiftsProvider.
     final hasAssignment =
@@ -398,11 +478,17 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage>
           zoomOut: _zoomOut,
           zoomIn: _zoomIn,
           zoomRest: _resetZoom,
-          close: () => Navigator.pop(context),
+          close: widget.showClose ? _close : null,
+          closeLabel: widget.closeLabel,
+          actions: widget.actions,
         ),
         Expanded(
           child: _ImagePager(
-            currentIndex: _index,
+            reverse: widget.reverse,
+            canGoLeft: _canGoLeft(items.length),
+            canGoRight: _canGoRight(items.length),
+            goLeft: _goLeft,
+            goRight: _goRight,
             controller: _controller,
             items: items,
             gestureKeyFor: _gestureKeyFor,
@@ -436,16 +522,15 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage>
         LogicalKeySet(LogicalKeyboardKey.digit0): const ZoomResetIntent(),
       },
       actions: {
+        // Flecha derecha = imagen de la derecha; izquierda = la de la
+        // izquierda (el sentido lo da `reverse`).
         NextImageIntent: GuardedAction<NextImageIntent>(
           onInvoke: (_) {
-            if (_index > 0) {
+            if (_canGoRight(items.length)) {
               if (_isNavigationBlocked()) {
                 _showBlockedNotice();
               } else {
-                _controller.previousPage(
-                  duration: AppDurations.quick,
-                  curve: Curves.easeOut,
-                );
+                _goRight();
               }
             }
             return null;
@@ -453,14 +538,11 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage>
         ),
         PreviousImageIntent: GuardedAction<PreviousImageIntent>(
           onInvoke: (_) {
-            if (_index < items.length - 1) {
+            if (_canGoLeft(items.length)) {
               if (_isNavigationBlocked()) {
                 _showBlockedNotice();
               } else {
-                _controller.nextPage(
-                  duration: AppDurations.quick,
-                  curve: Curves.easeOut,
-                );
+                _goLeft();
               }
             }
             return null;
@@ -474,7 +556,7 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage>
               _viewerFocus.requestFocus();
               return null;
             }
-            Navigator.pop(context);
+            if (widget.showClose) _close();
             return null;
           },
         ),
@@ -562,7 +644,11 @@ class _ImagePager extends ConsumerWidget {
   final void Function(ExtendedImageGestureState state) onDoubleTap;
   final bool Function(GestureDetails? details) canScrollPage;
   final ValueChanged<int> onPageChanged;
-  final int currentIndex;
+  final bool reverse;
+  final bool canGoLeft;
+  final bool canGoRight;
+  final VoidCallback goLeft;
+  final VoidCallback goRight;
 
   /// Solo true con el panel del formulario visible y sin registro guardado.
   final bool navigationBlocked;
@@ -576,7 +662,11 @@ class _ImagePager extends ConsumerWidget {
     required this.onDoubleTap,
     required this.canScrollPage,
     required this.onPageChanged,
-    required this.currentIndex,
+    required this.reverse,
+    required this.canGoLeft,
+    required this.canGoRight,
+    required this.goLeft,
+    required this.goRight,
     required this.navigationBlocked,
     required this.onBlockedTap,
     required this.onPointerDown,
@@ -586,7 +676,7 @@ class _ImagePager extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     Widget pager = ExtendedImageGesturePageView.builder(
       controller: controller,
-      reverse: true,
+      reverse: reverse,
       canScrollPage: canScrollPage,
       onPageChanged: onPageChanged,
       itemCount: items.length,
@@ -609,8 +699,7 @@ class _ImagePager extends ConsumerWidget {
     return Stack(
       children: [
         pager,
-        // El pager va en reverse: la izquierda avanza en el índice.
-        if (currentIndex < items.length - 1)
+        if (canGoLeft)
           Positioned(
             left: 12,
             top: 0,
@@ -619,19 +708,10 @@ class _ImagePager extends ConsumerWidget {
               icon: Icons.chevron_left,
               enabled: !navigationBlocked,
               tooltip: navigationBlocked ? _blockedAdvanceMessage : null,
-              onTap: () {
-                if (navigationBlocked) {
-                  onBlockedTap();
-                } else {
-                  controller.nextPage(
-                    duration: AppDurations.quick,
-                    curve: Curves.easeOut,
-                  );
-                }
-              },
+              onTap: navigationBlocked ? onBlockedTap : goLeft,
             ),
           ),
-        if (currentIndex > 0)
+        if (canGoRight)
           Positioned(
             right: 12,
             top: 0,
@@ -640,16 +720,7 @@ class _ImagePager extends ConsumerWidget {
               icon: Icons.chevron_right,
               enabled: !navigationBlocked,
               tooltip: navigationBlocked ? _blockedAdvanceMessage : null,
-              onTap: () {
-                if (navigationBlocked) {
-                  onBlockedTap();
-                } else {
-                  controller.previousPage(
-                    duration: AppDurations.quick,
-                    curve: Curves.easeOut,
-                  );
-                }
-              },
+              onTap: navigationBlocked ? onBlockedTap : goRight,
             ),
           ),
       ],
@@ -732,7 +803,9 @@ class _ViwerTopBar extends StatelessWidget {
   final VoidCallback zoomOut;
   final VoidCallback zoomIn;
   final VoidCallback zoomRest;
-  final VoidCallback close;
+  final VoidCallback? close;
+  final String? closeLabel;
+  final List<Widget> actions;
 
   const _ViwerTopBar({
     required this.name,
@@ -744,6 +817,8 @@ class _ViwerTopBar extends StatelessWidget {
     required this.zoomIn,
     required this.zoomRest,
     required this.close,
+    required this.closeLabel,
+    required this.actions,
   });
 
   @override
@@ -759,6 +834,8 @@ class _ViwerTopBar extends StatelessWidget {
         zoomIn: zoomIn,
         zoomRest: zoomRest,
         close: close,
+        closeLabel: closeLabel,
+        actions: actions,
       ),
       desktop: _ViewerTopBarDesktop(
         name: name,
@@ -770,6 +847,8 @@ class _ViwerTopBar extends StatelessWidget {
         zoomIn: zoomIn,
         zoomRest: zoomRest,
         close: close,
+        closeLabel: closeLabel,
+        actions: actions,
       ),
     );
   }
@@ -784,7 +863,9 @@ class _ViewerTopBarMobile extends StatelessWidget {
   final VoidCallback zoomOut;
   final VoidCallback zoomIn;
   final VoidCallback zoomRest;
-  final VoidCallback close;
+  final VoidCallback? close;
+  final String? closeLabel;
+  final List<Widget> actions;
 
   const _ViewerTopBarMobile({
     required this.name,
@@ -796,6 +877,8 @@ class _ViewerTopBarMobile extends StatelessWidget {
     required this.zoomIn,
     required this.zoomRest,
     required this.close,
+    required this.closeLabel,
+    required this.actions,
   });
 
   @override
@@ -822,11 +905,8 @@ class _ViewerTopBarMobile extends StatelessWidget {
           onPressed: zoomIn,
           icon: const Icon(Icons.zoom_in_rounded, size: iconSize),
         ),
-        IconButton(
-          tooltip: 'Cerrar',
-          onPressed: close,
-          icon: const Icon(Icons.close, size: iconSize),
-        ),
+        ...actions,
+        ?_closeButton(close, closeLabel, iconSize),
       ],
     );
 
@@ -900,7 +980,9 @@ class _ViewerTopBarDesktop extends StatelessWidget {
   final VoidCallback zoomOut;
   final VoidCallback zoomIn;
   final VoidCallback zoomRest;
-  final VoidCallback close;
+  final VoidCallback? close;
+  final String? closeLabel;
+  final List<Widget> actions;
 
   const _ViewerTopBarDesktop({
     required this.name,
@@ -912,6 +994,8 @@ class _ViewerTopBarDesktop extends StatelessWidget {
     required this.zoomIn,
     required this.zoomRest,
     required this.close,
+    required this.closeLabel,
+    required this.actions,
   });
 
   @override
@@ -938,11 +1022,8 @@ class _ViewerTopBarDesktop extends StatelessWidget {
           onPressed: zoomIn,
           icon: const Icon(Icons.zoom_in_rounded, size: iconSize),
         ),
-        IconButton(
-          tooltip: 'Cerrar',
-          onPressed: close,
-          icon: const Icon(Icons.close, size: iconSize),
-        ),
+        ...actions,
+        ?_closeButton(close, closeLabel, iconSize),
       ],
     );
 
@@ -1008,4 +1089,21 @@ class _ViewerTopBarDesktop extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Botón de cerrar de la barra: icono (el visor del chat) o, con [label], un
+/// botón con texto. Sin [close] no hay botón.
+Widget? _closeButton(VoidCallback? close, String? label, double iconSize) {
+  if (close == null) return null;
+  if (label != null) {
+    return Padding(
+      padding: const EdgeInsets.only(left: AppSpacing.sm),
+      child: ElevatedButton(onPressed: close, child: Text(label)),
+    );
+  }
+  return IconButton(
+    tooltip: 'Cerrar',
+    onPressed: close,
+    icon: Icon(Icons.close, size: iconSize),
+  );
 }

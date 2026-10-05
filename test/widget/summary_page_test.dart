@@ -14,6 +14,7 @@ import 'package:whatsapp_monitor_viewer/features/summary/domain/repositories/sum
 import 'package:whatsapp_monitor_viewer/features/summary/presentation/pages/summary_page.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/presentation/providers/summary_providers.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/presentation/widgets/jornada_summary_card.dart';
+import 'package:whatsapp_monitor_viewer/features/summary/presentation/widgets/summary_group_section.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/presentation/widgets/summary_skeleton.dart';
 import 'package:whatsapp_monitor_viewer/helpers/format_long_date.dart';
 
@@ -198,25 +199,81 @@ void main() {
       },
     );
 
-    testWidgets('una tarjeta por jornada, agrupadas por grupo', (tester) async {
+    testWidgets('una tarjeta por grupo con sus jornadas adentro', (
+      tester,
+    ) async {
       await _pumpPage(tester, repo: repo);
 
+      expect(find.byType(SummaryGroupSection), findsNWidgets(2));
       expect(find.byType(JornadaSummaryCard), findsNWidgets(4));
-      expect(find.text('Grupo Norte'), findsOneWidget);
-      expect(find.text('Grupo Sur'), findsOneWidget);
 
-      // Encabezado -> sus tarjetas -> siguiente encabezado.
-      final norte = tester.getTopLeft(find.text('Grupo Norte')).dy;
-      final sur = tester.getTopLeft(find.text('Grupo Sur')).dy;
-      final cards = [
-        for (final e in tester.elementList(find.byType(JornadaSummaryCard)))
-          tester.getTopLeft(find.byWidget(e.widget)).dy,
-      ];
-      expect(cards[0], greaterThan(norte));
-      expect(cards[1], greaterThan(cards[0]));
-      expect(cards[1], lessThan(sur));
-      expect(cards[2], greaterThan(sur));
-      expect(cards[3], greaterThan(cards[2]));
+      Finder group(String name) => find.ancestor(
+        of: find.text(name),
+        matching: find.byType(SummaryGroupSection),
+      );
+      for (final name in ['Grupo Norte', 'Grupo Sur']) {
+        expect(
+          find.descendant(
+            of: group(name),
+            matching: find.byType(JornadaSummaryCard),
+          ),
+          findsNWidgets(2),
+        );
+      }
+    });
+
+    testWidgets('en escritorio los grupos van lado a lado; en celular, uno '
+        'debajo del otro', (tester) async {
+      await _pumpPage(tester, repo: repo);
+      var groups = find.byType(SummaryGroupSection);
+      expect(
+        tester.getTopLeft(groups.at(0)).dy,
+        tester.getTopLeft(groups.at(1)).dy,
+      );
+      expect(
+        tester.getTopLeft(groups.at(1)).dx,
+        greaterThan(tester.getTopLeft(groups.at(0)).dx),
+      );
+
+      await _pumpPage(tester, repo: repo, size: const Size(360, 2400));
+      groups = find.byType(SummaryGroupSection);
+      expect(
+        tester.getTopLeft(groups.at(1)).dy,
+        greaterThan(tester.getBottomLeft(groups.at(0)).dy),
+      );
+    });
+
+    testWidgets('los grupos con descuadre van antes que los que cuadran', (
+      tester,
+    ) async {
+      await _pumpPage(
+        tester,
+        size: const Size(360, 1600),
+        repo: _FakeRepo(
+          byDate: {
+            _key(today): [
+              _js(
+                group: 'Grupo Bien',
+                fecha: _key(today),
+                revisor: _role(1, 1, 1000),
+                sumador: _role(1, 1, 1000),
+              ),
+              _js(
+                jid: 'g2',
+                group: 'Grupo Mal',
+                fecha: _key(today),
+                revisor: _role(1, 1, 2000),
+                sumador: _role(1, 1, 1000),
+              ),
+            ],
+          },
+        ),
+      );
+
+      expect(
+        tester.getTopLeft(find.text('Grupo Mal')).dy,
+        lessThan(tester.getTopLeft(find.text('Grupo Bien')).dy),
+      );
     });
 
     testWidgets('cada tarjeta muestra la jornada corta y lo de cada rol', (
@@ -226,21 +283,20 @@ void main() {
 
       expect(find.text('Mañana'), findsNWidgets(2));
       expect(find.text('Tarde 1'), findsNWidgets(2));
+      // Revisor y Sumador en columnas, con el total de cada uno.
+      expect(find.text('\$135.000'), findsNWidgets(2));
+      expect(find.text('\$90.000'), findsOneWidget);
+      expect(find.text('\$81.000'), findsOneWidget);
+      expect(find.text('\$5.000'), findsOneWidget);
+      expect(find.text('Imágenes'), findsNWidgets(4));
+      // Sur mañana: falta el Sumador; Sur tarde: faltan los dos.
+      expect(find.text('Sin registrar'), findsNWidgets(3));
+      expect(find.text('—'), findsNWidgets(9));
+      // Quién registró de más en el descuadre.
       expect(
-        find.text('Revisor: 12 imágenes · 34 tickets · \$135.000'),
+        find.text('El Revisor registró \$9.000 más que el Sumador'),
         findsOneWidget,
       );
-      expect(
-        find.text('Sumador: 12 imágenes · 34 tickets · \$135.000'),
-        findsOneWidget,
-      );
-      // Singular y "Sin registrar".
-      expect(
-        find.text('Revisor: 1 imagen · 1 ticket · \$5.000'),
-        findsOneWidget,
-      );
-      expect(find.text('Sumador: Sin registrar'), findsNWidgets(2));
-      expect(find.text('Revisor: Sin registrar'), findsOneWidget);
     });
 
     testWidgets('badge de estado: cuadra, descuadre y falta', (tester) async {
@@ -262,6 +318,112 @@ void main() {
       expect(colorOf('Descuadre de \$9.000'), Colors.red);
       expect(colorOf('Cuadra'), Colors.green);
       expect(colorOf('Falta Sumador'), const Color(0xFFB7791F));
+    });
+  });
+
+  group('panel informativo', () {
+    final repo = _FakeRepo(
+      byDate: {
+        _key(today): [
+          _js(
+            fecha: _key(today),
+            revisor: _role(12, 34, 135000),
+            sumador: _role(12, 34, 135000),
+          ),
+          _js(
+            fecha: _key(today),
+            shift: _afternoon,
+            revisor: _role(3, 8, 90000),
+            sumador: _role(3, 8, 81000),
+          ),
+          _js(
+            jid: 'g2',
+            group: 'Grupo Sur',
+            fecha: _key(today),
+            revisor: _role(1, 1, 5000),
+            sumador: RoleSummary.sinRegistrar,
+          ),
+        ],
+      },
+    );
+
+    testWidgets('titular y cifras del día', (tester) async {
+      await _pumpPage(tester, repo: repo);
+
+      expect(find.text('Hay 1 jornada con descuadre'), findsOneWidget);
+      expect(find.text('3 jornadas · 2 grupos'), findsOneWidget);
+      expect(find.text('Descuadres'), findsOneWidget);
+      expect(find.text('\$9.000 en diferencias'), findsOneWidget);
+      expect(find.text('Pendientes'), findsOneWidget);
+      expect(find.text('Cuadran'), findsOneWidget);
+      expect(find.text('De 3 jornadas'), findsOneWidget);
+    });
+
+    testWidgets('sin problemas: "Todas las jornadas cuadran"', (tester) async {
+      await _pumpPage(
+        tester,
+        repo: _FakeRepo(
+          byDate: {
+            _key(today): [
+              _js(
+                fecha: _key(today),
+                revisor: _role(1, 1, 1000),
+                sumador: _role(1, 1, 1000),
+              ),
+            ],
+          },
+        ),
+      );
+
+      expect(find.text('Todas las jornadas cuadran'), findsOneWidget);
+      expect(find.text('Sin diferencias de dinero'), findsOneWidget);
+    });
+
+    testWidgets('tocar una cifra filtra; tocarla otra vez quita el filtro', (
+      tester,
+    ) async {
+      await _pumpPage(tester, repo: repo);
+      expect(find.byType(JornadaSummaryCard), findsNWidgets(3));
+
+      await tester.tap(find.text('Descuadres'));
+      await tester.pumpAndSettle();
+      expect(find.byType(JornadaSummaryCard), findsOneWidget);
+      expect(find.text('Descuadre de \$9.000'), findsOneWidget);
+      expect(find.text('Mostrando: Descuadres (1)'), findsOneWidget);
+      expect(find.text('Grupo Sur'), findsNothing);
+
+      await tester.tap(find.text('Descuadres'));
+      await tester.pumpAndSettle();
+      expect(find.byType(JornadaSummaryCard), findsNWidgets(3));
+      expect(find.textContaining('Mostrando:'), findsNothing);
+    });
+
+    testWidgets('filtro sin jornadas: mensaje y "Ver todas"', (tester) async {
+      await _pumpPage(tester, repo: repo);
+
+      await tester.tap(find.text('Imágenes sin registrar'));
+      await tester.pumpAndSettle();
+      expect(find.byType(JornadaSummaryCard), findsNothing);
+      expect(
+        find.text('Ninguna jornada en «Imágenes sin registrar»'),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.text('Ver todas'));
+      await tester.pumpAndSettle();
+      expect(find.byType(JornadaSummaryCard), findsNWidgets(3));
+    });
+
+    testWidgets('la "x" del filtro activo lo quita', (tester) async {
+      await _pumpPage(tester, repo: repo);
+
+      await tester.tap(find.text('Pendientes'));
+      await tester.pumpAndSettle();
+      expect(find.byType(JornadaSummaryCard), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Quitar filtro'));
+      await tester.pumpAndSettle();
+      expect(find.byType(JornadaSummaryCard), findsNWidgets(3));
     });
   });
 
@@ -291,7 +453,7 @@ void main() {
     testWidgets('con el reloj después del fin de la jornada aparece', (
       tester,
     ) async {
-      await pumpAt(tester, DateTime.utc(2026, 9, 28, 15, 55));
+      await pumpAt(tester, DateTime.utc(2026, 9, 28, 15, 52));
 
       expect(find.text('Faltan 3 imágenes por registrar'), findsOneWidget);
       // El estado de dinero (cuadra) no cambia.
@@ -301,7 +463,7 @@ void main() {
     testWidgets('con el reloj antes del fin de la jornada no aparece', (
       tester,
     ) async {
-      await pumpAt(tester, DateTime.utc(2026, 9, 28, 15, 54, 59));
+      await pumpAt(tester, DateTime.utc(2026, 9, 28, 15, 51, 59));
 
       expect(find.textContaining('por registrar'), findsNothing);
       expect(find.byType(JornadaSummaryCard), findsOneWidget);

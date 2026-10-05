@@ -309,7 +309,7 @@ void main() {
       }
     }
 
-    testWidgets('Backspace con el input vacío quita el último número', (
+    testWidgets('Backspace con el input vacío no quita números', (
       tester,
     ) async {
       await _pumpPanel(tester);
@@ -319,35 +319,50 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
       await tester.pump();
 
-      expect(find.widgetWithText(InputChip, '22'), findsNothing);
       expect(find.widgetWithText(InputChip, '11'), findsOneWidget);
+      expect(find.widgetWithText(InputChip, '22'), findsOneWidget);
+      expect(find.text('Números · 2'), findsOneWidget);
+    });
+
+    testWidgets('la "x" de un número lo quita', (tester) async {
+      await _pumpPanel(tester);
+      await addNumbers(tester, ['11', '22']);
+
+      await tester.tap(
+        find.descendant(
+          of: find.widgetWithText(InputChip, '11'),
+          matching: find.byTooltip('Quitar número'),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.widgetWithText(InputChip, '11'), findsNothing);
+      expect(find.widgetWithText(InputChip, '22'), findsOneWidget);
       expect(find.text('Números · 1'), findsOneWidget);
     });
 
-    testWidgets('Backspace con texto en el input no quita chips', (
+    testWidgets('mantener Backspace apretado no quita números registrados', (
       tester,
     ) async {
       await _pumpPanel(tester);
-      await addNumbers(tester, ['11', '22']);
-      await tester.enterText(_key('numero-0'), '33');
+      await addNumbers(tester, ['11', '22', '33']);
+      await tester.enterText(_key('numero-0'), '4');
       await tester.pump();
 
-      await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
+      // Se aprieta Backspace: borra el texto mal copiado y la tecla, aún
+      // apretada, se repite sobre el campo ya vacío.
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.backspace);
+      await tester.enterText(_key('numero-0'), '');
+      await tester.pump();
+      for (var i = 0; i < 5; i++) {
+        await tester.sendKeyRepeatEvent(LogicalKeyboardKey.backspace);
+        await tester.pump();
+      }
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.backspace);
       await tester.pump();
 
-      expect(find.byType(InputChip), findsNWidgets(2));
-    });
-
-    testWidgets('Backspace sin números no hace nada', (tester) async {
-      await _pumpPanel(tester);
-      await tester.tap(_key('numero-0'));
-      await tester.pump();
-
-      await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
-      await tester.pump();
-
-      expect(find.byType(InputChip), findsNothing);
-      expect(tester.takeException(), isNull);
+      expect(find.byType(InputChip), findsNWidgets(3));
+      expect(find.text('Números · 3'), findsOneWidget);
     });
   });
 

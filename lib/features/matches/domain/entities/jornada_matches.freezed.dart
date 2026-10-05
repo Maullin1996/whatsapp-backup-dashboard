@@ -15,8 +15,9 @@ T _$identity<T>(T value) => value;
 mixin _$JornadaMatches {
 
 /// Etiqueta larga en español, igual que `Message.shift`.
- String get shift;/// Números ganadores de esta jornada. Vacía si esa jornada no tuvo
-/// ganadores.
+ String get shift;/// Números ganadores del DÍA (la misma lista en todas las jornadas de
+/// ese día: se comparan contra el Revisor de todas las jornadas). Vacía
+/// si el día todavía no tiene ganadores.
  List<String> get winningNumbers;/// Coincidencias encontradas en esta jornada (puede ser más de una si el
 /// mismo número ganador coincide con registros de distintos grupos).
  List<MatchEntry> get matches;
@@ -218,11 +219,13 @@ class _JornadaMatches implements JornadaMatches {
 
 /// Etiqueta larga en español, igual que `Message.shift`.
 @override final  String shift;
-/// Números ganadores de esta jornada. Vacía si esa jornada no tuvo
-/// ganadores.
+/// Números ganadores del DÍA (la misma lista en todas las jornadas de
+/// ese día: se comparan contra el Revisor de todas las jornadas). Vacía
+/// si el día todavía no tiene ganadores.
  final  List<String> _winningNumbers;
-/// Números ganadores de esta jornada. Vacía si esa jornada no tuvo
-/// ganadores.
+/// Números ganadores del DÍA (la misma lista en todas las jornadas de
+/// ese día: se comparan contra el Revisor de todas las jornadas). Vacía
+/// si el día todavía no tiene ganadores.
 @override List<String> get winningNumbers {
   if (_winningNumbers is EqualUnmodifiableListView) return _winningNumbers;
   // ignore: implicit_dynamic_type

@@ -6,6 +6,8 @@ import 'package:whatsapp_monitor_viewer/features/admin/presentation/pages/admin_
 import 'package:whatsapp_monitor_viewer/features/auth/presentation/pages/login_page.dart';
 import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_providers.dart';
 import 'package:whatsapp_monitor_viewer/features/home/presentation/pages/home_page.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/presentation/pages/review_session_page.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/review_session_provider.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/presentation/pages/matches_page.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/viewer/image_detail_page.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/presentation/pages/summary_page.dart';
@@ -26,15 +28,22 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/admin', builder: (_, _) => const AdminPage()),
       GoRoute(path: '/summary', builder: (_, _) => const SummaryPage()),
       GoRoute(path: '/matches', builder: (_, _) => const MatchesPage()),
+      GoRoute(path: '/review', builder: (_, _) => const ReviewSessionPage()),
     ],
     redirect: (context, state) => computeAuthRedirect(
       authState: ref.read(authSessionProvider),
       location: state.matchedLocation,
+      reviewSessionActive: ref.read(reviewSessionProvider) != null,
     ),
   );
 
   // ✅ Escucha cambios y refresca el router directamente
   ref.listen(authSessionProvider, (_, _) {
+    router.refresh();
+  });
+  // Empezar o terminar una sesión de llenado reevalúa el guard: entra a
+  // /review o sale de ahí.
+  ref.listen(reviewSessionProvider, (_, _) {
     router.refresh();
   });
 

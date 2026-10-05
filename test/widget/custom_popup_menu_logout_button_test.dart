@@ -1,10 +1,12 @@
 import 'dart:ui';
 
+import 'package:dartz/dartz.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:whatsapp_monitor_viewer/core/errors/failure.dart';
 import 'package:whatsapp_monitor_viewer/core/theme/app_theme.dart';
 import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
 import 'package:whatsapp_monitor_viewer/features/auth/domain/entities/authenticated_user.dart';
@@ -13,10 +15,33 @@ import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/aut
 import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_session_state.dart';
 import 'package:whatsapp_monitor_viewer/features/chats/presentation/widgets/custom_popup_menu_logout_button.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
+import 'package:whatsapp_monitor_viewer/features/matches/domain/entities/day_matches.dart';
+import 'package:whatsapp_monitor_viewer/features/matches/domain/repositories/matches_repository.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/presentation/pages/matches_page.dart';
-import 'package:whatsapp_monitor_viewer/features/summary/data/mock_summary_repository.dart';
+import 'package:whatsapp_monitor_viewer/features/matches/presentation/providers/matches_providers.dart';
+import 'package:whatsapp_monitor_viewer/features/summary/domain/entities/jornada_summary.dart';
+import 'package:whatsapp_monitor_viewer/features/summary/domain/repositories/summary_repository.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/presentation/pages/summary_page.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/presentation/providers/summary_providers.dart';
+
+/// Resumen vacío, sin latencia: el test solo navega a `/summary`.
+class _EmptySummaryRepository implements SummaryRepository {
+  const _EmptySummaryRepository();
+
+  @override
+  Future<Either<Failure, List<JornadaSummary>>> getJornadaSummaries(
+    DateTime fecha,
+  ) async => const Right([]);
+}
+
+/// Día sin coincidencias, sin latencia: el test solo navega a `/matches`.
+class _EmptyMatchesRepository implements MatchesRepository {
+  const _EmptyMatchesRepository();
+
+  @override
+  Future<Either<Failure, DayMatches>> getMatches(DateTime date) async =>
+      const Right(DayMatches(fechaJornada: '', jornadas: []));
+}
 
 class _FakeAuth extends AuthSessionNotifier {
   final bool isAdmin;
@@ -69,9 +94,13 @@ Future<void> pumpMenu(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
-        // El Resumen real leería Firestore: en el test, el mock sin latencia.
+        // El Resumen y Coincidencias reales leerían Firestore: en el test,
+        // repositorios falsos vacíos y sin latencia.
         summaryRepositoryProvider.overrideWithValue(
-          const MockSummaryRepository(latency: Duration.zero),
+          const _EmptySummaryRepository(),
+        ),
+        matchesRepositoryProvider.overrideWithValue(
+          const _EmptyMatchesRepository(),
         ),
         authSessionProvider.overrideWith(
           () => _FakeAuth(

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:whatsapp_monitor_viewer/features/matches/data/mock_matches_repository.dart';
+import 'package:whatsapp_monitor_viewer/core/errors/failure_log.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/domain/entities/day_matches.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/domain/repositories/matches_repository.dart';
+import 'package:whatsapp_monitor_viewer/features/matches/presentation/providers/real_matches_providers.dart';
 
 /// Día de las Coincidencias (solo la fecha, sin hora). Arranca en hoy.
 class MatchesDateNotifier extends Notifier<DateTime> {
@@ -18,12 +19,11 @@ final matchesDateProvider = NotifierProvider<MatchesDateNotifier, DateTime>(
   MatchesDateNotifier.new,
 );
 
-/// Único punto donde se instancia el repositorio de Coincidencias. TEMPORAL:
-/// datos inventados (ver [MockMatchesRepository]); se reemplaza por uno real
-/// cuando exista la Cloud Function puente de números ganadores (paso 7) —
-/// cambiar este único archivo alcanza, el resto del feature no se toca.
+/// Repositorio de Coincidencias: el real (ganadores de `winning_numbers`,
+/// registros del Revisor de `image_reviews`, mensajes y nombres de grupo,
+/// ver `real_matches_providers.dart`). Los tests lo sobreescriben.
 final matchesRepositoryProvider = Provider<MatchesRepository>(
-  (ref) => const MockMatchesRepository(),
+  (ref) => ref.watch(realMatchesRepositoryProvider),
 );
 
 /// Coincidencias del día elegido, por jornada. Se recalcula al cambiar
@@ -34,5 +34,8 @@ final matchesRepositoryProvider = Provider<MatchesRepository>(
 final dayMatchesProvider = FutureProvider<DayMatches>((ref) async {
   final date = ref.watch(matchesDateProvider);
   final result = await ref.watch(matchesRepositoryProvider).getMatches(date);
-  return result.fold((failure) => throw failure, (day) => day);
+  return result.fold((failure) {
+    debugPrint(failureLogLine('COINCIDENCIAS', failure));
+    throw failure;
+  }, (day) => day);
 }, retry: (retryCount, error) => null);

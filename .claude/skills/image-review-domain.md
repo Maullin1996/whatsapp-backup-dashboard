@@ -70,12 +70,16 @@ cada vez. Antes de tocar código de este feature, lee esta skill completa.
   el total del comprobante, así que no sirven para calcular ni validar
   nada — son ruido visual del papel, no un dato del formulario.
 - **Jornada**: turno laboral (mañana, tarde 1, tarde 2, noche 1,
-  domingo/festivo, fuera de jornada; noche 2 solo en la tabla vieja — ver
-  `lib/core/time/shifts.dart` y "Jornadas: tabla vieja, tabla nueva y
-  corte" más abajo). Todo el feature de revisión se agrupa por jornada.
-- **Números ganadores**: lista externa (hoy local/mock, más adelante vía
-  Cloud Function) contra la que se comparan los números registrados por
-  el Revisor, para detectar coincidencias.
+  domingo/festivo, fuera de jornada; noche 2 ya no es una jornada, solo
+  queda como valor del enum — ver `lib/core/time/shifts.dart` y "Jornadas:
+  una sola tabla" más abajo). Todo el feature de revisión se agrupa por jornada.
+- **Números ganadores**: lista del DÍA (`winning_numbers/{fecha}`, nombre
+  y forma PROVISIONALES; la escribe cada hora la función puente,
+  desplegada el 2026-10-03; textos de 3 o 4 cifras, ver
+  `image-review-firebase-integration`,
+  "Función puente de ganadores") contra la que se comparan los números registrados por el
+  Revisor en todas las jornadas y grupos de esa fecha, para detectar
+  coincidencias.
 
 ## Estructura de datos (conceptual, no es el modelo Dart final)
 
@@ -114,7 +118,7 @@ toca al otro y ninguno lee al otro)
  ├── storagePath = referencia de la imagen (nunca la imagen ni una URL)
  ├── estadoSync = `pendiente` | `sincronizado` (nace pendiente; re-guardar
  │    lo devuelve a pendiente; pasa a sincronizado con la subida por
- │    jornada, `ReviewUploadNotifier` — hoy SIMULADA, ver
+ │    jornada, `ReviewUploadNotifier` — REAL desde el paso 7, capa 6, ver
  │    image-review-offline-sync). Es solo local: no viaja en la subida.
  ├── fecha del registro (`registradoEn`) = momento en que se diligenció
  │    el formulario (NO la fecha del mensaje: esa es `fechaJornada` —
@@ -185,7 +189,7 @@ Consecuencias para el feature de revisión:
   Revisor/Sumador.
 - **La pantalla de coincidencias (con número ganador) no navega a
   `image_detail_page` para mostrar contexto** — con `id`, `chatJid`,
-  `senderName`, `storagePath`, `shift`, `localTime` e `isEdited` ya
+  `senderName`, `storagePath`, `shift` y `localTime` ya
   alcanza para construir una vista/tarjeta de contexto (a qué grupo
   pertenece, cuándo se registró, quién lo envió); la UI construida abre
   un diálogo de detalle propio en vez de navegar (ver
@@ -210,6 +214,27 @@ Consecuencias para el feature de revisión:
   condición dura para habilitar el botón de subida.
 
 ## Cierre de jornada: decisión de diseño (reemplaza la hipótesis de `shiftImageIndex`)
+
+> **CAMBIO DELIBERADO (2026-10-04, pedido por los usuarios; pantalla
+> `/review`, capa 3b — HECHO)**: en la pantalla de llenado `/review` (una
+> jornada de un chat en un día, ver `image-review-roles`), **"terminar" la
+> jornada SÍ depende de las imágenes**: el botón "Cerrar" solo aparece cuando
+> TODAS las imágenes de la lista tienen registro guardado del rol activo
+> (`reviewSessionCompleteProvider`; el mismo criterio que el bloqueo de
+> navegación: registro en local, pendiente o ya subido). Con la lista vacía
+> también aparece (decisión del usuario). Si llega una imagen nueva (la
+> lista es en vivo cuando la fecha es hoy), "Cerrar" se oculta hasta que
+> también tenga registro. Lo que sigue abajo **sigue valiendo** en lo demás:
+> la subida NO depende de contar imágenes ("Subir" aparece con el primer
+> pendiente de esa jornada y se puede repetir), la validación de que todo
+> cuadra sigue siendo la reconciliación del Resumen, y el contador del bot
+> (`shiftImageIndex` / `shift_image_counts`) sigue sin usarse como condición:
+> "Cerrar" cuenta las imágenes de la lista que se leyó de `whatsapp_messages`,
+> no un total esperado. "Cerrar" no exige haber subido. Desde el
+> 2026-10-04 (cambio deliberado) "tener registro" incluye lo ya subido que
+> `/review` trae de Firebase al entrar (ver `image-review-offline-sync`), y
+> "Cerrar" se oculta mientras se sube esa jornada (para que una subida y la
+> mezcla de lo subido no se crucen).
 
 Dado que no existe un conteo confiable de "cuántas imágenes va a tener
 esta jornada en total" (ver arriba), y dado que **cada jornada+grupo
@@ -277,11 +302,13 @@ recomendación de diseño es:
     la app lo trata como 0.
   - El bot solo publica hoy y ayer (fecha UTC-5) y no borra nada. Antes
     del 2026-09-26 no hay documentos.
-  - App y bot usan los mismos rangos horarios (hoy los de la tabla VIEJA;
-    al fijar el corte, el bot tiene que pasar a la tabla nueva de forma
-    coordinada — PENDIENTE, ver "Jornadas: tabla vieja, tabla nueva y
-    corte"), truncan a minutos con
-    límites inclusivos y detectan solo domingos. Diferencia: la app
+  - App y bot deben usar los mismos rangos horarios. La app ya usa la
+    tabla única; el bot todavía usa la VIEJA hasta actualizarlo en su repo
+    (PENDIENTE: mientras tanto el contador puede estar desfasado en los
+    bordes; ver "Jornadas: una sola tabla"). Los dos truncan a minutos con
+    límites inclusivos; el bot detecta solo domingos (la app, desde la
+    pieza 2 de horarios dinámicos, también los festivos de
+    `festivos_colombia`, ver "Jornadas" más abajo). Diferencia: la app
     calcula la jornada con `toLocal()`; el bot, con `America/Bogota`, y
     su `shift_date` usa UTC-5 fijo.
 - **Limitaciones aceptadas** (decisión del usuario): el valor puede
@@ -312,9 +339,9 @@ recomendación de diseño es:
   - **Reglas de Firestore**: decidido que solo admin y superAdmin leen
     `shift_image_counts` (y `image_reviews`); la regla está **publicada
     desde el 2026-10-01** (copia en `firestore.rules.draft`). En la zona de
-    pruebas, un usuario sin claim de admin no puede leerlo; la lectura de
-    un admin real no está verificada. El datasource ya
-    existe y el Resumen real ya está conectado (sin ejecutar todavía).
+    pruebas, un usuario sin claim de admin no puede leerlo. **HECHO
+    (verificado por el usuario el 2026-10-02)**: con una cuenta admin el
+    Resumen real leyó los registros, los contadores y los nombres.
   - **Historial**: la colección existe desde el deploy del 2026-09-28
     (01:34 UTC). Según `BOT_DOCUMENTATION.md`, ese primer ciclo publicó
     también las filas de 2026-09-26 y 2026-09-27; no hay contadores de días
@@ -330,13 +357,13 @@ recomendación de diseño es:
 `FirestoreSummaryRepository` (`features/summary/data/repositories/`,
 nombre provisional) es el repositorio de `summaryRepositoryProvider`: el
 Resumen lee datos reales (solo admin y superAdmin, con la caché de 5
-minutos; el mock quedó sin cablear). **No se ejecutó todavía** contra
-Firestore. **PENDIENTE (no decidido)**: la primera lectura real y el
-índice de grupo de colecciones sobre `fechaJornada` (se crea desde la
-consola con el enlace del error, que queda en el log `[RESUMEN] falló
-(firestore): ...`); que un admin real puede leer (no verificado hasta
-ejecutar); borrar los 4 documentos de prueba antes de desplegar o de que
-otra persona use el Resumen; `lastIndex` puede ser mayor que las imágenes
+minutos; el mock se borró). **HECHO (verificado por el usuario
+el 2026-10-02)**: funciona con una cuenta admin (leyó registros,
+contadores y nombres): un admin real puede leer los registros y la
+consulta de grupo de colecciones funciona. El índice de grupo de
+colecciones sobre `fechaJornada` (ascendente) se creó desde la consola,
+como exención de `registros.fechaJornada`, con el enlace que trajo el
+error. **PENDIENTE (no decidido)**: `lastIndex` puede ser mayor que las imágenes
 reales; el costo en lecturas por consulta (hasta unas 3600; la caché de 5
 minutos evita repetirla).
 
@@ -362,8 +389,8 @@ minutos evita repetirla).
   documento. Puede ser mayor que las imágenes reales (ver arriba).
 - **`groupName`**: `group_stats/{chatJid}.groupName`; si el documento falta
   o la lectura falla, el `chatJid` (el Resumen sigue).
-- **`shift`**: la etiqueta larga de `shiftNamesAt` del día (la tabla que
-  rige ese día); un `night2` en un día de tabla nueva usa su etiqueta vieja.
+- **`shift`**: la etiqueta larga de `shiftNames` (la tabla única); un
+  `night2` (registro guardado) usa su etiqueta vieja de `legacyShiftNames`.
 - **Orden**: por grupo (nombre, luego `chatJid`) y, dentro del grupo, por
   jornada (orden del enum), como el mock.
 - **Errores**: si fallan los registros o los contadores, `Left`; un
@@ -380,45 +407,62 @@ minutos evita repetirla).
   sesiones; un registro subido después puede tardar hasta 5 minutos en
   aparecer si no se toca "Actualizar".
 
-## Jornadas: tabla vieja, tabla nueva y corte
+## Jornadas: una sola tabla (la vieja y el corte se retiraron)
 
-**DECIDIDO** por el usuario (2026-09-30). El horario de la colección
-`jornadas` de `whats-apuestas` es el definitivo y la app lo usa como una
-tabla fija en código (hechos de esa lectura y pendientes de integración en
-`image-review-firebase-integration`, "Tabla definitiva").
+**DECIDIDO** por el usuario (2026-09-30 la tabla; retiro de la vieja en el
+paso 7, pieza e). El horario de la colección `jornadas` de `whats-apuestas`
+es el definitivo y la app lo usa como **la única tabla**, fija en código,
+para todas las fechas y todos los mensajes (la app solo la ve el usuario y
+no hay datos reales de otras personas que necesiten los horarios viejos).
+Hechos de esa lectura en `image-review-firebase-integration`, "Tabla
+definitiva".
 
-| Clave (`Shift`) | Tabla VIEJA | Tabla NUEVA |
-|---|---|---|
-| `morning` | 06:00–10:54 | 05:30–10:51 |
-| `afternoon1` | 10:55–13:58 | 10:58–13:55 |
-| `afternoon2` | 13:59–15:23 | 14:01–15:20 |
-| `night1` | 15:24–22:24 | 15:28–22:15 |
-| `night2` | 22:25–22:30 | **no existe (retirada)** |
-| `holiday` (solo domingos) | 06:00–19:20 | 06:00–19:15 |
-| `outOfShift` | todo lo demás | todo lo demás, incluidos los huecos |
+**Actualización (horarios dinámicos, pieza 2 — DECIDIDO por el usuario e
+IMPLEMENTADO, 2026-10-03)**: la tabla de abajo es ahora la tabla FIJA de
+RESPALDO. La app carga una vez por sesión `jornadas` (réplica del ERP) y
+`festivos_colombia` y clasifica con esa tabla activa; mientras no carga, o
+si la lectura falla, rige esta. Los domingos **y los festivos** usan el
+rango de `holiday` (`isHolidayOrSunday`); un festivo entre semana se
+comporta exactamente como un domingo. Las etiquetas siguen siendo texto
+fijo. Detalle en `image-review-firebase-integration` ("Lectura en la app").
+
+| Clave (`Shift`) | Rango |
+|---|---|
+| `morning` | 05:30–10:51 |
+| `afternoon1` | 10:58–13:55 |
+| `afternoon2` | 14:01–15:20 |
+| `night1` | 15:28–22:15 |
+| `holiday` (domingos y festivos) | 06:00–19:15 |
+| `night2` | **ninguno**: solo valor del enum y etiquetas legacy |
+| `outOfShift` | todo lo demás, incluidos los huecos |
 
 - **Bordes**: se trunca al minuto y el fin es INCLUSIVO (el último minuto
-  completo): con la tabla nueva 10:51:59 es mañana y 10:52:00 no.
-- **Claves sin cambios**: el enum `Shift` sigue igual (ids de
-  `shift_image_counts`, `reviewShifts` y ruta de subida). `night2` queda en
-  el enum solo por la tabla vieja y sus etiquetas ya guardadas.
-- **Regla del corte**: `newShiftsEffectiveFromMs` (ms UTC, en
-  `shifts.dart`; hoy `null` = tabla vieja en toda la app). Un mensaje se
-  clasifica con la tabla nueva si la constante no es `null` y su
-  `messageTimestamp` es >= la constante; si no, con la vieja
-  (`getCurrentShift` aplica lo mismo al instante que recibe; comparación de
-  enteros, sin conversión de zona nueva). Se fija el día del despliegue, a
-  una medianoche sin jornada abierta, así que un día nunca mezcla tablas.
-  `jornadaTerminada` elige la tabla por el día de la jornada contra el
-  corte (llevado a hora de Bogotá con `bogotaWallClock`).
-- **Lo ya guardado se queda tal cual**: los mensajes anteriores al corte
-  conservan la etiqueta vieja y los registros guardados con etiquetas
-  viejas se siguen traduciendo a su clave (`shiftFromLabel` reconoce las
-  dos tablas).
-- **Etiquetas**: cada tabla tiene las suyas con sus horas (`shiftNames` la
-  vieja, `newShiftNames` la nueva, p. ej. "Jornada Mañana (05:30 –
-  10:51)").
-- **Huecos (tabla nueva): dos lecturas de la misma hora.**
+  completo): 10:51:59 es mañana y 10:52:00 no. `jornadaTerminada` usa el
+  minuto siguiente al último (la mañana termina a las 10:52:00, en hora de
+  Bogotá).
+- **Retirados**: la tabla vieja, `newShiftsEffectiveFromMs`,
+  `usesNewShiftTable`, `shiftNamesAt` y todos los parámetros
+  `effectiveFromMs`. No hay corte.
+- **Nombres (OJO, cambió el significado)**: `shiftNames` tiene ahora las
+  etiquetas **ACTUALES** (p. ej. "Jornada Mañana (05:30 – 10:51)"), sin
+  night2. Las etiquetas **viejas** (p. ej. "Jornada Mañana (06:00 –
+  10:54)" y la de night2, "Jornada Noche (22:25 – 22:30)") están en
+  `legacyShiftNames`, que solo sirve para reconocerlas en `shiftFromLabel`
+  y como respaldo de la etiqueta de night2 (`shiftNames[s] ??
+  legacyShiftNames[s]` en el Resumen y Coincidencias). También cambiaron
+  `newShiftGapLabels` → `shiftGapLabels` y `newShiftLastMinute` →
+  `shiftLastMinute` (sin night2).
+- **night2**: el valor se queda en el enum (lo usan el bot, `reviewShifts`
+  y etiquetas guardadas), pero `getCurrentShift` nunca lo devuelve,
+  `jornadaTerminada(night2)` es `false`, el diálogo de horarios no lo
+  ofrece y el panel de control no tiene fila de night2.
+- **Claves sin cambios**: el enum `Shift` sigue igual (valores y orden; ids
+  de `shift_image_counts`, `reviewShifts` y ruta de subida).
+- **Etiquetas guardadas**: los registros y documentos subidos con
+  etiquetas viejas se siguen traduciendo a su clave (`shiftFromLabel`,
+  mismo resultado que antes). Ningún mensaje nuevo recibe una etiqueta
+  vieja.
+- **Huecos: dos lecturas de la misma hora.**
   - **Reportes** (panel de formulario, `toUploadDocument`, reconciliación,
     aviso de imágenes sin registrar, pendientes): solo cuenta lo que está
     dentro de los rangos; un hueco es `Shift.outOfShift`.
@@ -430,8 +474,49 @@ tabla fija en código (hechos de esa lectura y pendientes de integración en
     horario en domingo siguen siendo "Fuera de las jornadas", sin grupo.
   - `shiftFromLabel` de "Fuera de jornada X" da `outOfShift`: el panel de
     formulario no aparece en un hueco y `toUploadDocument` lo rechaza.
-- **Festivos**: sin cambios, solo se detectan domingos (PENDIENTE: fuente
-  de festivos).
+- **Festivos**: desde la pieza 2, los de `festivos_colombia` (diez
+  documentos, 2026 a 2035, campo `fechas`, cargados el 2026-10-03 desde una
+  lista generada con reglas y revisada por el usuario). Sin cargar, solo
+  domingos.
+- **DECIDIDO por el usuario (2026-10-03)**: "Mañana" vale para las mañanas
+  de todos los días excepto domingos y festivos, que usan `festivos` del
+  ERP.
+- **Horarios dinámicos, pieza 1 — HECHA (no desplegada)**: la función
+  programada copia `jornadas` del ERP a una colección `jornadas` de nuestro
+  proyecto (réplica exacta, nombre PROVISIONAL). La app la lee desde la
+  pieza 2; su regla de lectura **no está publicada**. Conversión de
+  ids del ERP a claves de `Shift`: `manana` → `morning`, `tarde_1` →
+  `afternoon1`, `tarde_2` → `afternoon2`, `noche` → `night1`, `festivos` →
+  `holiday`. Detalle en `image-review-firebase-integration` ("Réplica de
+  jornadas").
+- **Tests**: `test/unit/shifts_test.dart` (bordes, huecos, etiquetas,
+  `shiftFromLabel`, panel de control, jornadas asignables) y
+  `shifts_end_test.dart` (fin de cada jornada); `shifts_cutover_test.dart`
+  se borró. Tabla activa y festivos: `shifts_table_test.dart`.
+- **Limitaciones aceptadas por el usuario (pieza 2)**: los mensajes ya
+  cargados mantienen su etiqueta hasta cambiar de chat o de filtro (solo se
+  recalculan los conteos del panel de control); lo guardado antes del
+  deploy puede quedar con etiquetas desfasadas.
+
+**PENDIENTE** (no decidido):
+- Actualizar el BOT con los mismos rangos y sin night2 (en su repo). Hasta
+  entonces los contadores de `shift_image_counts` siguen la tabla vieja y
+  el "imágenes en la jornada" del Resumen puede estar desfasado en los
+  bordes.
+- Retirar night2 de `ASSIGNABLE_SHIFTS` en `functions/` (el cliente ya no
+  la ofrece, el servidor todavía la acepta).
+- Caché de la PWA tras desplegar (versiones viejas con la tabla vieja).
+- Consecuencia a tener presente: los mensajes ya guardados se reclasifican
+  con la tabla única (su etiqueta del visor se calcula al cargarlos).
+- Horarios dinámicos (las reglas de `jornadas` y `festivos_colombia` ya
+  están PUBLICADAS, confirmado el 2026-10-04): pieza 3 (el bot sigue con su
+  tabla vieja y no lee las colecciones; **RIESGO CONOCIDO (hasta actualizar el bot)**: en cada festivo entre semana, empezando por el **lunes 2026-10-12**, la app (con la pieza 2) trata el día como domingo (solo la jornada `holiday`, 06:00–19:15; lo de fuera queda "fuera de jornada") y el bot lo clasifica como un día normal con su tabla vieja: `shift_image_counts` de ese día no coincide con lo que ve la app, y el Resumen mostrará diferencias en "imágenes en la jornada".); el texto de las etiquetas lleva las horas escritas
+  y no se actualiza si el ERP cambia un horario (defecto cosmético); la
+  zona horaria del dispositivo (un festivo depende de la fecha local: fuera
+  de UTC-5 se podría ver otro día); qué hacer si el ERP trae
+  `pendingApproval: true` o valores en `proposed*` (hoy se ignoran);
+  desplegar. **SUPOSICIÓN**: los horarios que se usan son siempre
+  `startTime` y `endTime`.
 
 ## Reglas de negocio (no negociables sin confirmación explícita del usuario)
 
@@ -499,7 +584,34 @@ tabla fija en código (hechos de esa lectura y pendientes de integración en
    `image-review-firebase-integration`) el número, el grupo al que
    pertenece (nombre y `chatJid`), quién lo envió y la hora — la UI
    construida lo hace con un "Ver más" que abre un diálogo de detalle
-   propio, **sin navegar al visor**. **PENDIENTE (no decidido)**: si
+   propio, **sin navegar al visor** ("Ver imagen" carga la imagen real).
+   **DECIDIDO (pieza c)**: los ganadores de una fecha se comparan contra
+   los números del Revisor de TODAS las jornadas y grupos de esa fecha;
+   solo cuenta el número (`findMatches`, regla de 2, 3 y 4 cifras, abajo). La
+   pantalla muestra siempre una lista por jornada; una jornada sin
+   coincidencias dice "Todavía no hay ganadores". Ya no se muestra si el
+   mensaje de WhatsApp fue editado.
+   **DECIDIDO por el usuario (aclaración del cliente) e IMPLEMENTADO**
+   (`findMatches`, boletos de 2, 3 y 4 cifras): todo tras `trim` en ambos
+   lados, sin normalizar ni quitar ceros a la izquierda, y sin validar que
+   sean cifras. Los ganadores pueden ser de 3 o 4 cifras ("Cash three"
+   trae 3); la función puente no cambia por esta regla. Con un ganador de
+   4 cifras, un boleto de 4 gana si es igual al ganador completo, uno de 3
+   si es igual a sus últimas 3 y uno de 2 si es igual a sus últimas 2. Con
+   un ganador de 3 cifras, un boleto de 3 gana si es igual al ganador
+   completo y uno de 2 si es igual a sus últimas 2. Un boleto de 4 cifras
+   nunca coincide con un ganador de 3 ("0606" contra "606" no). Un boleto
+   de cualquier otra longitud (1, 5 o más) se ignora sin aviso, y un
+   ganador de longitud distinta de 3 o 4 también. Si un mismo ganador
+   acierta a boletos de distinta longitud, son coincidencias separadas. Un
+   boleto puede coincidir **a la vez** con varios ganadores ("606" con
+   "606" y con "4606"; "41" con "5241" y con "0341"): la app solo muestra
+   coincidencias y los revisores deciden si corresponde el premio doble.
+   **HECHO**: `findMatches` devuelve una entrada por registro coincidente
+   (cada entrada es un número anotado por el Revisor y no lleva el ganador
+   que coincidió), así que un boleto que acierta a dos ganadores ("606"
+   contra "606" y "4606") sale una sola vez.
+   **PENDIENTE (no decidido)**: si
    algún día se quiere navegar a la imagen exacta en el visor
    (exigiría cambiar el chat activo y el filtro de fecha).
 

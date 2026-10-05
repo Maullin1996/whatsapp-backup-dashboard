@@ -5,15 +5,15 @@ description: >
   feature de revisión de imágenes de whatsapp_monitor_viewer: los
   formularios se llenan y guardan en local (la PWA ya cachea imágenes),
   nunca se sincronizan automáticamente mientras se diligencian, y la
-  subida a Firebase se dispara **por jornada**, de forma manual, con un
-  indicador/botón que vive en el listado de mensajes del chat (arriba
-  del botón flotante de ir al último mensaje) — visible en cuanto hay
-  al menos un registro pendiente, sin depender de contar imágenes para
+  subida a Firebase se dispara **por jornada**, de forma manual, con el
+  botón "Subir" de la pantalla de llenado `/review` (desde el 2026-10-04;
+  antes era una cápsula en el listado de mensajes, ya retirada) — visible
+  en cuanto hay al menos un registro pendiente, sin depender de contar imágenes para
   saber si la jornada "ya terminó" (esa idea se descartó, ver
-  `image-review-domain` § Cierre de jornada). **La conexión real a
-  Firestore/Cloud Functions no se activa hasta que el usuario lo
-  autorice explícitamente — hasta entonces, toda "subida" se simula
-  imprimiendo en consola.** Consulta esta skill SIEMPRE que se trabaje
+  `image-review-domain` § Cierre de jornada). **La subida por jornada
+  es REAL a Firestore desde el paso 7, capa 6 (autorizada por el
+  usuario); cualquier otra escritura nueva sigue necesitando su
+  autorización explícita.** Consulta esta skill SIEMPRE que se trabaje
   en: cualquier mecanismo de guardado local de un registro de
   Revisor/Sumador, el botón/flujo de subida por jornada, el manejo de
   conflictos o reintentos al sincronizar con Firestore, o cualquier
@@ -71,7 +71,11 @@ no dé esa autorización explícita en la conversación:
    ni por temporizador — cero llamadas a Firestore mientras el Revisor
    o Sumador está trabajando.
 2. **La subida a Firebase es por jornada, no un botón único "subir
-   todo"**: el indicador/botón vive **dentro del listado de mensajes
+   todo"**. **CAMBIO DELIBERADO (2026-10-04, capa 5)**: la cápsula del
+   chat descrita en el resto de este punto YA NO EXISTE; el botón es el
+   "Subir" de la pantalla de llenado `/review` (solo la jornada abierta,
+   ver "Indicador de subida por jornada"). Lo que sigue queda como
+   historia del diseño original: el indicador/botón vivía **dentro del listado de mensajes
    del chat, arriba del botón flotante "ir al último mensaje"
    (`GoToLatestMessageButton`)** — no en `ChatHeader` ni en
    `ChatDrawer`. **No depende de detectar "jornada completa" contando
@@ -128,7 +132,12 @@ no dé esa autorización explícita en la conversación:
    reabrir el formulario). No hace falta un historial completo tipo
    `edit_attempts` a menos que se pida explícitamente — con el flag
    booleano alcanza por ahora.
-7. **Navegación para editar: sin atajo, se busca navegando.** El
+7. **CAMBIO DELIBERADO (2026-10-04, capa 5)**: corregir un registro
+   (también uno ya subido) ahora SOLO se hace entrando a esa jornada y
+   fecha desde "Llenar formularios" (pantalla `/review`): el visor del chat
+   ya no tiene formulario ni botón "Editar". Lo que sigue es el diseño
+   anterior, como historia.
+   **Navegación para editar: sin atajo, se busca navegando.** El
    usuario confirmó que no hay una lista/acceso directo a "mis
    registros ya diligenciados" — la persona **navega el visor
    normalmente** (como cualquier imagen) hasta encontrar la imagen que
@@ -137,6 +146,61 @@ no dé esa autorización explícita en la conversación:
    "Editar"** en vez de (o junto a) la vista normal — ver
    `image-review-roles` para el detalle de dónde vive ese botón en
    `image_detail_page`.
+
+## Lo subido es la fuente de verdad de `/review` — CAMBIO DELIBERADO (2026-10-04, HECHO; sin desplegar)
+
+Contradice a propósito la idea anterior de que "tiene formulario" dependía
+solo de Hive. Decidido por el usuario:
+
+- **Hive manda solo en lo PENDIENTE**; un registro sincronizado es una copia
+  de Firebase que se puede perder (caché borrada, otro navegador u otro
+  dispositivo) sin consecuencias. Perder lo llenado y no subido no es
+  problema de la app.
+- **Lectura** (`FirestoreReviewRemoteRecordsDatasource`,
+  `reviewRemoteRecordsDatasourceProvider`): consulta sobre
+  `image_reviews/{chatJid}/jornadas/{fecha}_{shiftKey}/registros` con
+  `rol == <rol activo>` (la regla lo exige), `Source.server` (nunca datos de
+  la caché del SDK), timeout de 15 s, nunca lanza. Nunca un `get` por id (la
+  regla niega leer uno inexistente). El documento subido se convierte con
+  `ImageReviewRecordModel.fromMap` agregando `v` y `estadoSync:
+  sincronizado`. Un documento ilegible (falta un campo, otro tipo, fecha
+  ilegible) se OMITE con `debugPrint('[REVISION] registro subido ilegible,
+  omitido: <ruta>')` y esa imagen cuenta como sin formulario; uno legible que
+  no corresponde a la consulta (otro rol, grupo, fecha, jornada o un id
+  distinto de `{messageId}_{rol}`) es error. No necesita índice compuesto
+  (igualdad sobre un solo campo dentro de una colección).
+- **Mezcla** (`syncJornadaFromRemote`, `data/sync/remote_jornada_sync.dart`):
+  si la lectura falla, no toca nada. Registro local PENDIENTE de esa imagen:
+  gana el local y no se toca. Si no: lo de Firebase se escribe en Hive como
+  sincronizado (reemplaza siempre a un sincronizado anterior). Imagen de la
+  jornada sin registro legible en Firebase: su copia local se borra SOLO si
+  está sincronizada (`deleteSynced`, en el datasource local y los
+  repositorios: nunca borra un pendiente ni uno ilegible) y SOLO las de las
+  imágenes de esa jornada. Si falla una operación local se detiene ahí.
+- **En `/review`** (`reviewSessionSyncProvider`): corre UNA vez al entrar con
+  la lista de imágenes de ese momento (no escucha imágenes nuevas), recarga
+  los `savedRecordProvider` de esas imágenes y el visor abre en la primera
+  SIN formulario (todas llenas → la primera). Mientras tanto, cargando; si
+  falla, error con "Reintentar"; en ninguno de los dos hay visor ni
+  formulario. "No autorizado" tiene mensaje propio ("No tienes asignada esta
+  jornada… Recarga la página para salir."); los demás errores usan
+  `mapFailureToMessage` con el prefijo "No se pudieron traer los
+  formularios ya subidos de esta jornada:". Sin reintento automático.
+- **Subida y mezcla nunca se cruzan** (si se cruzaran, la mezcla podría
+  borrar en local un registro recién subido, o pisarlo con la versión
+  vieja leída antes): "Subir" solo aparece cuando la mezcla terminó sin
+  error (con la lista vacía no hay mezcla), y "Cerrar" (y Esc) no aparece
+  mientras se sube esa jornada, para que no se pueda salir y volver a
+  entrar con la subida en curso. Recargar a mitad de una subida la corta:
+  lo no marcado sigue pendiente en Hive y gana en la próxima mezcla (si ya
+  estaba escrito en Firestore, volver a subirlo pisa el mismo documento).
+- **Costo**: cada entrada (y cada "Reintentar") lee los registros de ese rol
+  de la jornada (mínimo 1) más el `get` de `users/{uid}` de la regla.
+- **Editar un registro subido** sigue igual: queda `editado: true`,
+  pendiente, y `registradoPor` pasa a ser quien edita (aceptado).
+- **Riesgo conocido**: una imagen que cambia de jornada (tabla de horarios
+  distinta) escribiría en otra ruta y el documento viejo seguiría ahí.
+- Admin y superAdmin no corrigen registros: siguen solo con el Resumen.
 
 ## Decisión de almacenamiento: `hive_ce` (+ `hive_ce_flutter`)
 
@@ -271,7 +335,20 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
 
 ## Indicador de subida por jornada (paso 4 — HECHO; subida REAL desde el paso 7, capa 6)
 
-- **Dónde vive**: `PendingUploadIndicators`
+> **CAMBIO DELIBERADO (2026-10-04, pedido por los usuarios) — HECHO**: la
+> cápsula del chat (`PendingUploadIndicators`) **se quitó** (capa 5). La
+> subida vive en el "Subir" de la cabecera de `/review` (capa 3b): la misma
+> píldora (`PendingUploadPill`, ahora en `widgets/pending_upload_pill.dart`,
+> "Subir · N pendientes"), el mismo diálogo de confirmación, el mismo
+> `ReviewUploadNotifier` y los mismos SnackBars, solo para la jornada abierta
+> (los pendientes de `pendingUploadsProvider` de esa fecha y jornada). Los
+> pendientes de días viejos solo se suben entrando a esa fecha desde el
+> diálogo "Llenar formularios" (aceptado por el usuario). Lo que sigue
+> describe la cápsula retirada (dónde vivía y qué mostraba); las reglas de
+> la subida (progreso, guarda contra ediciones, corte al salir del chat,
+> fallos) siguen valiendo tal cual para el "Subir" de `/review`.
+
+- **Dónde vivía (RETIRADA en la capa 5)**: `PendingUploadIndicators`
   (`image_review/presentation/widgets/pending_upload_indicators.dart`), un
   `Positioned` dentro del `Stack` de `MessageList`, encima del hueco de
   `GoToLatestMessageButton` (`bottom = 20 + 56 + AppSpacing.md`, mismo `right`
@@ -414,10 +491,7 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
   `edit_attempts`: lectura con sesión, escritura negada; `users/{uid}`:
   lectura solo del propio uid, escritura negada), que siguen sin cambios.
   Antes de cada nueva publicación hay que confirmar que las de la consola
-  siguen siendo las del archivo. **El comentario del encabezado (en el repo
-  y en lo publicado) todavía dice "BORRADOR... no se despliega"**: está
-  desactualizado y debe corregirse en el repo, para publicarlo cuando
-  cambie otra regla.
+  siguen siendo las del archivo.
   - **Bloque nuevo**, solo para
     `image_reviews/{chatJid}/jornadas/{jornadaId}/registros/{registroId}`:
     `create` y `update` con las mismas condiciones, `delete` negado. La
@@ -451,13 +525,39 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
     colección con ese nombre en la base (hoy no hay otra); sigue
     `rules_version = '2'`. `match /shift_image_counts/{docId}`: lectura
     solo `isAdmin()`, escritura negada (el bot escribe con el Admin SDK).
-    Revisor y Sumador no leen nada de `image_reviews`.
+    Revisor y Sumador no leen nada de `image_reviews` — **CAMBIO DELIBERADO,
+    PUBLICADO el 2026-10-04** (el usuario pegó el borrador completo en la
+    consola sin compararlo antes): `firestore.rules.draft` agrega
+    `allow read: if puedeLeerRegistro(chatJid, jornadaId)` en la ruta
+    concreta de `registros`: lee quien tenga asignado EN ESE MOMENTO ese
+    grupo y esa jornada (`{chatJid, shift}` en `users/{uid}.reviewShifts`,
+    leído con `get()` en la regla) y solo registros de SU rol
+    (`resource.data.rol == reviewRole()`; la consulta del cliente debe
+    filtrar `rol == <su rol>` o se rechaza entera). No coincide con
+    consultas de grupo de colecciones, así que un Revisor/Sumador no puede
+    leer todos los grupos; la regla recursiva de admin no cambia. Probado en
+    el emulador local con el borrador completo: 32/32 casos (incluidos
+    Sumador → registros del Revisor negado, Revisor asignado permitido, sin
+    asignación negado, admin igual que antes, sin sesión negado), y una
+    prueba de mutación (sin la condición de rol fallan 5 casos); después,
+    33/33 con un `get` de un registro inexistente (se NIEGA: sin documento
+    no hay `resource.data.rol`; por eso la app solo usa la consulta). Las
+    pruebas viven en `firestore-rules-test/` (README: necesita Java 21).
+    **RIESGO CONOCIDO (no se toca)**: la regla de ESCRITURA no exige la
+    asignación (solo el claim, el payload y el mensaje real): una cuenta con
+    el rol puede escribir el registro de cualquier grupo y jornada, incluso
+    sin tenerlos asignados (caso 6c del emulador). Hoy solo lo evita la
+    interfaz (el botón y el diálogo de "Llenar formularios" solo ofrecen lo
+    asignado).
     **Probado en la zona de pruebas con las reglas ya publicadas (HECHO,
     2026-10-01)**: un usuario sin claim de admin NO puede leer un registro
     de `image_reviews` ni un documento de `shift_image_counts` (`get`
-    denegado). **NO verificado**: que un admin real pueda leer (se prueba
-    al conectar el Resumen), la consulta de grupo de colecciones real y el
-    índice.
+    denegado). **HECHO (verificado por el usuario el 2026-10-02)**: un
+    admin real puede leer: el Resumen real leyó los registros, los
+    contadores y los nombres con la cuenta admin, y la consulta de grupo de
+    colecciones real funciona. El índice de grupo de colecciones sobre
+    `fechaJornada` (ascendente) se creó desde la consola, como exención de
+    `registros.fechaJornada`, con el enlace que trajo el error.
   - **Antecedente: probado en la zona de pruebas de la consola
     (2026-10-01), antes de publicar, en parte** (solo la escritura). El
     claim se simuló cambiando a mano la línea del claim en el editor de
@@ -473,7 +573,9 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
       después con la primera escritura real); `jornadaId` mal armado,
       `shiftKey` `outOfShift`, id sin sufijo de rol, `chatJid` distinto,
       mensaje inexistente y `delete` (siguen sin probar); `get` (probado
-      después para un usuario sin admin, ver "Lectura de admin"); el
+      después: denegado para un usuario sin admin en la zona de pruebas y
+      leído por un admin real con el Resumen el 2026-10-02, ver "Lectura de
+      admin"); el
       cliente real de la app (verificado después).
     - Nota: el simulador convirtió `registradoEn` en fecha cuando se
       escribió como ISO (`"...T12:00:00.000Z"`) y la regla lo rechazó por
@@ -489,7 +591,7 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
   - **Cuándo se construye**: solo al iniciar una subida. El único lector de
     `reviewUploaderProvider` es `ReviewUploadNotifier._upload`
     (`ref.read`), que corre al confirmar "Subir" en la píldora
-    (`PendingUploadIndicators._onTap` → `upload`). Abrir la app, el visor o
+    (`PendingUploadPill._onTap` → `upload`, hoy desde `/review`). Abrir la app, el visor o
     la lista de mensajes no lo construye.
   - **Log de fallo**: todo `Left` del uploader deja
     `debugPrint('[SUBIDA] falló <messageId>: <tipo>')`, con el tipo
@@ -515,12 +617,10 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
     También verificado: el claim `reviewRole` real se evalúa bien para los
     dos roles, y la comparación de `messageTimestamp` y `chatJid` contra
     `whatsapp_messages` funciona con mensajes reales.
-  - **Hay que BORRAR esos 4 documentos de prueba (desde la consola)** antes
-    de desplegar el hosting o de que otra persona use el Resumen: son
-    números de prueba y contarían en el Resumen y en Coincidencias.
-  - `SimulatedReviewUploader` **no se borró**: queda sin cablear ("No
-    cableado en producción; solo tests y referencia; candidato a borrar"),
-    con el mismo contrato.
+  - Esos 4 documentos de prueba fueron borrados por el usuario desde la consola el 2026-10-04.
+  - `SimulatedReviewUploader` **se borró** (HECHO), con su grupo de tests
+    en `review_upload_notifier_test.dart`; sus casos ya estaban cubiertos
+    por los tests de `FirestoreReviewUploader` y de `toUploadDocument`.
   - Tests: ningún test dependía del provider por defecto (los de la subida ya
     sobreescribían `reviewUploaderProvider`). Nuevos, en
     `firestore_review_uploader_test.dart`: con solo
@@ -530,18 +630,9 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
     marca `sincronizado` y el fallo deja `pendiente` sin lanzar. Ningún test
     instancia `FirebaseFirestore` ni lee el `firestoreProvider` real.
 - **PENDIENTE (no decidido)**:
-  - Aviso visible para los registros viejos que no se pueden subir (sin
-    `messageTimestamp` o sin `codigo`): hoy solo cuentan como "no se
-    pudieron subir" en el SnackBar, sin decir cuál ni por qué, y **la
-    píldora los sigue contando** (el índice de pendientes no sabe que les
-    falta el campo).
-  - Borrar los 4 documentos de prueba (ver capa 6) antes de desplegar el
-    hosting o de que otra persona use el Resumen.
+  - (El aviso para los registros viejos que no se pueden subir se descartó por decisión del usuario: son datos de prueba.)
   - Validar `codigo` y `loteria` en las reglas (hoy no se validan). Si la
     lotería pasa a ser una lista cerrada.
-  - Corregir el comentario del encabezado de `firestore.rules.draft`
-    ("BORRADOR... no se despliega") y republicarlo cuando cambie otra
-    regla.
   - Si conviene subir el esquema a v2 igual (por ejemplo, para que una
     versión antigua de la app que siga en caché no lea ni reescriba
     registros con un campo que no conoce).
@@ -549,12 +640,11 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
     (`jornadaId` mal armado, `shiftKey` `outOfShift`, id sin sufijo de rol,
     `chatJid` distinto, mensaje inexistente, `delete`).
   - Lectura de `image_reviews` y de `shift_image_counts` (solo admin y
-    superAdmin, publicada): probar la lectura de un admin real conectando
-    el Resumen; crear el índice de grupo de colecciones sobre
-    `fechaJornada` desde la consola cuando falle la primera consulta real;
-    el desfase de claims (se leen solo al iniciar sesión); qué hacer con
-    `functions/set-admin.js`, que reemplaza los claims sin fusionarlos
-    (borraría `reviewRole`).
+    superAdmin, publicada; la lectura de un admin real y el índice sobre
+    `fechaJornada` quedaron HECHOS el 2026-10-02, ver "Lectura de admin"):
+    el desfase de claims (se leen solo al iniciar sesión). (Lo de
+    `functions/set-admin.js` ya está resuelto: fusiona los claims en vez de
+    reemplazarlos; ver `image-review-workflow`.)
   - Si las reglas de escritura deben validar `reviewShifts` o
     `allowedGroups`; reglas de Storage (no están en el repo).
   - Verificación de conexión antes de subir (el timeout ya existe, ver
@@ -568,7 +658,9 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
     `ReviewUploadNotifier` solo cuenta los fallos, no muestra su mensaje (el
     tipo solo queda en el `debugPrint`).
   - Nombres definitivos de las colecciones (`image_reviews`, `jornadas`,
-    `registros` son provisionales).
+    `registros` son provisionales). Ojo: esta subcolección `jornadas` no es
+    la colección de la raíz `jornadas` (réplica del ERP, ver
+    `image-review-firebase-integration`, "Réplica de jornadas").
   - Cómo lee Coincidencias los registros de todos los grupos: consulta de
     grupo de colecciones sobre `registros` o una Cloud Function. (El
     Resumen real, ya conectado, usa la consulta de grupo por
@@ -590,7 +682,7 @@ colgado ya no bloquea la jornada con "Subiendo X de N" indefinido. **Sigue
 pendiente** decidir si además se verifica la calidad de conexión antes de
 subir, y qué pasa con una escritura que el SDK dejó en cola y llega después
 del timeout. Desde la capa 6 el provider usa el uploader real; el simulado
-(sin cablear) nunca fallaba ni se colgaba.
+(ya borrado) nunca fallaba ni se colgaba.
 
 ## Forma de trabajo dentro de esta skill
 
@@ -605,13 +697,15 @@ una antes de seguir:
    repositorio (`getPending`), sin UI (esto ya no requiere "detectar
    si está completa", solo listar lo que hay).
 3. ✅ **Subida individual** de un registro pendiente — hecha primero
-   SIMULADA (`SimulatedReviewUploader`, hoy sin cablear); desde el paso 7,
+   SIMULADA (`SimulatedReviewUploader`, ya borrado); desde el paso 7,
    capa 6, REAL (`FirestoreReviewUploader`).
 4. ✅ **Subida por jornada** con éxitos/fallos parciales — hecha (real desde
    la capa 6),
    ver "Indicador de subida por jornada".
 5. ✅ **UI del indicador/botón por jornada** en el listado de mensajes,
-   arriba de `GoToLatestMessageButton` — hecha.
+   arriba de `GoToLatestMessageButton` — hecha y luego **retirada**
+   (2026-10-04, capa 5, cambio deliberado): reemplazada por el "Subir" de
+   `/review`.
 
 ## Zona gris / a confirmar antes de implementar
 

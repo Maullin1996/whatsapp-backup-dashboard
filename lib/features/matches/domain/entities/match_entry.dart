@@ -26,12 +26,5 @@ abstract class MatchEntry with _$MatchEntry {
 
     /// Día de la jornada (`yyyy-MM-dd`), igual que `Message.fechaJornada`.
     required String fechaJornada,
-
-    /// Si el MENSAJE de WhatsApp original fue editado (cruce con
-    /// `edit_attempts`, igual que `Message.isEdited`). Deliberadamente NO se
-    /// llama `editado`: ese nombre es de `ImageReviewRecord.editado` (si el
-    /// REGISTRO de revisión se volvió a guardar) y significa otra cosa — ver
-    /// `image-review-domain`.
-    required bool messageEdited,
   }) = _MatchEntry;
 }

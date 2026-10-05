@@ -1,3 +1,6 @@
+import 'package:whatsapp_monitor_viewer/core/time/fecha_jornada.dart';
+import 'package:whatsapp_monitor_viewer/features/messages/domain/entities/message.dart';
+
 class ImageViewItem {
   final String messageId;
   final String chatJid;
@@ -25,4 +28,18 @@ class ImageViewItem {
     this.isEdited = false,
     this.shiftImageIndex,
   });
+
+  /// Item del visor para un mensaje con imagen ([Message.isImage]).
+  factory ImageViewItem.fromMessage(Message m) => ImageViewItem(
+    messageId: m.id,
+    chatJid: m.chatJid,
+    storagePath: m.storagePath!,
+    senderName: m.senderName,
+    messageTimestamp: m.messageTimestamp,
+    localTime: m.localTime,
+    shift: m.shift,
+    fechaJornada: fechaJornadaDe(m.messageTimestamp),
+    isEdited: m.isEdited,
+    shiftImageIndex: m.shiftImageIndex,
+  );
 }

@@ -363,6 +363,64 @@ void main() {
     });
   });
 
+  group('deleteSynced', () {
+    test('borra un sincronizado y sobrevive a recargar', () async {
+      await repoFor('u1').save(_record(estadoSync: EstadoSync.sincronizado));
+
+      expect(
+        _right(await repoFor('u1').deleteSynced('m1', ReviewRole.revisor)),
+        isTrue,
+      );
+      final ds = await reload();
+      expect(
+        _right(
+          await repoFor('u1', ds).getByMessageId('m1', ReviewRole.revisor),
+        ),
+        isNull,
+      );
+    });
+
+    test('nunca borra un pendiente', () async {
+      await repoFor('u1').save(_record());
+
+      expect(
+        _right(await repoFor('u1').deleteSynced('m1', ReviewRole.revisor)),
+        isFalse,
+      );
+      expect(
+        _right(await repoFor('u1').getByMessageId('m1', ReviewRole.revisor)),
+        _record(),
+      );
+    });
+
+    test('sin registro no hace nada', () async {
+      expect(
+        _right(await repoFor('u1').deleteSynced('m1', ReviewRole.revisor)),
+        isFalse,
+      );
+    });
+
+    test('no toca el otro rol ni otro usuario', () async {
+      final synced = _record(estadoSync: EstadoSync.sincronizado);
+      await repoFor('u1').save(synced);
+      await repoFor('u2').save(synced);
+      await repoFor('u1').save(
+        _record(rol: ReviewRole.sumador, estadoSync: EstadoSync.sincronizado),
+      );
+
+      await repoFor('u1').deleteSynced('m1', ReviewRole.revisor);
+
+      expect(
+        _right(await repoFor('u2').getByMessageId('m1', ReviewRole.revisor)),
+        isNotNull,
+      );
+      expect(
+        _right(await repoFor('u1').getByMessageId('m1', ReviewRole.sumador)),
+        isNotNull,
+      );
+    });
+  });
+
   group('registro ilegible', () {
     late LazyBox<String> box;
 
@@ -416,6 +474,16 @@ void main() {
       expect(failure, isA<StorageFailure>());
       expect(mapFailureToMessage(failure), contains('m-roto'));
       expect(mapFailureToMessage(failure), isNot(contains('m-bueno')));
+    });
+
+    test('deleteSynced no borra un registro ilegible', () async {
+      await box.put(recordKey('m1'), 'basura');
+
+      expect(
+        _right(await repoFor('u1').deleteSynced('m1', ReviewRole.revisor)),
+        isFalse,
+      );
+      expect(await box.get(recordKey('m1')), 'basura');
     });
 
     test('guardar encima de un registro ilegible lo repara', () async {

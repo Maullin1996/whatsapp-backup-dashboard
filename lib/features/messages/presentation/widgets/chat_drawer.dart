@@ -109,10 +109,7 @@ class ChatDrawer extends ConsumerWidget {
               style: AppTypography.timestamp(context),
             ),
             const SizedBox(height: AppSpacing.md),
-            for (final row in shiftStatRows(
-              shiftStats,
-              nowMs: DateTime.now().millisecondsSinceEpoch,
-            ))
+            for (final row in shiftStatRows(shiftStats))
               _ShiftStatRow(label: row.label, count: row.count),
           ],
         ),

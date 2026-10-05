@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
-import 'package:whatsapp_monitor_viewer/features/image_review/presentation/widgets/pending_upload_indicators.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/presentation/widgets/fill_forms_button.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/widgets/message_list_loading.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/helpers/format_day_label.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/providers/message_list_scroll_controller.dart';
@@ -220,7 +220,7 @@ class _MessageListState extends ConsumerState<MessageList> {
                       _floatingButtonSize +
                       AppSpacing.md,
                   right: _floatingButtonMargin,
-                  child: PendingUploadIndicators(),
+                  child: FillFormsButton(),
                 ),
               ],
             ),

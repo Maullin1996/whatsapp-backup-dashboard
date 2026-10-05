@@ -51,7 +51,6 @@ class FirestoreSummaryRepository implements SummaryRepository {
     // Mismo día y mismas etiquetas que el mock.
     final day = DateTime(fecha.year, fecha.month, fecha.day);
     final fechaJornada = fechaJornadaDe(day.millisecondsSinceEpoch);
-    final names = shiftNamesAt(day.millisecondsSinceEpoch);
 
     final recordsFuture = _records.fetchByFechaJornada(fechaJornada);
     final countsFuture = _counts.fetchByShiftDate(fechaJornada);
@@ -97,8 +96,8 @@ class FirestoreSummaryRepository implements SummaryRepository {
           chatJid: key.$1,
           groupName: groupNames[key.$1]!,
           fechaJornada: fechaJornada,
-          // night2 no existe en la tabla nueva: si aparece, su etiqueta vieja.
-          shift: names[key.$2] ?? shiftNames[key.$2]!,
+          // night2 no está en la tabla: si aparece, su etiqueta vieja.
+          shift: shiftNames[key.$2] ?? legacyShiftNames[key.$2]!,
           revisor: _roleSummary(recordsByKey[key], ReviewRole.revisor),
           sumador: _roleSummary(recordsByKey[key], ReviewRole.sumador),
           imagenesEnJornada: lastIndexByKey[key] ?? 0,

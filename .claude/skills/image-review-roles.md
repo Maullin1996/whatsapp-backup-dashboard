@@ -71,7 +71,7 @@ El repo ya tiene un patrón completo en `lib/features/admin/` y
    `superAdmin` + `sumador`, etc. — la exclusión es únicamente entre
    `revisor` y `sumador` entre sí.
 2. **Activación exclusiva desde `AdminPage`, exclusiva del superAdmin —
-   ✅ HECHA (sin desplegar todavía)**: en `_UserCard`, el punto de
+   ✅ HECHA y desplegada a producción**: en `_UserCard`, el punto de
    entrada del rol ("Rol de revisión" + el texto de estado) solo es
    visible si `AuthenticatedUser.isSuperAdmin == true` para quien está
    mirando el panel. Un `admin` normal (no super) no lo ve. **Dos puntos
@@ -101,6 +101,16 @@ El repo ya tiene un patrón completo en `lib/features/admin/` y
    grupo + jornada" más abajo** — estos dos booleanos no bastan solos,
    cada rol activo viene acompañado de un grupo y una jornada
    asignados.
+
+> **CAMBIO DELIBERADO (2026-10-04, capa 5 — HECHO)**: el formulario de
+> captura **solo vive en la pantalla de llenado `/review`** (ver "Pantalla de
+> llenado `/review`" más abajo). El visor del chat (`/home/viewer/:i`) volvió
+> a ser solo visor para TODOS los usuarios, con o sin rol: sin panel, sin
+> bloqueo de navegación, sin el foco extra y sin leer el rol, `reviewShifts`
+> ni los registros (`ImageDetailPage.reviewForm` es `false` por defecto; solo
+> `/review` pasa `true`). Las reglas de abajo sobre ancho, rol, asignación,
+> bloqueo y "Editar" siguen valiendo, pero ahora **dentro de `/review`**; donde
+> dicen `image_detail_page` hay que leer "el visor de `/review`".
 
 ## Alcance de dispositivo: solo tablet/PC
 
@@ -167,13 +177,78 @@ El repo ya tiene un patrón completo en `lib/features/admin/` y
   visor exactamente igual que hoy, **sin ningún formulario, ni siquiera
   en modo lectura** — simplemente ve la imagen. El formulario de captura
   solo existe para quien tiene activa la cualidad Revisor o Sumador.
-- **Edición de un registro ya diligenciado**: si Revisor/Sumador
+- **Edición de un registro ya diligenciado** — **CAMBIO DELIBERADO
+  (2026-10-04, capa 5)**: corregir un registro (también uno ya subido) ahora
+  SOLO se hace entrando a esa jornada y fecha desde "Llenar formularios"
+  (`/review`); allí, la imagen con registro muestra el botón "Editar" y la
+  navegación no se bloquea. Diseño anterior (en el visor del chat, ya
+  retirado): si Revisor/Sumador
   navega (buscando manualmente, sin atajo — ver `image-review-offline-sync`)
   hasta una imagen que **ya tiene un registro guardado** (local o ya
   subido), `image_detail_page` debe mostrar un **botón "Editar"** en
   vez de un formulario vacío. El bloqueo de navegación (arriba) no
   aplica sobre una imagen que ya tiene registro — esa restricción es
   solo para imágenes sin diligenciar todavía.
+
+## Pantalla de llenado `/review` — CAMBIO DELIBERADO, en construcción (2026-10-04)
+
+Los usuarios pidieron cambiar el flujo: el formulario se va a llenar en una
+pantalla aparte, `/review`, con SOLO las imágenes de una jornada de un chat en
+un día, de la PRIMERA a la ÚLTIMA (al revés del visor del chat) y en vivo.
+**Capa 5 — HECHA**: el visor del chat volvió a ser solo visor (sin
+formulario) y la cápsula de subida se quitó de `MessageList`. El único camino
+al formulario es "Llenar formularios" → `/review`.
+
+- **Hecho (capa 3a)**: ruta `/review` (`ReviewSessionPage`), sesión de llenado
+  en memoria (`reviewSessionProvider`: jornada + nombre del grupo; se vacía
+  si cambia el uid), imágenes de `jornadaImagesProvider` (día completo con
+  `fetchByDateRange`, en vivo solo si el día es hoy, sin reintento
+  automático) y el visor de siempre (`ImageDetailPage` con `reverse: false`,
+  sin paginar, sin botón de cerrar), con las mismas reglas de panel (ancho,
+  rol, asignación) y de bloqueo de navegación.
+- **Sin salida, a propósito** (decisión del usuario): `computeAuthRedirect`
+  recibe `reviewSessionActive`; con sesión, toda ruta lleva a `/review` (así
+  el "atrás" del navegador no saca de ahí) y sin sesión `/review` lleva a
+  `/home`. `PopScope(canPop: false)` cubre el gesto atrás. Recargar la página
+  borra la sesión. Esto CAMBIA la regla de arriba "cerrar el visor siempre
+  está permitido": sigue valiendo para el visor del chat, no para `/review`.
+- **Hecho (capa 3b)**: "Subir" en la cabecera (la píldora de la cápsula,
+  `PendingUploadPill` con `showJornada: false` → "Subir · N pendientes";
+  mismo diálogo y `ReviewUploadNotifier`; solo los pendientes de ESA
+  jornada). "Cerrar" en el lugar del botón de cerrar la imagen (en la
+  cabecera si la lista está vacía), solo cuando todas las imágenes tienen
+  registro guardado del rol (ver `image-review-domain`, "Cierre de
+  jornada"); vacía la sesión y el guard lleva a `/home`. Esc también cierra
+  cuando "Cerrar" está visible. Con ancho < 840: aviso arriba ("Gira la
+  tablet o agranda la ventana para llenar el formulario."), panel oculto,
+  navegación libre, "Subir" disponible y "Cerrar" con la misma regla; al
+  volver a ≥ 840 el panel reaparece en la misma imagen.
+- **Hecho (capa 4)**: botón "Llenar formularios" (`FillFormsButton`) en
+  `MessageList`, en el mismo bloque flotante que la cápsula (debajo de sus
+  píldoras). Misma condición que el panel del formulario: ancho >=
+  `AppBreakpoints.reviewForm`, rol activo y al menos una entrada de
+  `reviewShifts` para el chat abierto (cargando o con error, no aparece;
+  `reviewShiftsProvider` conserva el reintento automático de Riverpod).
+  Abre `FillFormsDialog`: fecha con flechas (sin flecha derecha en el día de
+  hoy, "hoy" = `DateUtils.dateOnly(DateTime.now())` como el Resumen, sin
+  límite hacia atrás) y un botón por jornada asignada en ese chat que aplica
+  a esa fecha (`jornadasParaFecha`: domingo o festivo → solo `holiday`, otro
+  día → las demás, con `isHolidayOrSunday`; nunca `night2` ni `outOfShift`).
+  No cuenta imágenes. Tocar una jornada cierra el diálogo y empieza la
+  sesión: el guard lleva a `/review`.
+- **Hecho (2026-10-04, CAMBIO DELIBERADO: lo subido manda)**: al entrar,
+  `/review` trae lo ya subido de la jornada y lo mezcla con Hive
+  (`reviewSessionSyncProvider`, detalle en `image-review-offline-sync`,
+  "Lo subido es la fuente de verdad de `/review`"); mientras tanto o si
+  falla no hay visor ni formulario (cargando / error con "Reintentar"; "no
+  autorizado" dice que no tiene asignada esa jornada). El visor abre en la
+  primera imagen SIN formulario (todas llenas → la primera), calculada una
+  vez. "Subir" aparece solo con la mezcla terminada sin error; "Cerrar" (y
+  Esc) no aparece mientras se sube esa jornada.
+- **Corte de la subida por chat activo**: `ReviewUploadNotifier` corta si el
+  chat activo deja de ser el de la jornada; en `/review` no pasa (el chat
+  activo solo se vacía en el móvil < 700 px de `HomePage`, al cerrar sesión o
+  al iniciarla). Cubierto por el test que sube desde `/review`.
 
 ## Identificación del autor del registro
 
@@ -228,13 +303,16 @@ limpio (sin migración de datos).
     `holiday`), no la etiqueta en español; `outOfShift` NO es
     asignable. La lista de jornadas asignables está espejada a mano en
     `ASSIGNABLE_SHIFTS` (`functions/index.js`) y debe mantenerse
-    sincronizada con `lib/core/time/shifts.dart` hasta que las jornadas
-    vengan del Firebase externo (`image-review-firebase-integration`).
+    sincronizada con `lib/core/time/shifts.dart`. Con la tabla única
+    (paso 7, pieza e) el cliente ya no ofrece `night2`, pero
+    `ASSIGNABLE_SHIFTS` todavía la acepta (PENDIENTE retirarla).
     Ojo: los registros de `image_review` guardan `shift` como la
-    **etiqueta** (`shiftNames`), así que al comparar una asignación con
-    un registro/mensaje habrá que traducir enum ↔ etiqueta.
-- **Cloud Functions — backend ✅ HECHO y probado, sin desplegar
-  todavía** (reemplazan a la extinta `setReviewAssignment`, que
+    **etiqueta** (`shiftNames`, las actuales; los registros viejos pueden
+    traer una de `legacyShiftNames`), así que al comparar una asignación
+    con un registro/mensaje habrá que traducir enum ↔ etiqueta
+    (`shiftFromLabel` reconoce las dos).
+- **Cloud Functions — backend ✅ HECHO, probado y desplegado a
+  producción** (reemplazan a la extinta `setReviewAssignment`, que
   guardaba un solo `{role, chatJid, shift}` combinado):
   - **`setReviewRole(uid, role)`** — `role: 'revisor' | 'sumador' |
     null`. Solo superAdmin. Mismo patrón que `setUserRole` (leer con
@@ -285,7 +363,7 @@ limpio (sin migración de datos).
 - Los custom claims completos comparten 1000 bytes (`admin`,
   `superAdmin`, `reviewRole`); con `reviewRole` como string simple
   sobra de lejos.
-- **UI en `AdminPage` — ✅ HECHA (sin desplegar todavía), dos puntos de
+- **UI en `AdminPage` — ✅ HECHA y desplegada a producción, dos puntos de
   entrada separados**:
   - **Rol**: en `_UserCard`, un botón "Rol de revisión" (visible SOLO
     para un superAdmin, SIN condición sobre el rol del objetivo — igual
@@ -304,8 +382,9 @@ limpio (sin migración de datos).
     agregar un segundo control) tiene un botón "Horarios" que aparece
     SOLO si el checkbox de ese grupo está marcado Y el usuario tiene
     `reviewRole` activo. Abre `GroupShiftsDialog` (diálogo anidado,
-    `showDialog` sobre `showDialog`) con las 6 jornadas asignables como
-    checkboxes (`shortShiftName(shiftNames[shift]!)`). Las jornadas ya
+    `showDialog` sobre `showDialog`) con las 5 jornadas asignables
+    (`assignableShifts`: sin `night2` ni `outOfShift`) como checkboxes
+    (`shortShiftName(shiftNames[shift]!)`). Las jornadas ya
     cubiertas por OTRA persona del MISMO rol llegan deshabilitadas, con
     su email como subtítulo — calculado del lado del cliente con
     `AdminState.users` (ya trae `reviewRole`+`reviewShifts` de todos,
@@ -357,8 +436,9 @@ limpio (sin migración de datos).
     excepción para lo ya guardado.
   - **Implementado** en `image_detail_page.dart`: la jornada de la
     imagen es una etiqueta en español (`ImageViewItem.shift`,
-    p. ej. "Jornada Mañana (06:00 – 10:54)"), traducida al enum con
-    `shiftFromLabel` (`core/time/shifts.dart`, inverso de `shiftNames`)
+    p. ej. "Jornada Mañana (05:30 – 10:51)"), traducida al enum con
+    `shiftFromLabel` (`core/time/shifts.dart`, inverso de `shiftNames` y
+    de `legacyShiftNames`)
     antes de comparar contra `reviewShifts`. Existen dos copias de la
     condición completa (ancho + rol + asignación), como ya pasaba antes
     con ancho + rol: `_showReviewPanelFor(item)` (usa `ref.read`, para
@@ -396,7 +476,8 @@ limpio (sin migración de datos).
   construye `ReviewKey`, y la navegación es libre; `ImageReviewPanel`
   retorna `SizedBox.shrink()` si aun así se construye;
   `pendingUploadsProvider` da lista vacía sin consultar el repositorio;
-  `PendingUploadIndicators` no muestra nada; `ReviewUploadNotifier.upload()`
+  `PendingUploadPill` no muestra nada (la cápsula `PendingUploadIndicators`
+  se quitó en la capa 5); `FillFormsButton` no aparece; `ReviewUploadNotifier.upload()`
   no hace nada (retorna null). En los tests se fuerza con
   `currentReviewRoleProvider.overrideWithValue(null)`; los tests que
   necesitan el panel deben fijar el rol Y una asignación que matchee
@@ -417,7 +498,11 @@ limpio (sin migración de datos).
   diverjan entre sí. `reviewRole` no suma ni resta.
 - **PENDIENTE (no decidido)**: si algún día Revisor o Sumador deben ver
   sus propias sumas, haría falta una Cloud Function que se las entregue
-  (toca `functions/`), porque no leen `image_reviews`. **Desfase de
+  (toca `functions/`), porque no leen `image_reviews` (CAMBIO DELIBERADO,
+  publicado el 2026-10-04: leen SOLO los registros de su rol del grupo y la
+  jornada que tengan asignados en ese momento, para `/review`, ver
+  `image-review-offline-sync`; no leen los del otro rol, ni los de otros
+  grupos, ni sumas). **Desfase de
   claims**: el cliente lee los claims solo al iniciar sesión
   (`getIdTokenResult(true)` en `mapToDomain`), así que a un admin al que le
   quiten el rol puede seguir viendo el Resumen y Coincidencias hasta que se

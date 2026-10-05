@@ -7,8 +7,7 @@ Message toDomain(RawMessageModel model) {
     model.messageTimestamp,
   ).toLocal();
 
-  // Etiqueta del visor, con la tabla que rige para este mensaje (vieja o
-  // nueva, según su timestamp; en un hueco de la nueva, "Fuera de jornada X").
+  // Etiqueta del visor (en un hueco entre jornadas, "Fuera de jornada X").
   final shiftLabel = shiftViewerLabel(date);
 
   return Message(

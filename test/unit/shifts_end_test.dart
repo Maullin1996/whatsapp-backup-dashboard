@@ -15,10 +15,12 @@ void main() {
   DateTime dayOf(Shift shift) => shift == Shift.holiday ? sunday : monday;
 
   group('shiftLastMinute vs getCurrentShift', () {
-    test('cubre todas las jornadas asignables y no outOfShift', () {
+    test('cubre las jornadas de la tabla: ni night2 ni outOfShift', () {
       expect(
         shiftLastMinute.keys.toSet(),
-        Shift.values.toSet()..remove(Shift.outOfShift),
+        Shift.values.toSet()
+          ..remove(Shift.outOfShift)
+          ..remove(Shift.night2),
       );
     });
 
@@ -60,12 +62,11 @@ void main() {
         'inclusivo, sin margen', () {
       // (jornada, fecha, hora y minuto de fin exacto)
       final cases = [
-        (Shift.morning, (2026, 9, 28), 10, 55),
-        (Shift.afternoon1, (2026, 9, 28), 13, 59),
-        (Shift.afternoon2, (2026, 9, 28), 15, 24),
-        (Shift.night1, (2026, 9, 28), 22, 25),
-        (Shift.night2, (2026, 9, 28), 22, 31),
-        (Shift.holiday, (2026, 9, 27), 19, 21),
+        (Shift.morning, (2026, 9, 28), 10, 52),
+        (Shift.afternoon1, (2026, 9, 28), 13, 56),
+        (Shift.afternoon2, (2026, 9, 28), 15, 21),
+        (Shift.night1, (2026, 9, 28), 22, 16),
+        (Shift.holiday, (2026, 9, 27), 19, 16),
       ];
 
       for (final (shift, (y, m, d), hour, minute) in cases) {
@@ -87,12 +88,12 @@ void main() {
       }
     });
 
-    test('mañana: 10:54:59 no, 10:55:00 sí', () {
+    test('mañana: 10:51:59 no, 10:52:00 sí', () {
       expect(
         jornadaTerminada(
           '2026-09-28',
           Shift.morning,
-          _bogota(2026, 9, 28, 10, 54, 59),
+          _bogota(2026, 9, 28, 10, 51, 59),
         ),
         isFalse,
       );
@@ -100,7 +101,7 @@ void main() {
         jornadaTerminada(
           '2026-09-28',
           Shift.morning,
-          _bogota(2026, 9, 28, 10, 55),
+          _bogota(2026, 9, 28, 10, 52),
         ),
         isTrue,
       );
@@ -109,6 +110,21 @@ void main() {
     test('outOfShift nunca termina', () {
       expect(
         jornadaTerminada('2026-01-01', Shift.outOfShift, DateTime.utc(2030)),
+        isFalse,
+      );
+    });
+
+    test('night2 no está en la tabla: nunca termina', () {
+      expect(
+        jornadaTerminada('2026-01-01', Shift.night2, DateTime.utc(2030)),
+        isFalse,
+      );
+      expect(
+        jornadaTerminada(
+          '2026-09-28',
+          Shift.night2,
+          _bogota(2026, 9, 28, 22, 31),
+        ),
         isFalse,
       );
     });
@@ -143,7 +159,7 @@ void main() {
       // 03:00 UTC del 28 = 22:00 del 27 en Bogotá.
       final now = DateTime.utc(2026, 9, 28, 3);
 
-      // Hoy en Bogotá es el 27: la noche 1 (termina 22:25) sigue en curso y
+      // Hoy en Bogotá es el 27: la noche 1 (termina 22:16) sigue en curso y
       // la mañana del 28 es un día futuro.
       expect(jornadaTerminada('2026-09-27', Shift.night1, now), isFalse);
       expect(jornadaTerminada('2026-09-28', Shift.morning, now), isFalse);
@@ -151,12 +167,21 @@ void main() {
       expect(jornadaTerminada('2026-09-27', Shift.morning, now), isTrue);
       expect(jornadaTerminada('2026-09-27', Shift.holiday, now), isTrue);
 
-      // 03:26 UTC = 22:26 en Bogotá: ahora sí terminó la noche 1.
+      // 03:15:59 UTC = 22:15:59 en Bogotá: la noche 1 sigue; 03:16 UTC =
+      // 22:16 en Bogotá: ahora sí terminó.
       expect(
         jornadaTerminada(
           '2026-09-27',
           Shift.night1,
-          DateTime.utc(2026, 9, 28, 3, 26),
+          DateTime.utc(2026, 9, 28, 3, 15, 59),
+        ),
+        isFalse,
+      );
+      expect(
+        jornadaTerminada(
+          '2026-09-27',
+          Shift.night1,
+          DateTime.utc(2026, 9, 28, 3, 16),
         ),
         isTrue,
       );
