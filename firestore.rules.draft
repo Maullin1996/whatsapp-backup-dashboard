@@ -1,9 +1,12 @@
-// Copia de las reglas PUBLICADAS a mano en la consola de Firebase: la versión
-// del 2026-10-01 (7:37 p.m.) más el bloque de winning_numbers, PUBLICADO el
-// 2026-10-02. No referenciado en firebase.json: se publica a mano pegándolo
-// en la consola; esa publicación REEMPLAZA todo el conjunto de reglas. Antes
-// de publicar un cambio, confirmar que las reglas de la consola siguen
-// siendo las de esta copia.
+// Copia de las reglas PUBLICADAS a mano en la consola de Firebase: este
+// archivo COMPLETO se publicó el 2026-10-04 (el usuario lo pegó en la
+// consola sin compararlo antes con lo que había; comprobó después que las
+// lecturas de mensajes, grupos e imágenes siguen funcionando). Desde ahí, la
+// consola = este archivo. No referenciado en firebase.json: se publica a mano
+// pegándolo en la consola; esa publicación REEMPLAZA todo el conjunto de
+// reglas. Antes de publicar un cambio, confirmar que las reglas de la consola
+// siguen siendo las de esta copia. Pruebas en el emulador:
+// firestore-rules-test/.
 //
 // Bloques existentes (copia exacta de las reglas actuales de la consola, sin
 // cambios): whatsapp_messages, group_stats, edit_attempts y users.
@@ -14,15 +17,15 @@
 // - Lectura (get/list) de los registros, solo para admin o superAdmin
 //   (isAdmin()), con comodín recursivo para la consulta de grupo de
 //   colecciones sobre `registros` (Resumen y Coincidencias).
-// - NO PUBLICADO (borrador del 2026-10-04): lectura de los registros de SU
-//   rol para el Revisor/Sumador asignado EN ESE MOMENTO a ese grupo y esa
-//   jornada (puedeLeerRegistro). CAMBIO DELIBERADO: antes Revisor y Sumador
-//   no leían nada de image_reviews.
+// - PUBLICADO 2026-10-04: lectura de los registros de SU rol para el
+//   Revisor/Sumador asignado EN ESE MOMENTO a ese grupo y esa jornada
+//   (puedeLeerRegistro; la usa /review para traer lo ya subido). CAMBIO
+//   DELIBERADO: antes Revisor y Sumador no leían nada de image_reviews.
 // - shift_image_counts: lectura solo para admin o superAdmin; escritura
 //   negada (el bot escribe con el Admin SDK, que no pasa por estas reglas).
 // - winning_numbers (PUBLICADO 2026-10-02): lectura solo para admin o superAdmin
-//   (Coincidencias); escritura negada (la escribirá la función puente con el
-//   Admin SDK). La colección todavía no existe.
+//   (Coincidencias); escritura negada (la escribe la función puente
+//   syncWinningNumbers con el Admin SDK, cada hora desde el 2026-10-03).
 
 rules_version = '2';
 service cloud.firestore {
@@ -48,7 +51,7 @@ service cloud.firestore {
     // Ruta que arma ImageReviewRecordModel.toUploadDocument():
     // image_reviews/{chatJid}/jornadas/{fechaJornada}_{shiftKey}/registros/{messageId}_{rol}
     // get/list de esta ruta: admin y superAdmin por la regla recursiva de más
-    // abajo; Revisor/Sumador por puedeLeerRegistro (NO PUBLICADO todavía).
+    // abajo; Revisor/Sumador por puedeLeerRegistro (PUBLICADO 2026-10-04).
     // RIESGO CONOCIDO: la escritura NO exige la asignación; hoy solo lo
     // evita la interfaz.
     match /image_reviews/{chatJid}/jornadas/{jornadaId}/registros/{registroId} {
@@ -151,7 +154,7 @@ service cloud.firestore {
         && mensaje.chatJid == data.chatJid;
     }
 
-    // ─── NO PUBLICADO: lectura del Revisor/Sumador asignado ──────────────────
+    // ─── Lectura del Revisor/Sumador asignado (PUBLICADO 2026-10-04) ─────────
     // Asignación vigente: users/{uid}.reviewShifts tiene exactamente
     // {chatJid, shift} (así lo escribe updateReviewShifts). Si el documento
     // no existe, get() falla y la regla niega.

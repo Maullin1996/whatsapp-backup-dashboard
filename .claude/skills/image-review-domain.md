@@ -230,7 +230,11 @@ Consecuencias para el feature de revisión:
 > cuadra sigue siendo la reconciliación del Resumen, y el contador del bot
 > (`shiftImageIndex` / `shift_image_counts`) sigue sin usarse como condición:
 > "Cerrar" cuenta las imágenes de la lista que se leyó de `whatsapp_messages`,
-> no un total esperado. "Cerrar" no exige haber subido.
+> no un total esperado. "Cerrar" no exige haber subido. Desde el
+> 2026-10-04 (cambio deliberado) "tener registro" incluye lo ya subido que
+> `/review` trae de Firebase al entrar (ver `image-review-offline-sync`), y
+> "Cerrar" se oculta mientras se sube esa jornada (para que una subida y la
+> mezcla de lo subido no se crucen).
 
 Dado que no existe un conteo confiable de "cuántas imágenes va a tener
 esta jornada en total" (ver arriba), y dado que **cada jornada+grupo

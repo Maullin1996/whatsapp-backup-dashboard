@@ -241,13 +241,10 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    **Lectura de `image_reviews` — DECIDIDO por el usuario**: solo la leen
    cuentas con claim `admin` o `superAdmin`; Revisor y Sumador no leen nada
    de `image_reviews` (sus registros siguen en local). La regla está
-   publicada desde el 2026-10-01 (ver más abajo). **CAMBIO DELIBERADO EN
-   BORRADOR (2026-10-04, NO PUBLICADO)**: lo subido pasa a ser la fuente de
-   verdad de `/review`; el borrador de reglas deja leer a Revisor/Sumador
-   los registros de SU rol del grupo y la jornada que tienen asignados en
-   ese momento (detalle y pruebas del emulador en
-   `image-review-offline-sync`). Capas siguientes (lectura en la app,
-   mezcla con Hive, `/review` espera la lectura) pendientes de aprobación.
+   publicada desde el 2026-10-01 (ver más abajo). **CAMBIO DELIBERADO
+   (2026-10-04; regla PUBLICADA ese día)**: lo subido pasa a ser la fuente
+   de verdad de `/review`; Revisor/Sumador leen los registros de SU rol del
+   grupo y la jornada que tienen asignados en ese momento (ver paso 9).
    **Pieza (d), Resumen real — capa 1 HECHA y CONECTADA**: capa de datos
    en `features/summary/data/` (nombres provisionales), probada con
    datasources falsos. Tres datasources en Dart puro con su clase Firestore
@@ -551,6 +548,26 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    en `holiday` del 2026-10-04). `CACHE_NAME` subió a `whatsapp-monitor-v5`.
    **PENDIENTE**: desplegar el hosting (primero se muestra al cliente en un
    canal de vista previa).
+9. **Lo subido es la fuente de verdad de `/review` — HECHO (2026-10-04,
+   CAMBIO DELIBERADO; sin desplegar)**: contradice a propósito que "tiene
+   formulario" dependía solo de Hive y que Revisor/Sumador no leían
+   `image_reviews`. Capas, todas con tests:
+   1. Documentación: reglas de `jornadas` y `festivos_colombia` publicadas;
+      riesgo de los festivos entre semana hasta actualizar el bot.
+   2. Regla de lectura del Revisor/Sumador asignado (solo su rol) en
+      `firestore.rules.draft`, probada en el emulador
+      (`firestore-rules-test/`, 33 casos y una prueba de mutación);
+      publicada por el usuario el 2026-10-04 (el borrador completo, sin
+      comparar antes con la consola).
+   3. Lectura (`FirestoreReviewRemoteRecordsDatasource`).
+   4. Mezcla con Hive (`syncJornadaFromRemote`, `deleteSynced`).
+   5. `/review` espera la mezcla y abre en la primera imagen sin formulario;
+      "Subir" solo con la mezcla terminada y "Cerrar" oculto mientras se
+      sube esa jornada (para que no se crucen).
+   Detalle en `image-review-offline-sync` ("Lo subido es la fuente de verdad
+   de `/review`"). **PENDIENTE**: la prueba a mano del usuario con la regla
+   publicada (Hive vacío → aparecen los subidos; el otro rol no ve nada;
+   sin asignación → mensaje); desplegar.
 
 ## Checklist antes de pasar a la siguiente pieza
 

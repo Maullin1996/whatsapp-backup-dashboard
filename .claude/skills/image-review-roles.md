@@ -236,6 +236,15 @@ al formulario es "Llenar formularios" → `/review`.
   día → las demás, con `isHolidayOrSunday`; nunca `night2` ni `outOfShift`).
   No cuenta imágenes. Tocar una jornada cierra el diálogo y empieza la
   sesión: el guard lleva a `/review`.
+- **Hecho (2026-10-04, CAMBIO DELIBERADO: lo subido manda)**: al entrar,
+  `/review` trae lo ya subido de la jornada y lo mezcla con Hive
+  (`reviewSessionSyncProvider`, detalle en `image-review-offline-sync`,
+  "Lo subido es la fuente de verdad de `/review`"); mientras tanto o si
+  falla no hay visor ni formulario (cargando / error con "Reintentar"; "no
+  autorizado" dice que no tiene asignada esa jornada). El visor abre en la
+  primera imagen SIN formulario (todas llenas → la primera), calculada una
+  vez. "Subir" aparece solo con la mezcla terminada sin error; "Cerrar" (y
+  Esc) no aparece mientras se sube esa jornada.
 - **Corte de la subida por chat activo**: `ReviewUploadNotifier` corta si el
   chat activo deja de ser el de la jornada; en `/review` no pasa (el chat
   activo solo se vacía en el móvil < 700 px de `HomePage`, al cerrar sesión o
@@ -489,11 +498,11 @@ limpio (sin migración de datos).
   diverjan entre sí. `reviewRole` no suma ni resta.
 - **PENDIENTE (no decidido)**: si algún día Revisor o Sumador deben ver
   sus propias sumas, haría falta una Cloud Function que se las entregue
-  (toca `functions/`), porque no leen `image_reviews` (CAMBIO DELIBERADO
-  EN BORRADOR, 2026-10-04, NO PUBLICADO: podrán leer los registros de su
-  rol del grupo y la jornada que tengan asignados, ver
-  `image-review-offline-sync`; ni así leen los del otro rol ni los de otros
-  grupos). **Desfase de
+  (toca `functions/`), porque no leen `image_reviews` (CAMBIO DELIBERADO,
+  publicado el 2026-10-04: leen SOLO los registros de su rol del grupo y la
+  jornada que tengan asignados en ese momento, para `/review`, ver
+  `image-review-offline-sync`; no leen los del otro rol, ni los de otros
+  grupos, ni sumas). **Desfase de
   claims**: el cliente lee los claims solo al iniciar sesión
   (`getIdTokenResult(true)` en `mapToDomain`), así que a un admin al que le
   quiten el rol puede seguir viendo el Resumen y Coincidencias hasta que se

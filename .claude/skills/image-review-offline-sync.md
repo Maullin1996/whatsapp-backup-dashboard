@@ -147,6 +147,61 @@ no dé esa autorización explícita en la conversación:
    `image-review-roles` para el detalle de dónde vive ese botón en
    `image_detail_page`.
 
+## Lo subido es la fuente de verdad de `/review` — CAMBIO DELIBERADO (2026-10-04, HECHO; sin desplegar)
+
+Contradice a propósito la idea anterior de que "tiene formulario" dependía
+solo de Hive. Decidido por el usuario:
+
+- **Hive manda solo en lo PENDIENTE**; un registro sincronizado es una copia
+  de Firebase que se puede perder (caché borrada, otro navegador u otro
+  dispositivo) sin consecuencias. Perder lo llenado y no subido no es
+  problema de la app.
+- **Lectura** (`FirestoreReviewRemoteRecordsDatasource`,
+  `reviewRemoteRecordsDatasourceProvider`): consulta sobre
+  `image_reviews/{chatJid}/jornadas/{fecha}_{shiftKey}/registros` con
+  `rol == <rol activo>` (la regla lo exige), `Source.server` (nunca datos de
+  la caché del SDK), timeout de 15 s, nunca lanza. Nunca un `get` por id (la
+  regla niega leer uno inexistente). El documento subido se convierte con
+  `ImageReviewRecordModel.fromMap` agregando `v` y `estadoSync:
+  sincronizado`. Un documento ilegible (falta un campo, otro tipo, fecha
+  ilegible) se OMITE con `debugPrint('[REVISION] registro subido ilegible,
+  omitido: <ruta>')` y esa imagen cuenta como sin formulario; uno legible que
+  no corresponde a la consulta (otro rol, grupo, fecha, jornada o un id
+  distinto de `{messageId}_{rol}`) es error. No necesita índice compuesto
+  (igualdad sobre un solo campo dentro de una colección).
+- **Mezcla** (`syncJornadaFromRemote`, `data/sync/remote_jornada_sync.dart`):
+  si la lectura falla, no toca nada. Registro local PENDIENTE de esa imagen:
+  gana el local y no se toca. Si no: lo de Firebase se escribe en Hive como
+  sincronizado (reemplaza siempre a un sincronizado anterior). Imagen de la
+  jornada sin registro legible en Firebase: su copia local se borra SOLO si
+  está sincronizada (`deleteSynced`, en el datasource local y los
+  repositorios: nunca borra un pendiente ni uno ilegible) y SOLO las de las
+  imágenes de esa jornada. Si falla una operación local se detiene ahí.
+- **En `/review`** (`reviewSessionSyncProvider`): corre UNA vez al entrar con
+  la lista de imágenes de ese momento (no escucha imágenes nuevas), recarga
+  los `savedRecordProvider` de esas imágenes y el visor abre en la primera
+  SIN formulario (todas llenas → la primera). Mientras tanto, cargando; si
+  falla, error con "Reintentar"; en ninguno de los dos hay visor ni
+  formulario. "No autorizado" tiene mensaje propio ("No tienes asignada esta
+  jornada… Recarga la página para salir."); los demás errores usan
+  `mapFailureToMessage` con el prefijo "No se pudieron traer los
+  formularios ya subidos de esta jornada:". Sin reintento automático.
+- **Subida y mezcla nunca se cruzan** (si se cruzaran, la mezcla podría
+  borrar en local un registro recién subido, o pisarlo con la versión
+  vieja leída antes): "Subir" solo aparece cuando la mezcla terminó sin
+  error (con la lista vacía no hay mezcla), y "Cerrar" (y Esc) no aparece
+  mientras se sube esa jornada, para que no se pueda salir y volver a
+  entrar con la subida en curso. Recargar a mitad de una subida la corta:
+  lo no marcado sigue pendiente en Hive y gana en la próxima mezcla (si ya
+  estaba escrito en Firestore, volver a subirlo pisa el mismo documento).
+- **Costo**: cada entrada (y cada "Reintentar") lee los registros de ese rol
+  de la jornada (mínimo 1) más el `get` de `users/{uid}` de la regla.
+- **Editar un registro subido** sigue igual: queda `editado: true`,
+  pendiente, y `registradoPor` pasa a ser quien edita (aceptado).
+- **Riesgo conocido**: una imagen que cambia de jornada (tabla de horarios
+  distinta) escribiría en otra ruta y el documento viejo seguiría ahí.
+- Admin y superAdmin no corrigen registros: siguen solo con el Resumen.
+
 ## Decisión de almacenamiento: `hive_ce` (+ `hive_ce_flutter`)
 
 **Elegido: `hive_ce` 2.20 + `hive_ce_flutter` 2.3** (Hive guarda en
@@ -470,8 +525,9 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
     colección con ese nombre en la base (hoy no hay otra); sigue
     `rules_version = '2'`. `match /shift_image_counts/{docId}`: lectura
     solo `isAdmin()`, escritura negada (el bot escribe con el Admin SDK).
-    Revisor y Sumador no leen nada de `image_reviews` — **CAMBIO DELIBERADO
-    EN BORRADOR (2026-10-04, NO PUBLICADO)**: `firestore.rules.draft` agrega
+    Revisor y Sumador no leen nada de `image_reviews` — **CAMBIO DELIBERADO,
+    PUBLICADO el 2026-10-04** (el usuario pegó el borrador completo en la
+    consola sin compararlo antes): `firestore.rules.draft` agrega
     `allow read: if puedeLeerRegistro(chatJid, jornadaId)` en la ruta
     concreta de `registros`: lee quien tenga asignado EN ESE MOMENTO ese
     grupo y esa jornada (`{chatJid, shift}` en `users/{uid}.reviewShifts`,
@@ -483,8 +539,10 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
     el emulador local con el borrador completo: 32/32 casos (incluidos
     Sumador → registros del Revisor negado, Revisor asignado permitido, sin
     asignación negado, admin igual que antes, sin sesión negado), y una
-    prueba de mutación (sin la condición de rol fallan 5 casos). Hasta que
-    el usuario lo publique a mano, sigue vigente "no leen".
+    prueba de mutación (sin la condición de rol fallan 5 casos); después,
+    33/33 con un `get` de un registro inexistente (se NIEGA: sin documento
+    no hay `resource.data.rol`; por eso la app solo usa la consulta). Las
+    pruebas viven en `firestore-rules-test/` (README: necesita Java 21).
     **RIESGO CONOCIDO (no se toca)**: la regla de ESCRITURA no exige la
     asignación (solo el claim, el payload y el mensaje real): una cuenta con
     el rol puede escribir el registro de cualquier grupo y jornada, incluso
