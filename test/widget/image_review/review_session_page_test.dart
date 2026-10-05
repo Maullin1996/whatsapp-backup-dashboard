@@ -130,9 +130,15 @@ class _RecordingUploader implements ReviewUploader {
   /// Si no es null, cada subida espera a que se complete (subida "en curso").
   Completer<void>? gate;
 
+  /// Si no es null, cada subida falla con este error (sin conexión, tiempo
+  /// agotado).
+  Failure? failWith;
+
   @override
   Future<Either<Failure, Unit>> upload(ImageReviewRecord record) async {
     await gate?.future;
+    final failure = failWith;
+    if (failure != null) return Left(failure);
     uploaded.add(record.messageId);
     return const Right(unit);
   }
@@ -773,6 +779,41 @@ void _main3b() {
 
       expect(app.uploader.uploaded, ['primera']);
       expect(_cerrar, findsOneWidget);
+    });
+
+    testWidgets('si la subida falla, "Cerrar" vuelve a aparecer y el '
+        'registro sigue pendiente', (tester) async {
+      final app = await _pump(
+        tester,
+        repo: _FakeRepo([_msg('primera', 6, 0)]),
+        records: [_record('primera')],
+      );
+      app.uploader
+        ..gate = Completer<void>()
+        ..failWith = const Failure.unknown(
+          message: 'El registro no se pudo subir a tiempo.',
+        );
+      await _start(tester);
+
+      await tester.tap(find.text('Subir · 1 pendiente'));
+      await _settle(tester);
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Subir'));
+      await _settle(tester);
+      expect(_cerrar, findsNothing);
+
+      app.uploader.gate!.complete();
+      await _settle(tester);
+
+      expect(_cerrar, findsOneWidget);
+      expect(find.text('Subir · 1 pendiente'), findsOneWidget);
+      final saved = await app.reviews.getByMessageId(
+        'primera',
+        ReviewRole.revisor,
+      );
+      expect(
+        saved.fold((_) => null, (r) => r)?.estadoSync,
+        EstadoSync.pendiente,
+      );
     });
 
     testWidgets('sin pendientes no aparece; pendientes de OTRA jornada '
