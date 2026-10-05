@@ -14,6 +14,8 @@ import 'package:whatsapp_monitor_viewer/features/auth/domain/entities/authentica
 import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/auth_session_state.dart';
 import 'package:whatsapp_monitor_viewer/features/chats/domain/entities/chat.dart';
 import 'package:whatsapp_monitor_viewer/features/chats/presentation/provider/active_chat_provider.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/data/datasources/review_remote_records_datasource.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/data/models/image_review_record_model.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/data/repositories/in_memory_image_review_repository.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/comprobante.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/estado_sync.dart';
@@ -125,10 +127,34 @@ ImageReviewRecord _record(String id, {String fecha = '2026-09-28'}) =>
 class _RecordingUploader implements ReviewUploader {
   final List<String> uploaded = [];
 
+  /// Si no es null, cada subida espera a que se complete (subida "en curso").
+  Completer<void>? gate;
+
   @override
   Future<Either<Failure, Unit>> upload(ImageReviewRecord record) async {
+    await gate?.future;
     uploaded.add(record.messageId);
     return const Right(unit);
+  }
+}
+
+/// Lectura falsa de lo subido. Si [gate] no es null, espera a que se
+/// complete (estado "cargando").
+class _FakeRemote implements ReviewRemoteRecordsDatasource {
+  Either<Failure, List<ImageReviewRecordModel>> result = const Right([]);
+  Completer<void>? gate;
+  int calls = 0;
+
+  @override
+  Future<Either<Failure, List<ImageReviewRecordModel>>> fetchJornada({
+    required String chatJid,
+    required String fechaJornada,
+    required Shift shift,
+    required ReviewRole rol,
+  }) async {
+    calls++;
+    await gate?.future;
+    return result;
   }
 }
 
@@ -201,6 +227,7 @@ typedef _App = ({
   GoRouter router,
   InMemoryImageReviewRepository reviews,
   _RecordingUploader uploader,
+  _FakeRemote remote,
 });
 
 Future<_App> _pump(
@@ -208,7 +235,9 @@ Future<_App> _pump(
   required _FakeRepo repo,
   double width = 1280,
   List<ImageReviewRecord> records = const [],
+  _FakeRemote? remote,
 }) async {
+  final fakeRemote = remote ?? _FakeRemote();
   final reviews = InMemoryImageReviewRepository();
   for (final record in records) {
     await reviews.save(record);
@@ -233,6 +262,7 @@ Future<_App> _pump(
       ),
       imageReviewRepositoryProvider.overrideWithValue(reviews),
       reviewUploaderProvider.overrideWithValue(uploader),
+      reviewRemoteRecordsDatasourceProvider.overrideWithValue(fakeRemote),
       activeChatProvider.overrideWith(_SessionChat.new),
     ],
   );
@@ -251,6 +281,7 @@ Future<_App> _pump(
     router: router,
     reviews: reviews,
     uploader: uploader,
+    remote: fakeRemote,
   );
 }
 
@@ -365,6 +396,113 @@ void main() {
 
     expect(repo.calls, 2);
     expect(find.text('Remitente a'), findsOneWidget);
+  });
+
+  group('lo ya subido (al entrar)', () {
+    final images = [_msg('a', 6, 0), _msg('b', 7, 0), _msg('c', 8, 0)];
+
+    testWidgets('mientras se trae, cargando y sin formulario; al terminar, '
+        'el visor', (tester) async {
+      final remote = _FakeRemote()..gate = Completer<void>();
+      await _pump(tester, repo: _FakeRepo(images), remote: remote);
+      await _start(tester);
+
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(ImageDetailPage), findsNothing);
+      expect(find.byType(ImageReviewPanel), findsNothing);
+
+      remote.gate!.complete();
+      await _settle(tester);
+
+      expect(find.byType(ImageDetailPage), findsOneWidget);
+      expect(find.byType(ImageReviewPanel), findsOneWidget);
+      expect(remote.calls, 1);
+    });
+
+    testWidgets('error: mensaje, sin formulario, y "Reintentar" vuelve a '
+        'traer', (tester) async {
+      final remote = _FakeRemote()
+        ..result = const Left(
+          Failure.firestore(message: 'Servicio no disponible'),
+        );
+      await _pump(tester, repo: _FakeRepo(images), remote: remote);
+      await _start(tester);
+
+      expect(
+        find.text(
+          'No se pudieron traer los formularios ya subidos de esta jornada: '
+          'Servicio no disponible',
+        ),
+        findsOneWidget,
+      );
+      expect(find.byType(ImageDetailPage), findsNothing);
+
+      remote.result = const Right([]);
+      await tester.tap(find.text('Reintentar'));
+      await _settle(tester);
+
+      expect(remote.calls, 2);
+      expect(find.byType(ImageReviewPanel), findsOneWidget);
+    });
+
+    testWidgets('no autorizado: lo dice claro, sin formulario', (tester) async {
+      final remote = _FakeRemote()..result = const Left(Failure.unauthorized());
+      await _pump(tester, repo: _FakeRepo(images), remote: remote);
+      await _start(tester);
+
+      expect(
+        find.textContaining('No tienes asignada esta jornada'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('Recarga la página para salir'),
+        findsOneWidget,
+      );
+      expect(find.text('No autorizado'), findsNothing);
+      expect(find.byType(ImageDetailPage), findsNothing);
+    });
+
+    testWidgets('abre en la primera imagen sin formulario, contando lo traído '
+        'de Firebase', (tester) async {
+      final remote = _FakeRemote()
+        ..result = Right([
+          ImageReviewRecordModel(
+            _record('b').copyWith(estadoSync: EstadoSync.sincronizado),
+          ),
+        ]);
+      await _pump(
+        tester,
+        repo: _FakeRepo(images),
+        records: [_record('a')],
+        remote: remote,
+      );
+      await _start(tester);
+
+      // a: pendiente local; b: subido (traído); c: sin formulario.
+      expect(find.text('3 de 3'), findsOneWidget);
+      expect(find.text('Remitente c'), findsOneWidget);
+    });
+
+    testWidgets('con todas llenas abre en la primera', (tester) async {
+      final remote = _FakeRemote()
+        ..result = Right([
+          for (final id in ['b', 'c'])
+            ImageReviewRecordModel(
+              _record(id).copyWith(estadoSync: EstadoSync.sincronizado),
+            ),
+        ]);
+      await _pump(
+        tester,
+        repo: _FakeRepo(images),
+        records: [_record('a')],
+        remote: remote,
+      );
+      await _start(tester);
+
+      expect(find.text('1 de 3'), findsOneWidget);
+      expect(find.text('Remitente a'), findsOneWidget);
+      expect(_cerrar, findsOneWidget);
+    });
   });
 
   test('la sesión se vacía si cambia el usuario', () {
@@ -587,6 +725,54 @@ void _main3b() {
       // Ya no quedan pendientes: el botón desaparece. Seguimos en /review.
       expect(find.textContaining('Subir ·'), findsNothing);
       expect(_location(app.router), '/review');
+    });
+
+    testWidgets('no aparece mientras se trae lo subido; aparece al terminar', (
+      tester,
+    ) async {
+      final remote = _FakeRemote()..gate = Completer<void>();
+      await _pump(
+        tester,
+        repo: _FakeRepo([_msg('primera', 6, 0), _msg('segunda', 9, 0)]),
+        records: [_record('primera')],
+        remote: remote,
+      );
+      await _start(tester);
+
+      expect(find.textContaining('Subir ·'), findsNothing);
+
+      remote.gate!.complete();
+      await _settle(tester);
+
+      expect(find.text('Subir · 1 pendiente'), findsOneWidget);
+    });
+
+    testWidgets('con una subida de esta jornada en curso, "Cerrar" no '
+        'aparece (ni con Esc); al terminar, aparece', (tester) async {
+      final app = await _pump(
+        tester,
+        repo: _FakeRepo([_msg('primera', 6, 0)]),
+        records: [_record('primera')],
+      );
+      app.uploader.gate = Completer<void>();
+      await _start(tester);
+      expect(_cerrar, findsOneWidget);
+
+      await tester.tap(find.text('Subir · 1 pendiente'));
+      await _settle(tester);
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Subir'));
+      await _settle(tester);
+
+      expect(_cerrar, findsNothing);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await _settle(tester);
+      expect(_location(app.router), '/review');
+
+      app.uploader.gate!.complete();
+      await _settle(tester);
+
+      expect(app.uploader.uploaded, ['primera']);
+      expect(_cerrar, findsOneWidget);
     });
 
     testWidgets('sin pendientes no aparece; pendientes de OTRA jornada '

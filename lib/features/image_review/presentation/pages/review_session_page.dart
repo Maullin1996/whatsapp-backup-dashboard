@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:whatsapp_monitor_viewer/core/errors/failure.dart';
 import 'package:whatsapp_monitor_viewer/core/responsive/breakpoints.dart';
 import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
 import 'package:whatsapp_monitor_viewer/core/time/jornada_labels.dart';
@@ -7,6 +8,7 @@ import 'package:whatsapp_monitor_viewer/core/time/shifts.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/jornada_images_provider.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/pending_uploads_provider.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/review_session_provider.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/review_upload_notifier.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/widgets/pending_upload_pill.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/domain/entities/image_view_item.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/viewer/image_detail_page.dart';
@@ -22,10 +24,22 @@ final _jornadaItemsProvider = Provider.autoDispose
           const <ImageViewItem>[],
     );
 
+/// La lectura de lo subido fue negada: casi siempre porque la cuenta ya no
+/// tiene asignada esa jornada. Reintentar sirve solo si un administrador
+/// corrige la asignación; recargar es la salida.
+const String _unauthorizedMessage =
+    'No tienes asignada esta jornada (o tu cuenta no tiene permiso para ver '
+    'sus formularios). Pídele a un administrador que revise tu asignación. '
+    'Recarga la página para salir.';
+
 /// Pantalla de llenado (`/review`): solo las imágenes de una jornada de un
 /// chat en un día, de la PRIMERA a la ÚLTIMA y en vivo, cada una con su
 /// formulario (el mismo visor del chat, con sus mismas reglas de panel y de
 /// navegación).
+///
+/// Al entrar trae lo ya subido de la jornada ([reviewSessionSyncProvider]);
+/// mientras tanto, o si falla, no muestra el visor (no se puede llenar). El
+/// visor abre en la primera imagen sin formulario.
 ///
 /// Sin botón de volver ni gesto ([PopScope]); el guard del router devuelve
 /// aquí cualquier otra ruta mientras haya sesión ([reviewSessionProvider]).
@@ -54,17 +68,53 @@ class ReviewSessionPage extends ConsumerWidget {
     final hasImages = images.hasValue && images.value!.isNotEmpty;
     final narrow = MediaQuery.sizeOf(context).width < AppBreakpoints.reviewForm;
 
+    // Una subida y la mezcla de la misma jornada nunca se cruzan (la mezcla
+    // borraría o pisaría en local lo que la subida acaba de marcar):
+    // - "Subir" solo aparece con la mezcla terminada sin error (con la lista
+    //   vacía no hay mezcla);
+    // - "Cerrar" (y Esc) no aparece mientras se sube esta jornada: salir y
+    //   volver a entrar arrancaría otra mezcla con la subida en curso.
+    final fecha = fechaJornadaOf(key);
+    final uploading = ref.watch(
+      reviewUploadProvider.select(
+        (jornadas) => jornadas.keys.any(
+          (j) =>
+              j.chatJid == key.chatJid &&
+              j.fechaJornada == fecha &&
+              shiftFromLabel(j.shift) == key.shift,
+        ),
+      ),
+    );
+    final canClose = complete && !uploading;
+    final sync = hasImages ? ref.watch(reviewSessionSyncProvider(key)) : null;
+    final canUpload = images.hasValue && (sync == null || sync is AsyncData);
+
     final Widget content;
-    if (hasImages) {
-      content = ImageDetailPage(
-        initialIndex: 0,
-        items: _jornadaItemsProvider(key),
-        reverse: false,
-        paginate: false,
-        showClose: complete,
-        closeLabel: 'Cerrar',
-        onClose: close,
-        reviewForm: true,
+    if (sync != null) {
+      // No se llena nada hasta traer lo ya subido (lo subido manda).
+      content = sync.when(
+        data: (initialIndex) => ImageDetailPage(
+          initialIndex: initialIndex,
+          items: _jornadaItemsProvider(key),
+          reverse: false,
+          paginate: false,
+          showClose: canClose,
+          closeLabel: 'Cerrar',
+          onClose: close,
+          reviewForm: true,
+        ),
+        error: (error, _) => _MessageState(
+          icon: error is UnauthorizedFailure
+              ? Icons.lock_outline_rounded
+              : Icons.error_outline_rounded,
+          message: error is UnauthorizedFailure
+              ? _unauthorizedMessage
+              : 'No se pudieron traer los formularios ya subidos de esta '
+                    'jornada: ${mapFailureToMessage(error)}',
+          actionLabel: 'Reintentar',
+          onAction: () => ref.invalidate(reviewSessionSyncProvider(key)),
+        ),
+        loading: () => const Center(child: CircularProgressIndicator()),
       );
     } else if (images.hasError && !images.hasValue) {
       content = _MessageState(
@@ -93,9 +143,9 @@ class ReviewSessionPage extends ConsumerWidget {
               _SessionHeader(
                 session: session,
                 actions: [
-                  _UploadButton(jornada: key),
+                  if (canUpload) _UploadButton(jornada: key),
                   // Sin imágenes no hay visor: "Cerrar" va en la cabecera.
-                  if (images.hasValue && !hasImages && complete)
+                  if (images.hasValue && !hasImages && canClose)
                     ElevatedButton(
                       onPressed: close,
                       child: const Text('Cerrar'),
