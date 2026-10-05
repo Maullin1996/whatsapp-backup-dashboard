@@ -565,9 +565,9 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
       "Subir" solo con la mezcla terminada y "Cerrar" oculto mientras se
       sube esa jornada (para que no se crucen).
    Detalle en `image-review-offline-sync` ("Lo subido es la fuente de verdad
-   de `/review`"). **PENDIENTE**: la prueba a mano del usuario con la regla
-   publicada (Hive vacío → aparecen los subidos; el otro rol no ve nada;
-   sin asignación → mensaje); desplegar.
+   de `/review`"). **Prueba a mano de `/review` con la regla publicada —
+   HECHA (verificada por el usuario el 2026-10-04)**: funciona. Solo cubre
+   `/review`; no da por probado nada más. **PENDIENTE**: desplegar.
 
 ## Checklist antes de pasar a la siguiente pieza
 
