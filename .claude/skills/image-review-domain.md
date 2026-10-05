@@ -504,11 +504,9 @@ fijo. Detalle en `image-review-firebase-integration` ("Lectura en la app").
 - Caché de la PWA tras desplegar (versiones viejas con la tabla vieja).
 - Consecuencia a tener presente: los mensajes ya guardados se reclasifican
   con la tabla única (su etiqueta del visor se calcula al cargarlos).
-- Horarios dinámicos: publicar a mano las reglas de `jornadas` y de
-  `festivos_colombia` (confirmar antes que la consola coincide con el
-  borrador; publicar reemplaza todo el conjunto; mientras no se publiquen,
-  la app usa la tabla fija); pieza 3 (el bot sigue con su tabla vieja y no
-  lee las colecciones); el texto de las etiquetas lleva las horas escritas
+- Horarios dinámicos (las reglas de `jornadas` y `festivos_colombia` ya
+  están PUBLICADAS, confirmado el 2026-10-04): pieza 3 (el bot sigue con su
+  tabla vieja y no lee las colecciones; **RIESGO CONOCIDO (hasta actualizar el bot)**: en cada festivo entre semana, empezando por el **lunes 2026-10-12**, la app (con la pieza 2) trata el día como domingo (solo la jornada `holiday`, 06:00–19:15; lo de fuera queda "fuera de jornada") y el bot lo clasifica como un día normal con su tabla vieja: `shift_image_counts` de ese día no coincide con lo que ve la app, y el Resumen mostrará diferencias en "imágenes en la jornada".); el texto de las etiquetas lleva las horas escritas
   y no se actualiza si el ERP cambia un horario (defecto cosmético); la
   zona horaria del dispositivo (un festivo depende de la fecha local: fuera
   de UTC-5 se podría ver otro día); qué hacer si el ERP trae

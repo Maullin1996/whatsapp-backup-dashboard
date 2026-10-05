@@ -554,8 +554,8 @@ comparar los horarios de cada documento con la tabla fija de
   en nuestro proyecto y hasta 5 escrituras (0 si nada cambió), cada hora.
 - Tests en `functions/test/jornadasSync.test.js` (`node:test`, datos falsos).
 - **Reglas**: bloque `match /jornadas/{docId}` en `firestore.rules.draft`
-  (lectura con sesión, escritura negada), **NO PUBLICADO**. Mientras no se
-  publique, la app **no puede leer** esa colección.
+  (lectura con sesión, escritura negada), **PUBLICADO** a mano por el
+  usuario (confirmado el 2026-10-04).
 - **Nombre**: la colección de la raíz `jornadas` es distinta de las
   subcolecciones `image_reviews/{chatJid}/jornadas`. HECHO: hoy ningún código
   hace una consulta de grupo sobre `jornadas` (que las mezclaría).
@@ -567,7 +567,6 @@ comparar los horarios de cada documento con la tabla fija de
 - ~~Pieza 2: la app lee la colección~~ — HECHA (ver "Lectura en la app").
 - Pieza 3: el bot la lee.
 - ~~La lista de festivos~~ — HECHA: `festivos_colombia` (ver abajo).
-- Publicar el bloque de reglas de `jornadas`.
 - Desplegar la función con este cambio.
 - Qué significan `pendingApproval` y `proposed*` en el ERP.
 
@@ -583,7 +582,8 @@ completo, sin merge) a partir de una lista **generada con reglas** (festivos
 fijos, trasladables al lunes y de Semana Santa, Pascua gregoriana) y
 **revisada por el usuario**; la copia local está en
 `D:\documentos\Mauricio\festivos\` (fuera del repo). Su regla de lectura
-está en `firestore.rules.draft`, **NO PUBLICADA**.
+está en `firestore.rules.draft`, **PUBLICADA** a mano por el usuario
+(confirmado el 2026-10-04).
 
 ### Lectura en la app (horarios dinámicos, pieza 2)
 
@@ -649,11 +649,10 @@ clasificar. **La tabla fija actual es el respaldo.**
   con etiquetas desfasadas.
 
 **PENDIENTE (no decidido)**:
-- **Publicar a mano** las reglas de `jornadas` y de `festivos_colombia`
-  (confirmar primero que la consola coincide con `firestore.rules.draft`,
-  porque publicar reemplaza todo el conjunto). Mientras no se publiquen, la
-  lectura falla con permisos y la app usa la tabla fija (solo domingos).
+- ~~Publicar a mano las reglas de `jornadas` y de `festivos_colombia`~~ —
+  HECHO (confirmado por el usuario el 2026-10-04).
 - El bot sigue con su tabla vieja y no lee las colecciones (pieza 3).
+  **RIESGO CONOCIDO (hasta actualizar el bot)**: en cada festivo entre semana, empezando por el **lunes 2026-10-12**, la app (con la pieza 2) trata el día como domingo (solo la jornada `holiday`, 06:00–19:15; lo de fuera queda "fuera de jornada") y el bot lo clasifica como un día normal con su tabla vieja: `shift_image_counts` de ese día no coincide con lo que ve la app, y el Resumen mostrará diferencias en "imágenes en la jornada".
 - El texto de las etiquetas lleva las horas escritas y no se actualiza si el
   ERP cambia un horario: defecto cosmético.
 - Zona horaria del dispositivo: un festivo depende de la fecha local, así

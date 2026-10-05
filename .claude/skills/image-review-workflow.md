@@ -241,7 +241,13 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    **Lectura de `image_reviews` — DECIDIDO por el usuario**: solo la leen
    cuentas con claim `admin` o `superAdmin`; Revisor y Sumador no leen nada
    de `image_reviews` (sus registros siguen en local). La regla está
-   publicada desde el 2026-10-01 (ver más abajo).
+   publicada desde el 2026-10-01 (ver más abajo). **CAMBIO DELIBERADO EN
+   BORRADOR (2026-10-04, NO PUBLICADO)**: lo subido pasa a ser la fuente de
+   verdad de `/review`; el borrador de reglas deja leer a Revisor/Sumador
+   los registros de SU rol del grupo y la jornada que tienen asignados en
+   ese momento (detalle y pruebas del emulador en
+   `image-review-offline-sync`). Capas siguientes (lectura en la app,
+   mezcla con Hive, `/review` espera la lectura) pendientes de aprobación.
    **Pieza (d), Resumen real — capa 1 HECHA y CONECTADA**: capa de datos
    en `features/summary/data/` (nombres provisionales), probada con
    datasources falsos. Tres datasources en Dart puro con su clase Firestore
@@ -478,8 +484,8 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    `startTime`/`endTime`, nunca borra, cero documentos del ERP no escribe
    nada; ganadores y jornadas aislados en try/catch separados.
    `functions/jornadasSync.js` + tests en `functions/test/jornadasSync.test.js`;
-   bloque de reglas de `jornadas` en `firestore.rules.draft`, **NO
-   PUBLICADO** (hasta publicarlo la app no puede leer la colección).
+   bloque de reglas de `jornadas` en `firestore.rules.draft`, **PUBLICADO**
+   a mano por el usuario (confirmado el 2026-10-04).
    DECIDIDO: "Mañana" vale para las mañanas de todos los días excepto
    domingos y festivos, que usan `festivos`. Conversión de ids y detalle en
    `image-review-firebase-integration` ("Réplica de jornadas").
@@ -502,15 +508,14 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    `ref.listen` en `app.dart`, sin reintentos ni timeout; falla →
    `[JORNADAS] falló (...)` y tabla fija; tabla distinta → reemplaza e
    invalida `shiftStatsProvider`). Regla de `festivos_colombia` en
-   `firestore.rules.draft`, **NO PUBLICADA**. Limitaciones aceptadas: los
+   `firestore.rules.draft`, **PUBLICADA** (confirmado el 2026-10-04).
+   Limitaciones aceptadas: los
    mensajes ya cargados mantienen su etiqueta hasta cambiar de chat o de
    filtro, y lo guardado antes del deploy puede quedar con etiquetas
    desfasadas. Detalle en `image-review-firebase-integration` ("Lectura en
    la app").
-   **PENDIENTES (no decididos)**: publicar a mano las reglas de `jornadas` y
-   `festivos_colombia` (confirmar antes que la consola coincide con el
-   borrador; mientras no se publiquen, la app usa la tabla fija); pieza 3
-   (el bot sigue con su tabla vieja); el texto de las etiquetas no se
+   **PENDIENTES (no decididos)**: pieza 3 (el bot sigue con su tabla vieja;
+   **RIESGO CONOCIDO (hasta actualizar el bot)**: en cada festivo entre semana, empezando por el **lunes 2026-10-12**, la app (con la pieza 2) trata el día como domingo (solo la jornada `holiday`, 06:00–19:15; lo de fuera queda "fuera de jornada") y el bot lo clasifica como un día normal con su tabla vieja: `shift_image_counts` de ese día no coincide con lo que ve la app, y el Resumen mostrará diferencias en "imágenes en la jornada".); el texto de las etiquetas no se
    actualiza si el ERP cambia un horario (cosmético); la zona horaria del
    dispositivo para los festivos; qué hacer con `pendingApproval: true` o
    `proposed*` (hoy se ignoran); desplegar.
@@ -609,8 +614,10 @@ de aquí y de la skill correspondiente cuando el usuario confirme):
   `ASSIGNABLE_SHIFTS` en `functions/` y caché de la PWA tras desplegar.
 - **Horarios dinámicos** (`image-review-firebase-integration`, "Réplica de
   jornadas" y "Lectura en la app"): piezas 1 y 2 hechas y sin desplegar,
-  festivos cargados en `festivos_colombia`; faltan publicar las reglas de
-  `jornadas` y `festivos_colombia`, la pieza 3 (bot), desplegar, el texto de
+  festivos cargados en `festivos_colombia`, reglas de las dos colecciones
+  publicadas (confirmado el 2026-10-04); faltan la pieza 3 (bot; mientras
+  tanto, riesgo del lunes 2026-10-12 y de cada festivo entre semana, ver
+  `image-review-firebase-integration`), desplegar, el texto de
   las etiquetas con horas fijas, la zona horaria del dispositivo para los
   festivos y el significado de `pendingApproval`/`proposed*`.
 - **Calidad de conexión en la subida real** (`image-review-offline-sync`,

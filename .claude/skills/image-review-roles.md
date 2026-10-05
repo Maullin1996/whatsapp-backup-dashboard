@@ -489,7 +489,11 @@ limpio (sin migración de datos).
   diverjan entre sí. `reviewRole` no suma ni resta.
 - **PENDIENTE (no decidido)**: si algún día Revisor o Sumador deben ver
   sus propias sumas, haría falta una Cloud Function que se las entregue
-  (toca `functions/`), porque no leen `image_reviews`. **Desfase de
+  (toca `functions/`), porque no leen `image_reviews` (CAMBIO DELIBERADO
+  EN BORRADOR, 2026-10-04, NO PUBLICADO: podrán leer los registros de su
+  rol del grupo y la jornada que tengan asignados, ver
+  `image-review-offline-sync`; ni así leen los del otro rol ni los de otros
+  grupos). **Desfase de
   claims**: el cliente lee los claims solo al iniciar sesión
   (`getIdTokenResult(true)` en `mapToDomain`), así que a un admin al que le
   quiten el rol puede seguir viendo el Resumen y Coincidencias hasta que se

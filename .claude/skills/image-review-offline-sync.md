@@ -470,7 +470,27 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
     colección con ese nombre en la base (hoy no hay otra); sigue
     `rules_version = '2'`. `match /shift_image_counts/{docId}`: lectura
     solo `isAdmin()`, escritura negada (el bot escribe con el Admin SDK).
-    Revisor y Sumador no leen nada de `image_reviews`.
+    Revisor y Sumador no leen nada de `image_reviews` — **CAMBIO DELIBERADO
+    EN BORRADOR (2026-10-04, NO PUBLICADO)**: `firestore.rules.draft` agrega
+    `allow read: if puedeLeerRegistro(chatJid, jornadaId)` en la ruta
+    concreta de `registros`: lee quien tenga asignado EN ESE MOMENTO ese
+    grupo y esa jornada (`{chatJid, shift}` en `users/{uid}.reviewShifts`,
+    leído con `get()` en la regla) y solo registros de SU rol
+    (`resource.data.rol == reviewRole()`; la consulta del cliente debe
+    filtrar `rol == <su rol>` o se rechaza entera). No coincide con
+    consultas de grupo de colecciones, así que un Revisor/Sumador no puede
+    leer todos los grupos; la regla recursiva de admin no cambia. Probado en
+    el emulador local con el borrador completo: 32/32 casos (incluidos
+    Sumador → registros del Revisor negado, Revisor asignado permitido, sin
+    asignación negado, admin igual que antes, sin sesión negado), y una
+    prueba de mutación (sin la condición de rol fallan 5 casos). Hasta que
+    el usuario lo publique a mano, sigue vigente "no leen".
+    **RIESGO CONOCIDO (no se toca)**: la regla de ESCRITURA no exige la
+    asignación (solo el claim, el payload y el mensaje real): una cuenta con
+    el rol puede escribir el registro de cualquier grupo y jornada, incluso
+    sin tenerlos asignados (caso 6c del emulador). Hoy solo lo evita la
+    interfaz (el botón y el diálogo de "Llenar formularios" solo ofrecen lo
+    asignado).
     **Probado en la zona de pruebas con las reglas ya publicadas (HECHO,
     2026-10-01)**: un usuario sin claim de admin NO puede leer un registro
     de `image_reviews` ni un documento de `shift_image_counts` (`get`
