@@ -22,6 +22,12 @@ class NoSessionImageReviewRepository implements ImageReviewRepository {
       const Left(Failure.unauthorized());
 
   @override
+  Future<Either<Failure, bool>> deleteSynced(
+    String messageId,
+    ReviewRole rol,
+  ) async => const Left(Failure.unauthorized());
+
+  @override
   Future<Either<Failure, List<ImageReviewRecord>>> getPending({
     required String chatJid,
     required String fechaJornada,

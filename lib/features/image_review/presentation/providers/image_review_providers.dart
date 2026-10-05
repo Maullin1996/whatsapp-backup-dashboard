@@ -12,6 +12,8 @@ import 'package:whatsapp_monitor_viewer/features/image_review/data/repositories/
 import 'package:whatsapp_monitor_viewer/features/image_review/data/repositories/unavailable_image_review_repository.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/data/datasources/firestore_review_upload_datasource.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/data/datasources/review_upload_datasource.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/data/datasources/firestore_review_remote_records_datasource.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/data/datasources/review_remote_records_datasource.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/data/sync/firestore_review_uploader.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/image_review_record.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
@@ -169,6 +171,14 @@ final imageReviewRepositoryProvider = Provider<ImageReviewRepository>((ref) {
 final reviewUploadDatasourceProvider = Provider<ReviewUploadDatasource>(
   (ref) => FirestoreReviewUploadDatasource(ref.watch(firestoreProvider)),
 );
+
+/// Único punto donde se instancia la lectura de los registros ya subidos de
+/// una jornada (lo subido es la fuente de verdad de `/review`).
+final reviewRemoteRecordsDatasourceProvider =
+    Provider<ReviewRemoteRecordsDatasource>(
+      (ref) =>
+          FirestoreReviewRemoteRecordsDatasource(ref.watch(firestoreProvider)),
+    );
 
 /// Único punto donde se instancia el uploader: la subida REAL a Firestore.
 /// Solo se construye al iniciar una subida (`ReviewUploadNotifier`), no al

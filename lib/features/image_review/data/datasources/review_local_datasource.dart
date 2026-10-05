@@ -156,6 +156,40 @@ class ReviewLocalDatasource {
     }
   }
 
+  /// Borra el registro de [messageId] y [rol] SOLO si está sincronizado (es
+  /// una copia de lo subido). Nunca borra un pendiente ni uno ilegible.
+  /// `Right(true)` si lo borró, `Right(false)` si no había nada que borrar o
+  /// no estaba sincronizado.
+  Future<Either<Failure, bool>> deleteSynced({
+    required String uid,
+    required ReviewRole rol,
+    required String messageId,
+  }) async {
+    ImageReviewRecordModel? current;
+    try {
+      current = await _read(uid, rol, messageId);
+    } catch (_) {
+      // Ilegible: no se sabe si era un pendiente, así que no se borra.
+      return const Right(false);
+    }
+    if (current == null ||
+        current.record.estadoSync != EstadoSync.sincronizado) {
+      return const Right(false);
+    }
+    try {
+      await _box.delete(_recordKey(uid, rol, messageId));
+      return const Right(true);
+    } catch (_) {
+      return Left(
+        Failure.storage(
+          message:
+              'No se pudo borrar la copia local del registro de la imagen '
+              '$messageId',
+        ),
+      );
+    }
+  }
+
   /// Jornadas del chat con pendientes y cuántos tiene cada una. Solo recorre
   /// las claves del índice `p|uid|rol|chatJid|`; no lee ni deserializa ningún
   /// registro (por eso un índice viejo, ver [pending], cuenta hasta que

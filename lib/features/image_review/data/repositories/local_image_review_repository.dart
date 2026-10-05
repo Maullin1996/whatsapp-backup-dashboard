@@ -34,6 +34,12 @@ class LocalImageReviewRepository implements ImageReviewRepository {
       _datasource.put(uid: _uid, model: ImageReviewRecordModel(record));
 
   @override
+  Future<Either<Failure, bool>> deleteSynced(
+    String messageId,
+    ReviewRole rol,
+  ) => _datasource.deleteSynced(uid: _uid, rol: rol, messageId: messageId);
+
+  @override
   Future<Either<Failure, List<ImageReviewRecord>>> getPending({
     required String chatJid,
     required String fechaJornada,

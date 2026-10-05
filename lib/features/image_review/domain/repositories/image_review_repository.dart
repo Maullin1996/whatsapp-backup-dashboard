@@ -20,6 +20,11 @@ abstract class ImageReviewRepository {
   /// registro del otro.
   Future<Either<Failure, Unit>> save(ImageReviewRecord record);
 
+  /// Borra el registro de [messageId] y [rol] SOLO si está sincronizado (una
+  /// copia de lo subido, que se puede perder). Nunca borra un pendiente.
+  /// `Right(true)` si lo borró.
+  Future<Either<Failure, bool>> deleteSynced(String messageId, ReviewRole rol);
+
   /// Registros pendientes de subir de esa jornada: mismo chat, día
   /// ([fechaJornada], `yyyy-MM-dd`), jornada ([shift]) y [rol]. No incluye
   /// los sincronizados. Si algún registro no se puede leer, el `Left`
