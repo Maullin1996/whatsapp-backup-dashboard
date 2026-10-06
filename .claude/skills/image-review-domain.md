@@ -49,19 +49,18 @@ cada vez. Antes de tocar código de este feature, lee esta skill completa.
   el ticket, no al ticket en sí** — por eso se repite entre imágenes.
   **Nunca se suman entre sí comprobantes por compartir código** — cada
   ticket es una unidad independiente.
-- **Lotería** (de un comprobante) — **CAMBIO DECIDIDO por el usuario
-  (2026-10-05, la app todavía no lo implementa)**: cada número registrado
-  llevará su lotería, elegida de una lista cerrada, y un ganador solo
-  coincidirá con un número de la misma lotería. Lo que sigue describe lo que
-  la app hace HOY (texto libre, opcional, sin relación con los ganadores);
-  los 43 identificadores y los pendientes están en
-  `image-review-firebase-integration` ("Pieza b3"). Hoy: el nombre de
-  **dónde se compró el boleto**. **Por comprobante**, porque puede variar entre los boletos de
-  una misma foto. Texto libre, con `trim`; vacía o solo espacios = `null`;
-  **OPCIONAL**. **No tiene relación con las loterías de los números
-  ganadores**: no entra en la comparación con los ganadores ni en la
-  reconciliación. La pueden llenar los dos roles (valor por defecto, no
-  una decisión de negocio: se puede restringir después).
+- **Lotería** (de un comprobante) — **DECIDIDO por el usuario e IMPLEMENTADO en la app (2026-10-05, sin desplegar)**: cada comprobante lleva su lotería, elegida de una lista cerrada de 43 identificadores (`lib/core/lotteries/lotteries.dart`: constante en un solo archivo, con `loteriaDisplayName(id)`, que devuelve el nombre o el mismo texto si no está en la lista) y obligatoria para los dos roles; lo que se guarda en `loteria` es el identificador; un ganador solo coincide con un número de la misma lotería; la app lee `entries` de `winning_numbers/{fecha}` y dejó de leer `numbers`. La lotería es **de la
+  lista cerrada de 43** (identificador y nombre para mostrar en
+  `image-review-firebase-integration`, "Pieza b3"), **por comprobante**
+  (puede variar entre los boletos de una misma foto; todos los números de un
+  comprobante comparten la suya) y **OBLIGATORIA para los dos roles**: el
+  Sumador usa el mismo formulario y también la elige. En el formulario es un
+  selector (no un campo de texto) que muestra los nombres y guarda el
+  identificador. **No entra en la reconciliación de totales**; sí en la
+  comparación con los ganadores (regla 7). Un registro viejo con texto libre
+  o sin lotería se lee igual, pero su selector aparece sin selección, no se
+  puede volver a guardar sin elegir una y mientras tanto no coincide con
+  ningún ganador.
 - **Número**: cada entrada escrita a mano dentro de un comprobante (en el
   ejemplo, cosas como `5311`, `1111`, `2023`...). Un comprobante tiene
   **N números** (cantidad variable, no fija). **Solo los anota el
@@ -101,8 +100,9 @@ Imagen (1)
       ├── Total del comprobante
       │    ├── anotado por el Revisor
       │    └── anotado por el Sumador (independiente, para verificación)
-      └── lotería — OPCIONAL, texto libre (dónde se compró el boleto; sin
-           relación con las loterías ganadoras ni con la reconciliación)
+      └── lotería — OBLIGATORIA, de la lista cerrada de 43 (se guarda el
+           identificador; los dos roles; compara contra los ganadores de
+           esa misma lotería; no entra en la reconciliación de totales)
 
 Registro de imagen (lo que se guarda por imagen Y POR ROL, ver
 image-review-roles: cada imagen tiene DOS registros independientes, uno del
@@ -487,10 +487,11 @@ fijo. Detalle en `image-review-firebase-integration` ("Lectura en la app").
 - **DECIDIDO por el usuario (2026-10-03)**: "Mañana" vale para las mañanas
   de todos los días excepto domingos y festivos, que usan `festivos` del
   ERP.
-- **Horarios dinámicos, pieza 1 — HECHA (no desplegada)**: la función
-  programada copia `jornadas` del ERP a una colección `jornadas` de nuestro
-  proyecto (réplica exacta, nombre PROVISIONAL). La app la lee desde la
-  pieza 2; su regla de lectura **no está publicada**. Conversión de
+- **Horarios dinámicos, pieza 1 — HECHA y DESPLEGADA (2026-10-03)**: la
+  función programada copia `jornadas` del ERP a una colección `jornadas` de
+  nuestro proyecto (réplica exacta, nombre PROVISIONAL; existe con los 5
+  documentos, dato del usuario). La app la lee desde la pieza 2; su regla de
+  lectura está **publicada** (confirmado el 2026-10-04). Conversión de
   ids del ERP a claves de `Shift`: `manana` → `morning`, `tarde_1` →
   `afternoon1`, `tarde_2` → `afternoon2`, `noche` → `night1`, `festivos` →
   `holiday`. Detalle en `image-review-firebase-integration` ("Réplica de
@@ -564,25 +565,26 @@ fijo. Detalle en `image-review-firebase-integration` ("Lectura en la app").
    día es una unidad de reporte independiente. Si se necesita histórico,
    es una vista de "varios reportes diarios lado a lado", nunca una
    suma acumulada.
-6. **Anotaciones y lotería son los ÚNICOS campos opcionales del
-   formulario, para los dos roles** (texto libre; vacías o solo espacios
-   se normalizan a `null`; las anotaciones son una por imagen, la lotería
-   una por comprobante). No afectan la reconciliación numérica; las
-   anotaciones sirven para que un humano revise después ("este número no
-   se ve bien", "esta suma no me da"). Todo lo demás es obligatorio, y
-   varía por rol:
+6. **Las anotaciones son el ÚNICO campo opcional del formulario, para los
+   dos roles** (texto libre; vacías o solo espacios se normalizan a `null`;
+   una por imagen). No afectan la reconciliación numérica; sirven para que
+   un humano revise después ("este número no se ve bien", "esta suma no me
+   da"). Todo lo demás es obligatorio, y varía por rol:
    - **Los dos roles**: el código de la imagen (uno por foto, texto
-     libre, `trim`, no vacío) y al menos un comprobante.
+     libre, `trim`, no vacío), al menos un comprobante y, por comprobante,
+     una **lotería de la lista cerrada** (`lotteries`; el identificador
+     exacto, sin normalizar: la lotería ya no es texto libre ni opcional).
    - **Revisor**: por comprobante, al menos un número (String, con
      `trim`, conservando ceros a la izquierda) y total entero > 0.
    - **Sumador**: por comprobante, total entero > 0. **Sin números.**
 
    `validateImageReviewForm(form, rol)` (fail-fast; orden: código de la
-   imagen, comprobantes, números —solo Revisor—, total) aplica las reglas
-   del rol. Para el Sumador la lista de números se normaliza siempre a
-   vacía (lo que llegue se descarta). El error de código no lleva índice
-   ("Ingresa el código de la imagen"). **PENDIENTE (no decidido)**: si la
-   lotería pasa a ser una lista cerrada.
+   imagen, comprobantes y, por comprobante, números —solo Revisor—, total
+   y lotería) aplica las reglas del rol. Para el Sumador la lista de números
+   se normaliza siempre a vacía (lo que llegue se descarta). El error de
+   código no lleva índice ("Ingresa el código de la imagen"); el de lotería
+   sí ("Comprobante N: elige la lotería", `ImageReviewFailure.loteriaInvalida`).
+   La lotería se valida por comprobante, sin normalizar.
 7. **Coincidencia con números ganadores**: se busca solo contra los
    **números** que registró el Revisor, porque el Sumador no anota
    números. Si un número coincide con un número ganador, debe
@@ -593,7 +595,10 @@ fijo. Detalle en `image-review-firebase-integration` ("Lectura en la app").
    propio, **sin navegar al visor** ("Ver imagen" carga la imagen real).
    **DECIDIDO (pieza c)**: los ganadores de una fecha se comparan contra
    los números del Revisor de TODAS las jornadas y grupos de esa fecha;
-   solo cuenta el número (`findMatches`, regla de 2, 3 y 4 cifras, abajo). La
+   cuenta la lotería y el número (`findMatches`: un ganador solo coincide con
+   un número de la MISMA lotería, y dentro de ella rige la regla de 2, 3 y 4
+   cifras, abajo; un registro con la lotería nula, vacía o fuera de la lista
+   no coincide con nada). La
    pantalla muestra siempre una lista por jornada; una jornada sin
    coincidencias dice "Todavía no hay ganadores". Ya no se muestra si el
    mensaje de WhatsApp fue editado.

@@ -82,8 +82,10 @@ refactor grande — coherente con la Clean Architecture del proyecto.
   reconciliación (`image-review-domain`, regla 3-4) y los reportes (regla
   5). **La comparación, en cambio, es del día (DECIDIDO, pieza c)**: los
   ganadores de una fecha se comparan contra los números del Revisor de
-  TODAS las jornadas y grupos de esa fecha (solo cuenta el número); la
-  jornada solo agrupa lo que se muestra.
+  TODAS las jornadas y grupos de esa fecha (por lotería y número: un ganador
+  solo coincide con un número de la misma lotería, ver "Lotería por
+  comprobante y comparación por lotería (la app)"); la jornada solo agrupa lo
+  que se muestra.
 - **Disparador de la comparación — HECHO (pieza c)**: se recalcula en
   cada consulta, en el cliente: la pantalla consulta **cualquier fecha a
   demanda** (selector de calendario, hoy por defecto), lee los ganadores
@@ -144,9 +146,10 @@ refactor grande — coherente con la Clean Architecture del proyecto.
   respetar eso: cada fecha se consulta y se muestra de forma
   independiente, nunca acumulada con otras fechas.
 - **Formato de la lista de ganadores — PROVISIONAL**: un documento por
-  fecha, `winning_numbers/{yyyy-MM-dd}` con el campo `numbers` (lista de
-  texto; la función puente suma `entries` desde la pieza b3, aún sin
-  desplegar y sin que la app lo lea), definido en una sola constante (`winningNumbersSource`). Es la
+  fecha, `winning_numbers/{yyyy-MM-dd}` con el campo `entries` (lista de
+  `{loteria, numero}`, texto ambos), que es lo que lee la app; `numbers`
+  (lista de texto) lo sigue escribiendo la función puente (pieza b3, aún sin
+  desplegar) pero la app ya no lo lee. Definido en una sola constante (`winningNumbersSource`). Es la
   lista del DÍA: todas las jornadas de esa fecha muestran la misma.
   (`MockMatchesRepository`, ya borrado, los organizaba por fecha y
   jornada; era una decisión del mock.)
@@ -507,19 +510,69 @@ bajo)**:
 
 **Forma elegida para el cambio más chico (NO es una decisión del usuario)**:
 `winning_numbers/{fecha}` **conserva `numbers`** (lista de textos, como
-siempre) y **suma `entries`** (lista de `{loteria, numero}`). La app actual
-solo lee `numbers`, así que sigue funcionando. Los documentos de fechas
-anteriores a este cambio no se reescriben (la función solo procesa hoy y
-ayer, sin historial) y no tendrán `entries`.
+siempre) y **suma `entries`** (lista de `{loteria, numero}`). La app ya lee
+`entries` y dejó de leer `numbers` (ver abajo): hasta desplegar la función no
+hay `entries` en producción. Los documentos de fechas anteriores a este cambio
+no se reescriben (la función solo procesa hoy y ayer, sin historial) y no
+tendrán `entries` (Coincidencias los trata como "todavía no hay ganadores").
 
-**PENDIENTES (no decididos)**:
-- **La app**: selector obligatorio de la lotería (lista cerrada) en el
-  formulario, `findMatches` por lotería y la lectura de `entries`.
-- **El despliegue** de la función (esta pieza NO está desplegada; producción
-  sigue escribiendo solo `numbers`).
-- **Los boletos viejos de texto libre** (`loteria` escrita a mano o `null`):
-  no van a coincidir con nada.
-- **Un ganador cuya lotería no está en la lista**: no coincide.
+### Lotería por comprobante y comparación por lotería (la app) — HECHA (2026-10-05, sin desplegar)
+
+**DECIDIDO por el usuario e IMPLEMENTADO en la app (2026-10-05, sin desplegar)**: cada comprobante lleva su lotería, elegida de una lista cerrada de 43 identificadores (`lib/core/lotteries/lotteries.dart`: constante en un solo archivo, con `loteriaDisplayName(id)`, que devuelve el nombre o el mismo texto si no está en la lista) y obligatoria para los dos roles; lo que se guarda en `loteria` es el identificador; un ganador solo coincide con un número de la misma lotería; la app lee `entries` de `winning_numbers/{fecha}` y dejó de leer `numbers`.
+
+**HECHO en la app** (solo código y tests con datos falsos; no se tocó
+`functions/`, `firestore.rules.draft`, el Resumen, `edit_attempts`, `editado`,
+la lógica de tiempo ni el modelo de jornadas):
+- **Lista cerrada** (`lib/core/lotteries/lotteries.dart`): `lotteries` (43
+  identificadores con su nombre para mostrar, los de "Pieza b3"),
+  `isKnownLoteria(id)` y `loteriaDisplayName(id)`. No se lee de Firestore.
+- **Formulario**: `ComprobanteCard` reemplaza el `TextField` "Lotería
+  (opcional)" por un `DropdownMenu` (clave `loteria-N`) con los nombres y
+  filtro al escribir; guarda el identificador en el borrador. Si el valor del
+  comprobante no está en la lista (texto libre de un registro viejo), arranca
+  sin selección. Error inline "Elige una lotería" tras el primer intento de
+  guardar. `Comprobante.loteria` sigue siendo `String?`; `toMap`/`fromMap` y
+  la forma del payload no cambian (solo que ahora se escribe un
+  identificador). La vista de solo lectura muestra el nombre
+  (`loteriaDisplayName`).
+- **Validación**: `validateImageReviewForm` exige, por comprobante, una
+  lotería de la lista (después de números y total), con
+  `ImageReviewFailure.loteriaInvalida(indice)`: "Comprobante N: elige la
+  lotería". **Los dos roles usan el mismo formulario y el Sumador también la
+  exige.**
+- **Comparación**: `WinningEntry {loteria, numero}` (entidad nueva);
+  `findMatches(List<WinningEntry>, List<MatchEntry>)` solo compara dentro de la
+  misma lotería, con la misma regla de 2, 3 y 4 cifras; una entrada con la
+  lotería nula, vacía o fuera de la lista no coincide con nada; una entrada por
+  registro. `MatchEntry` suma `loteria` (`String?`).
+- **Datos de Coincidencias**: `RevisorRecord.numeros` pasó de `List<String>` a
+  `List<RecordedNumber {numero, loteria}>`: `parseRevisorRecord` pone en cada
+  número la lotería de su comprobante (null si falta; una `loteria` que no es
+  texto es un error con el id del documento, como los demás campos).
+  `WinningNumbersDatasource.fetchByFecha` devuelve `List<WinningEntry>` y lee
+  **`entries`** (`winningNumbersSource.field`); un documento ausente o sin
+  `entries` es lista vacía ("todavía no hay ganadores"); un `entries` mal
+  formado (no es lista, o un elemento sin `loteria` o `numero` de texto) es
+  `Left`. `JornadaMatches.winningNumbers` lleva los pares.
+- **Pantallas**: el chip de ganadores y la tarjeta muestran "Dorado mañana ·
+  1288" (`loteriaNumeroLabel`; sin lotería, solo el número); el detalle suma la
+  fila "Lotería". En la variante móvil de la tarjeta el texto puede envolver (a
+  360 px desbordaba 63 px con el nombre de la lotería).
+- **Tests**: `flutter test` pasó de 906 a **938** en verde; los únicos fallos
+  son los 2 conocidos (`message_bubble_test.dart` y `message_list_test.dart`,
+  `package:web`). Nuevos: la lista (8), `findMatches` por lotería (6), el
+  datasource de ganadores y de registros del Revisor, el repositorio (cada
+  número hereda la lotería de su comprobante), el selector y la validación. Se
+  ajustaron los que dependían de la forma anterior: ganadores como lista de
+  textos (`find_matches`, repositorio, datasources, wiring, widgets de
+  Coincidencias, con una lotería por defecto en ganadores y registros), la
+  lotería opcional (`validate_image_review_form_test`, `review_role_test`, los
+  helpers de llenado de los tests del panel y del visor, que ahora eligen una
+  lotería con `pick_loteria.dart`) y el skeleton de Coincidencias (su fixture
+  usa un chip con "Meta", el nombre más corto, para mantener la forma de UNA
+  fila de ganadores; el skeleton no cambió).
+
+**PENDIENTES (no decididos)**: desplegar la función y el hosting (la función primero: hasta entonces los documentos de `winning_numbers` no traen `entries` y Coincidencias dice "Todavía no hay ganadores"); los boletos viejos de texto libre (o sin lotería) no coinciden con nada; un ganador de una lotería fuera de la lista no coincide con nada; si el Revisor necesita una lotería que no está en la lista, hoy no puede guardar.
 
 ## Jornadas desde otro proyecto de Firebase
 
@@ -642,7 +695,7 @@ no convierte nada, la réplica guarda los ids del ERP):
 comparar los horarios de cada documento con la tabla fija de
 `lib/core/time/shifts.dart` (coinciden uno a uno).
 
-**Pieza 1 — HECHA (código y tests con datos falsos; NO desplegada)**:
+**Pieza 1 — HECHA y DESPLEGADA (2026-10-03, dato del usuario)**: `syncWinningNumbers`, con la copia de `jornadas`, se desplegó el 2026-10-03; la colección `jornadas` existe en nuestro proyecto con los 5 documentos (`festivos`, `manana`, `noche`, `tarde_1`, `tarde_2`) y el log de cada corrida trae `[JORNADAS]` con el resumen. Código y tests con datos falsos:
 - **`functions/jornadasSync.js`** (no importa `firebase-admin`):
   - `syncJornadas({readSourceJornadas, readStoredJornada, writeJornada,
     logger})`: lee todos los documentos del ERP; por cada uno valida, lee el

@@ -158,9 +158,10 @@ El repo ya tiene un patrón completo en `lib/features/admin/` y
   campo arriba de las tarjetas) y al menos un comprobante. Para el
   **Revisor**, cada comprobante con al menos un número y total > 0. Para
   el **Sumador**, cada comprobante con total > 0, sin números. Ambas
-  reglas están implementadas en `validateImageReviewForm(form, rol)`. Las
-  anotaciones y la lotería de cada comprobante ("Lotería (opcional)")
-  nunca son obligatorias.
+  reglas están implementadas en `validateImageReviewForm(form, rol)`. Desde
+  el 2026-10-05, **los dos roles** también eligen, por comprobante, una lotería
+  de la lista cerrada (selector "Lotería"; el Sumador usa el mismo formulario
+  y también la exige). Solo las anotaciones nunca son obligatorias.
 - Esta validación es **de navegación dentro del visor**, no de guardado:
   no impide cerrar la app o salir de `image_detail_page` por completo,
   solo bloquea el gesto/flecha/botón de cambio de imagen mientras falte

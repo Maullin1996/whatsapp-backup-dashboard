@@ -196,16 +196,19 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    escritura real; decisión del usuario): el `codigo` pasa a ser **uno por
    imagen** (`ImageReviewForm.codigo`, un solo campo "Código" arriba de
    las tarjetas, obligatorio para los dos roles) y cada comprobante queda
-   `{numeros, total, loteria}`, con `loteria` texto libre **opcional**
-   ("Lotería (opcional)", dónde se compró el boleto; sin relación con los
-   ganadores ni la reconciliación). Esquema sigue en v1 (`codigo` ausente
+   `{numeros, total, loteria}`, con `loteria` el identificador de una lista
+   cerrada de 43, obligatoria para los dos roles y comparada contra los
+   ganadores de esa misma lotería (desde el 2026-10-05, ver la pieza de la app
+   más abajo; antes era texto libre opcional, dónde se compró el boleto, sin
+   relación con los ganadores). Esquema sigue en v1 (`codigo` ausente
    → null; un `codigo` dentro de un comprobante viejo se ignora); un
    registro sin `codigo` no se sube hasta re-guardarlo desde el visor
    (abre con el código vacío). Reglas, Resumen y Coincidencias sin
    cambios. Detalle en `image-review-domain` (vocabulario y regla 6) y
    `image-review-offline-sync`.
    **PENDIENTES (no decididos)**: validar `codigo` y `loteria` en las
-   reglas (hoy no se validan); si la lotería pasa a ser una lista cerrada.
+   reglas (hoy no se validan). (La lista cerrada ya se decidió e implementó
+   el 2026-10-05, ver la pieza de la app.)
    (El aviso para los registros viejos que no se pueden subir se descartó por decisión del usuario: son datos de prueba.)
    **Reglas publicadas y primera escritura real — HECHO (verificado por el
    usuario el 2026-10-01)**: reglas vigentes desde ese día, 7:37 p.m., con
@@ -315,14 +318,16 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    día (`collectionGroup('registros')` por `fechaJornada` y `rol`), números
    ganadores del día (`winning_numbers/{fecha}`, campo `numbers`, nombre y
    forma **PROVISIONALES** en una sola constante; documento ausente = lista
-   vacía) y el mensaje por id (`whatsapp_messages`: `senderName` y
+   vacía; **desde el 2026-10-05 lee `entries`, pares lotería + número**) y el mensaje por id (`whatsapp_messages`: `senderName` y
    `localTime`). El nombre del grupo reutiliza el
    `groupNameDatasourceProvider` del Resumen, con su caché (sin documento →
    el `chatJid`; error → `Left`). Solo admin y superAdmin leen
    `image_reviews`.
    - **Comparación**: los ganadores de una fecha se comparan contra los
      números del Revisor de **TODAS las jornadas y grupos** de esa fecha;
-     solo cuenta el número (`findMatches`; regla de 2, 3 y 4 cifras, ver
+     desde el 2026-10-05 cuenta la lotería y el número (un ganador solo
+     coincide con un número de la misma lotería; `findMatches`; regla de 2,
+     3 y 4 cifras, ver
      "Pieza `findMatches`" más abajo). Solo las
      coincidencias leen su mensaje (una vez por `messageId`) y su grupo (una
      vez por `chatJid`); cualquier lectura fallida → `Left`.
@@ -447,10 +452,9 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    numero}`; forma elegida para el cambio más chico, no decisión del
    usuario); solo `functions/` y sus tests (152). La lista completa y el
    detalle están en `image-review-firebase-integration` ("Pieza b3").
-   **PENDIENTES (no decididos)**: la app (selector obligatorio, `findMatches`
-   por lotería, lectura de `entries`), desplegar la función, qué hacen los
-   boletos viejos de texto libre (no van a coincidir con nada) y qué pasa con
-   un ganador cuya lotería no está en la lista (no coincide).
+   **La app — HECHA (2026-10-05, sin desplegar)**: cada comprobante lleva su lotería, elegida de una lista cerrada de 43 identificadores (`lib/core/lotteries/lotteries.dart`: constante en un solo archivo, con `loteriaDisplayName(id)`, que devuelve el nombre o el mismo texto si no está en la lista) y obligatoria para los dos roles; lo que se guarda en `loteria` es el identificador; un ganador solo coincide con un número de la misma lotería; la app lee `entries` de `winning_numbers/{fecha}` y dejó de leer `numbers`. Detalle en `image-review-firebase-integration` ("Lotería por comprobante y
+   comparación por lotería (la app)").
+   **PENDIENTES (no decididos)**: desplegar la función y el hosting (la función primero: hasta entonces los documentos de `winning_numbers` no traen `entries` y Coincidencias dice "Todavía no hay ganadores"); los boletos viejos de texto libre (o sin lotería) no coinciden con nada; un ganador de una lotería fuera de la lista no coincide con nada; si el Revisor necesita una lotería que no está en la lista, hoy no puede guardar.
    **PENDIENTES de la función puente (no decididos)**: hasta las 13:30 de
    su fecha, el documento de la API trae datos de otra jornada, y por eso
    `winning_numbers` de ese día puede mostrar números que no son de ese día
@@ -486,7 +490,7 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    2 de horarios dinámicos, más abajo); los mensajes ya guardados se
    reclasifican con la tabla única; que Coincidencias, cuando haya
    ganadores, probablemente pida un índice sobre `rol`; y lo ya pendiente.
-   **Horarios dinámicos, pieza 1 — HECHA (código y tests; NO desplegada)**
+   **Horarios dinámicos, pieza 1 — HECHA y DESPLEGADA (2026-10-03, dato del usuario: la colección `jornadas` existe con los 5 documentos y el log trae `[JORNADAS]`)**
    (decisión del usuario, 2026-10-03): el mismo disparador programado de los
    ganadores, después de ellos y con la misma conexión y el mismo secreto,
    copia `jornadas` del ERP a una colección `jornadas` de nuestro proyecto
@@ -644,11 +648,11 @@ de aquí y de la skill correspondiente cuando el usuario confirme):
   con los mismos rangos y sin night2 (en su repo), retirar night2 de
   `ASSIGNABLE_SHIFTS` en `functions/` y caché de la PWA tras desplegar.
 - **Horarios dinámicos** (`image-review-firebase-integration`, "Réplica de
-  jornadas" y "Lectura en la app"): piezas 1 y 2 hechas y sin desplegar,
+  jornadas" y "Lectura en la app"): pieza 1 hecha y desplegada (2026-10-03), pieza 2 hecha y sin desplegar,
   festivos cargados en `festivos_colombia`, reglas de las dos colecciones
   publicadas (confirmado el 2026-10-04); faltan la pieza 3 (bot; mientras
   tanto, riesgo del lunes 2026-10-12 y de cada festivo entre semana, ver
-  `image-review-firebase-integration`), desplegar, el texto de
+  `image-review-firebase-integration`), desplegar la pieza 2, el texto de
   las etiquetas con horas fijas, la zona horaria del dispositivo para los
   festivos y el significado de `pendingApproval`/`proposed*`.
 - **Calidad de conexión en la subida real** (`image-review-offline-sync`,

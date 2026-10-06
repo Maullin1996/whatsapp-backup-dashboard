@@ -246,7 +246,9 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
    `estadoSync`. Del formulario: `codigo` (uno por imagen, en
    `ImageReviewForm.codigo`, `String?`: null solo en registros guardados
    antes de ese cambio), `comprobantes` (cada uno `{numeros, total,
-   loteria}`; `loteria` opcional, `String?`) y `anotaciones`.
+   loteria}`; `loteria` es el identificador de la lista cerrada y obligatoria al
+   guardar, pero sigue siendo `String?` porque un registro viejo trae texto
+   libre o null) y `anotaciones`.
 3. **`estadoSync` (`EstadoSync { pendiente, sincronizado }`)**: un registro
    nuevo nace `pendiente`. **Re-guardar (editar) un registro, aunque
    estuviera `sincronizado`, lo devuelve a `pendiente` y pone
@@ -631,8 +633,9 @@ guardando la misma imagen pueden pisarse. No hay bloqueo ni aviso hoy.
     instancia `FirebaseFirestore` ni lee el `firestoreProvider` real.
 - **PENDIENTE (no decidido)**:
   - (El aviso para los registros viejos que no se pueden subir se descartó por decisión del usuario: son datos de prueba.)
-  - Validar `codigo` y `loteria` en las reglas (hoy no se validan). Si la
-    lotería pasa a ser una lista cerrada.
+  - Validar `codigo` y `loteria` en las reglas (hoy no se validan). (La
+    lotería ya es una lista cerrada en la app desde el 2026-10-05; las reglas
+    no la validan.)
   - Si conviene subir el esquema a v2 igual (por ejemplo, para que una
     versión antigua de la app que siga en caché no lea ni reescriba
     registros con un campo que no conoce).
