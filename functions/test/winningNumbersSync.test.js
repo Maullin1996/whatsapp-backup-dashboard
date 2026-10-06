@@ -39,6 +39,7 @@ function fakeLogger() {
  */
 function fakeDeps({ automatic = {}, manual = {}, stored = {}, fail = {} } = {}) {
   const writes = [];
+  const entryWrites = [];
   const store = { ...stored };
   const read = (source) => async (id) => {
     if (fail[id]) throw fail[id];
@@ -46,14 +47,16 @@ function fakeDeps({ automatic = {}, manual = {}, stored = {}, fail = {} } = {}) 
   };
   return {
     writes,
+    entryWrites,
     store,
     logger: fakeLogger(),
     readAutomatic: read(automatic),
     readManual: read(manual),
     readStored: read(store),
-    writeNumbers: async (id, numbers) => {
+    writeNumbers: async (id, numbers, entries) => {
       writes.push({ id, numbers });
-      store[id] = { numbers };
+      entryWrites.push({ id, entries });
+      store[id] = { numbers, entries };
     },
     now: () => NOW,
   };
@@ -73,12 +76,20 @@ describe("syncWinningNumbers", () => {
     assert.equal(statusOf(summary, TODAY), STATUS.written);
   });
 
-  test("no escribe cuando los guardados son iguales, aunque en otro orden", async () => {
+  test("no escribe cuando numbers y entries guardados son iguales, aunque en otro orden", async () => {
     const deps = fakeDeps({
       automatic: {
         [TODAY]: { resultados: [autoEntry("boyaca", "1234"), autoEntry("cauca", "0606")] },
       },
-      stored: { [TODAY]: { numbers: ["1234", "0606"] } },
+      stored: {
+        [TODAY]: {
+          numbers: ["1234", "0606"],
+          entries: [
+            { loteria: "cauca", numero: "0606" },
+            { loteria: "boyaca", numero: "1234" },
+          ],
+        },
+      },
     });
     const summary = await syncWinningNumbers(deps);
     assert.deepEqual(deps.writes, []);
@@ -95,13 +106,16 @@ describe("syncWinningNumbers", () => {
     assert.equal(statusOf(summary, TODAY), STATUS.written);
   });
 
-  test("escribe solo el campo numbers, como lista de textos", async () => {
+  test("escribe solo numbers (lista de textos) y entries (lotería + número)", async () => {
     const deps = fakeDeps({
       automatic: { [TODAY]: { resultados: [autoEntry("cash_three", "606")] } },
       stored: { [TODAY]: { numbers: ["1"], otro: "x" } },
     });
     await syncWinningNumbers(deps);
-    assert.deepEqual(deps.store[TODAY], { numbers: ["606"] });
+    assert.deepEqual(deps.store[TODAY], {
+      numbers: ["606"],
+      entries: [{ loteria: "cash_three", numero: "606" }],
+    });
   });
 
   test("resultado vacío: no escribe y deja lo que había", async () => {
@@ -190,7 +204,9 @@ describe("syncWinningNumbers", () => {
     });
     await syncWinningNumbers(deps);
     assert.deepEqual(deps.writes, [{ id: TODAY, numbers: ["1234"] }]);
-    assert.deepEqual(Object.keys(deps.store[TODAY]), ["numbers"]);
+    assert.deepEqual(Object.keys(deps.store[TODAY]), ["numbers", "entries"]);
+    // Lo descartado no entra a entries.
+    assert.deepEqual(deps.store[TODAY].entries, [{ loteria: "cauca", numero: "1234" }]);
     const discardedLines = deps.logger.lines
       .filter((l) => l.level === "warn")
       .map((l) => l.data);
@@ -198,6 +214,78 @@ describe("syncWinningNumbers", () => {
       { date: TODAY, lottery: null, source: "manual", reason: "sin-loteria" },
       { date: TODAY, lottery: "Lotería boyaca", source: "automatica", reason: "longitud-distinta" },
     ]);
+  });
+
+  describe("entries", () => {
+    const only = (entries, numbers) => ({ [TODAY]: { numbers, entries } });
+    const AUTO = { [TODAY]: { resultados: [autoEntry("boyaca", "1234")] } };
+
+    test("un documento con numbers iguales pero sin entries se reescribe una vez", async () => {
+      const deps = fakeDeps({
+        automatic: AUTO,
+        stored: { [TODAY]: { numbers: ["1234"] } },
+      });
+      const summary = await syncWinningNumbers(deps);
+      assert.equal(statusOf(summary, TODAY), STATUS.written);
+      assert.deepEqual(deps.writes, [{ id: TODAY, numbers: ["1234"] }]);
+      assert.deepEqual(deps.entryWrites, [
+        { id: TODAY, entries: [{ loteria: "boyaca", numero: "1234" }] },
+      ]);
+      // La segunda corrida ya no escribe.
+      const again = await syncWinningNumbers(deps);
+      assert.equal(statusOf(again, TODAY), STATUS.unchanged);
+      assert.equal(deps.writes.length, 1);
+    });
+
+    test("con numbers y entries iguales no escribe", async () => {
+      const deps = fakeDeps({
+        automatic: AUTO,
+        stored: only([{ loteria: "boyaca", numero: "1234" }], ["1234"]),
+      });
+      const summary = await syncWinningNumbers(deps);
+      assert.deepEqual(deps.writes, []);
+      assert.equal(statusOf(summary, TODAY), STATUS.unchanged);
+    });
+
+    test("mismos numbers con otra lotería: escribe", async () => {
+      const deps = fakeDeps({
+        automatic: AUTO,
+        stored: only([{ loteria: "cauca", numero: "1234" }], ["1234"]),
+      });
+      const summary = await syncWinningNumbers(deps);
+      assert.equal(statusOf(summary, TODAY), STATUS.written);
+    });
+
+    test("entries guardado con elementos que no son pareja de textos: escribe", async () => {
+      const deps = fakeDeps({
+        automatic: AUTO,
+        stored: only([{ loteria: "boyaca", numero: 1234 }], ["1234"]),
+      });
+      const summary = await syncWinningNumbers(deps);
+      assert.equal(statusOf(summary, TODAY), STATUS.written);
+    });
+
+    test("resultado vacío: no escribe aunque lo guardado no tenga entries", async () => {
+      const deps = fakeDeps({
+        automatic: { [TODAY]: { resultados: [autoEntry("boyaca", "")] } },
+        stored: { [TODAY]: { numbers: ["1234"] } },
+      });
+      const summary = await syncWinningNumbers(deps);
+      assert.deepEqual(deps.writes, []);
+      assert.deepEqual(deps.store[TODAY], { numbers: ["1234"] });
+      assert.equal(statusOf(summary, TODAY), STATUS.skippedEmpty);
+    });
+
+    test("entries se escribe en el mismo set que numbers", async () => {
+      const deps = fakeDeps({ automatic: AUTO });
+      await syncWinningNumbers(deps);
+      assert.equal(deps.writes.length, 1);
+      assert.equal(deps.entryWrites.length, 1);
+      assert.deepEqual(deps.store[TODAY], {
+        numbers: ["1234"],
+        entries: [{ loteria: "boyaca", numero: "1234" }],
+      });
+    });
   });
 
   test("el resumen por fecha trae el estado correcto y se registra", async () => {
@@ -339,9 +427,13 @@ describe("firestoreSources", () => {
     assert.deepEqual(await s.readManual(TODAY), { list: [] });
     assert.equal(await s.readAutomatic(YESTERDAY), null);
     assert.deepEqual(await s.readStored(TODAY), { numbers: ["1"] });
-    await s.writeNumbers(TODAY, ["606"]);
+    await s.writeNumbers(TODAY, ["606"], [{ loteria: "cash_three", numero: "606" }]);
     assert.deepEqual(target.sets, [
-      { path: `${COLLECTIONS.winning}/${TODAY}`, data: { numbers: ["606"] }, options: undefined },
+      {
+        path: `${COLLECTIONS.winning}/${TODAY}`,
+        data: { numbers: ["606"], entries: [{ loteria: "cash_three", numero: "606" }] },
+        options: undefined,
+      },
     ]);
     assert.deepEqual(source.sets, []);
   });

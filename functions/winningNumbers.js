@@ -2,6 +2,8 @@
 // PURA, sin Firebase. Recibe lo ya leído de las dos fuentes de whats-apuestas y
 // devuelve la lista que se guardará en `winning_numbers/{fecha}.numbers`. No
 // lee ni escribe nada: eso es del handler programado (pieza b2, pendiente).
+// Además de `numbers` devuelve `entries`: la pareja (lotería, número) de cada
+// ganador, con la lotería en la clave de `lotteryKey` (con alias).
 // Ver .claude/skills/image-review-firebase-integration.md, "Función puente".
 //
 // Forma de las entradas (vista en datos reales, pieza b1.1):
@@ -33,11 +35,21 @@ const DISCARD_REASONS = {
   noLottery: "sin-loteria",
 };
 
-// Alias de lotería: clave normalizada → clave normalizada con la que se
-// empareja. Se aplica después de normalizar, a las entradas de las dos
-// fuentes. Única entrada: `doramaña` (manual) es `dorado_mañana` (automática).
+// Alias de lotería: clave normalizada → identificador final de la lista
+// cerrada del selector. Se aplica después de normalizar, a las entradas de las
+// dos fuentes, y apunta directo al identificador (sin encadenar). Las claves
+// van ya normalizadas por `lotteryKey` (minúsculas, sin tildes).
+// Respaldo: `doramaña` → `dorado_mañana` tiene 119 fechas de coincidencia por
+// número (lectura de solo lectura de whats-apuestas del 2026-10-05); los demás
+// alias (`doradotarde`, `doradonoche`, `pija0`, `pijao`, `pijo`) los confirmó
+// el usuario SIN prueba por número.
 const LOTTERY_KEY_ALIASES = {
   doramana: "dorado_manana",
+  doradotarde: "dorado_tarde",
+  doradonoche: "dorado_noche",
+  pija0: "pijao_de_oro",
+  pijao: "pijao_de_oro",
+  pijo: "pijao_de_oro",
 };
 
 // Clave para emparejar la misma lotería entre las dos colecciones.
@@ -77,6 +89,11 @@ function discardReason(value) {
     return DISCARD_REASONS.wrongLength;
   }
   return null;
+}
+
+// Orden de texto por unidades de código, igual que `sort()` por defecto.
+function compareText(a, b) {
+  return a < b ? -1 : a > b ? 1 : 0;
 }
 
 // Una entrada de cualquiera de las dos fuentes llevada a
@@ -125,11 +142,16 @@ function normalizeManual(manualList) {
  *   `manual_lotteries/{yyyy-MM-dd}`.
  * @returns {{
  *   numbers: string[],
+ *   entries: {loteria: string, numero: string}[],
  *   discarded: {lottery: string|null, source: string, value: *, reason: string}[],
  * }}
  *   `numbers`: textos de exactamente 3 o 4 cifras (con `trim`, ceros a la
  *   izquierda conservados), sin duplicados, en orden ascendente de texto
  *   (`sort()` por defecto).
+ *   `entries`: la pareja (lotería, número) de cada ganador válido; `loteria` es
+ *   la clave de emparejamiento (`lotteryKey` con alias, "" si la entrada no
+ *   tiene slug); sin duplicados por pareja, ordenada por `loteria` y luego por
+ *   `numero`. Un número en dos loterías da dos entradas.
  *   `discarded`: lo que no es válido, con la lotería de origen y el motivo,
  *   en el orden de entrada (manuales primero). Qué hacer con ellos lo decide
  *   el llamador.
@@ -142,6 +164,7 @@ function mergeWinningNumbers(automaticDoc, manualList) {
   );
 
   const numbers = new Set();
+  const pairs = new Map(); // "loteria\u0000numero" → { loteria, numero }
   const discarded = [];
   for (const entry of [...manual, ...automatic]) {
     const reason =
@@ -149,7 +172,10 @@ function mergeWinningNumbers(automaticDoc, manualList) {
         ? DISCARD_REASONS.noLottery
         : discardReason(entry.value);
     if (reason === null) {
-      numbers.add(entry.value.trim());
+      const numero = entry.value.trim();
+      numbers.add(numero);
+      // Sin slug (clave "") pero con nombre: loteria "".
+      pairs.set(`${entry.key}\u0000${numero}`, { loteria: entry.key, numero });
     } else {
       discarded.push({
         lottery: entry.lottery,
@@ -160,7 +186,11 @@ function mergeWinningNumbers(automaticDoc, manualList) {
     }
   }
 
-  return { numbers: [...numbers].sort(), discarded };
+  const entries = [...pairs.values()].sort(
+    (a, b) =>
+      compareText(a.loteria, b.loteria) || compareText(a.numero, b.numero)
+  );
+  return { numbers: [...numbers].sort(), entries, discarded };
 }
 
 module.exports = {
