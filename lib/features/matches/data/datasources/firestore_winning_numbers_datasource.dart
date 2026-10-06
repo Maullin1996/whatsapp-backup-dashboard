@@ -3,13 +3,14 @@ import 'package:dartz/dartz.dart';
 import 'package:whatsapp_monitor_viewer/core/errors/failure.dart';
 import 'package:whatsapp_monitor_viewer/core/errors/firestore_failure.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/data/datasources/winning_numbers_datasource.dart';
+import 'package:whatsapp_monitor_viewer/features/matches/domain/entities/winning_entry.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/data/datasources/firestore_group_name_datasource.dart';
 
-/// Colección y campo de los números ganadores: `winning_numbers/{fecha}`
-/// con `numbers` (lista de texto). NOMBRES Y FORMA PROVISIONALES: la
-/// colección todavía no existe; la escribirá la función puente (pieza b) con
-/// el Admin SDK.
-const winningNumbersSource = (collection: 'winning_numbers', field: 'numbers');
+/// Colección y campo de los ganadores: `winning_numbers/{fecha}` con
+/// `entries` (lista de mapas `{loteria, numero}`, ambos texto). NOMBRES Y
+/// FORMA PROVISIONALES. La escribe la función puente con el Admin SDK, junto
+/// con `numbers` (lista de textos), que la app ya no lee.
+const winningNumbersSource = (collection: 'winning_numbers', field: 'entries');
 
 /// [WinningNumbersDatasource] con Firestore: `winning_numbers/{fecha}`.
 /// Nunca lanza.
@@ -30,7 +31,7 @@ class FirestoreWinningNumbersDatasource implements WinningNumbersDatasource {
   final DocumentReader _read;
 
   @override
-  Future<Either<Failure, List<String>>> fetchByFecha(String fecha) async {
+  Future<Either<Failure, List<WinningEntry>>> fetchByFecha(String fecha) async {
     final Map<String, dynamic>? data;
     try {
       data = await _read(fecha);
@@ -44,18 +45,28 @@ class FirestoreWinningNumbersDatasource implements WinningNumbersDatasource {
       );
     }
 
-    if (data == null) return const Right([]);
-    final numbers = data[winningNumbersSource.field];
-    if (numbers is! List || numbers.any((n) => n is! String)) {
+    // Sin documento o sin `entries`: todavía no hay ganadores.
+    final entries = data?[winningNumbersSource.field];
+    if (entries == null) return const Right([]);
+    if (entries is! List ||
+        entries.any(
+          (e) => e is! Map || e['loteria'] is! String || e['numero'] is! String,
+        )) {
       return Left(
         Failure.unknown(
           message:
               'Los números ganadores de $fecha tienen un formato inesperado: '
-              'el campo "${winningNumbersSource.field}" '
-              '${numbers == null ? 'falta' : 'no es una lista de texto'}.',
+              'el campo "${winningNumbersSource.field}" no es una lista de '
+              'pares con "loteria" y "numero" de texto.',
         ),
       );
     }
-    return Right(numbers.cast<String>().toList());
+    return Right([
+      for (final e in entries.cast<Map>())
+        WinningEntry(
+          loteria: e['loteria'] as String,
+          numero: e['numero'] as String,
+        ),
+    ]);
   }
 }

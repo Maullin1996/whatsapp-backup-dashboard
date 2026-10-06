@@ -13,7 +13,7 @@ abstract class ImageReviewForm with _$ImageReviewForm {
     String? codigo,
     required List<Comprobante> comprobantes,
 
-    /// Opcional, igual que `Comprobante.loteria`.
+    /// Opcional.
     String? anotaciones,
   }) = _ImageReviewForm;
 }

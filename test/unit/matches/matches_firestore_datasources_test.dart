@@ -59,7 +59,8 @@ void main() {
     });
 
     test('mapea grupo, jornada, mensaje, imagen, día y los números '
-        'aplanados (con ceros a la izquierda)', () async {
+        'aplanados (con ceros a la izquierda), cada uno con la lotería de su '
+        'comprobante', () async {
       behavior = () async => [(id: 'm1_revisor', data: _registro())];
 
       final list = _right(await datasource.fetchByFechaJornada('2026-10-05'));
@@ -71,8 +72,62 @@ void main() {
       expect(r.messageId, 'm1');
       expect(r.storagePath, 'chats/g1/img_m1.jpg');
       expect(r.fechaJornada, '2026-10-05');
-      expect(r.numeros, ['0123', '5311', '007']);
+      // Ajuste (lotería por comprobante): cada número lleva la lotería de su
+      // comprobante; un comprobante sin lotería (registro viejo) da null y uno
+      // con texto libre conserva el texto (no coincidirá con ningún ganador).
+      expect(r.numeros.map((n) => (n.numero, n.loteria)), [
+        ('0123', 'Lotería de Medellín'),
+        ('5311', 'Lotería de Medellín'),
+        ('007', null),
+      ]);
     });
+
+    test(
+      'un comprobante sin la clave loteria (registro viejo) da null',
+      () async {
+        final doc = _registro();
+        for (final c in doc['comprobantes'] as List) {
+          (c as Map).remove('loteria');
+        }
+        behavior = () async => [(id: 'm1_revisor', data: doc)];
+
+        final r = _right(
+          await datasource.fetchByFechaJornada('2026-10-05'),
+        ).single;
+
+        expect(r.numeros.map((n) => n.loteria), [null, null, null]);
+      },
+    );
+
+    test(
+      'la lotería de cada comprobante es la suya, no la del primero',
+      () async {
+        final doc = _registro();
+        doc['comprobantes'] = [
+          {
+            'numeros': ['1288'],
+            'total': 1000,
+            'loteria': 'dorado_manana',
+          },
+          {
+            'numeros': ['4521', '9999'],
+            'total': 2500,
+            'loteria': 'medellin',
+          },
+        ];
+        behavior = () async => [(id: 'm1_revisor', data: doc)];
+
+        final r = _right(
+          await datasource.fetchByFechaJornada('2026-10-05'),
+        ).single;
+
+        expect(r.numeros.map((n) => (n.numero, n.loteria)), [
+          ('1288', 'dorado_manana'),
+          ('4521', 'medellin'),
+          ('9999', 'medellin'),
+        ]);
+      },
+    );
 
     group('formato inesperado: Left con el id, sin omitir el documento', () {
       for (final (caso, mutate)
@@ -87,6 +142,16 @@ void main() {
               'comprobante sin numeros',
               (d) => d['comprobantes'] = [
                 {'total': 1000},
+              ],
+            ),
+            (
+              'una lotería que no es texto',
+              (d) => d['comprobantes'] = [
+                {
+                  'numeros': ['1234'],
+                  'total': 1000,
+                  'loteria': 7,
+                },
               ],
             ),
             (
@@ -136,12 +201,15 @@ void main() {
   });
 
   group('FirestoreWinningNumbersDatasource', () {
+    // Ajuste (comparación por lotería): la app lee `entries` (pares
+    // {loteria, numero}) y dejó de leer `numbers`. Antes: campo `numbers`,
+    // lista de textos; un documento sin el campo era un error.
     test('la colección y el campo son los PROVISIONALES', () {
       expect(winningNumbersSource.collection, 'winning_numbers');
-      expect(winningNumbersSource.field, 'numbers');
+      expect(winningNumbersSource.field, 'entries');
     });
 
-    test('lee la lista del documento de la fecha', () async {
+    test('lee los pares (loteria, numero) de entries', () async {
       final requested = <String>[];
       final datasource = FirestoreWinningNumbersDatasource.withReader((
         fecha,
@@ -149,14 +217,44 @@ void main() {
         requested.add(fecha);
         return {
           'numbers': ['0123', '4521'],
+          'entries': [
+            {'loteria': 'dorado_tarde', 'numero': '0123'},
+            {'loteria': 'medellin', 'numero': '4521'},
+          ],
         };
       });
 
-      expect(_right(await datasource.fetchByFecha('2026-10-05')), [
-        '0123',
-        '4521',
+      final winners = _right(await datasource.fetchByFecha('2026-10-05'));
+
+      expect(winners.map((w) => (w.loteria, w.numero)), [
+        ('dorado_tarde', '0123'),
+        ('medellin', '4521'),
       ]);
       expect(requested, ['2026-10-05']);
+    });
+
+    test('ignora numbers: solo lee entries', () async {
+      final datasource = FirestoreWinningNumbersDatasource.withReader(
+        (_) async => {
+          'numbers': ['9999'],
+          'entries': <Map<String, dynamic>>[],
+        },
+      );
+      expect(_right(await datasource.fetchByFecha('2026-10-05')), isEmpty);
+    });
+
+    test('una entrada con loteria vacía es válida (no coincidirá)', () async {
+      final datasource = FirestoreWinningNumbersDatasource.withReader(
+        (_) async => {
+          'entries': [
+            {'loteria': '', 'numero': '1111'},
+          ],
+        },
+      );
+      expect(
+        _right(await datasource.fetchByFecha('2026-10-05')).single.loteria,
+        '',
+      );
     });
 
     test('documento ausente: lista vacía, sin error', () async {
@@ -166,12 +264,50 @@ void main() {
       expect(_right(await datasource.fetchByFecha('2026-10-05')), isEmpty);
     });
 
-    test('campo faltante o de otro tipo: Left con la fecha', () async {
+    test('documento sin entries (solo numbers, el de antes): lista vacía, '
+        '"todavía no hay ganadores"', () async {
       for (final data in <Map<String, dynamic>>[
         {},
-        {'numbers': '0123'},
         {
-          'numbers': [123],
+          'numbers': ['0123'],
+        },
+      ]) {
+        final datasource = FirestoreWinningNumbersDatasource.withReader(
+          (_) async => data,
+        );
+        expect(
+          _right(await datasource.fetchByFecha('2026-10-05')),
+          isEmpty,
+          reason: '$data',
+        );
+      }
+    });
+
+    test('entries mal formado: Left con la fecha', () async {
+      for (final data in <Map<String, dynamic>>[
+        {'entries': '0123'},
+        {
+          'entries': ['0123'],
+        },
+        {
+          'entries': [
+            {'numero': '0123'},
+          ],
+        },
+        {
+          'entries': [
+            {'loteria': 'medellin'},
+          ],
+        },
+        {
+          'entries': [
+            {'loteria': 'medellin', 'numero': 123},
+          ],
+        },
+        {
+          'entries': [
+            {'loteria': 5, 'numero': '0123'},
+          ],
         },
       ]) {
         final datasource = FirestoreWinningNumbersDatasource.withReader(

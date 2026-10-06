@@ -17,10 +17,12 @@ mixin _$Comprobante {
 /// Se guardan como String para conservar ceros a la izquierda
 /// ("0123" != "123").
  List<String> get numeros;/// Pesos, sin decimales.
- int get total;/// Dónde se compró el boleto: texto libre, opcional (null si quedó
-/// vacío). Puede variar entre los boletos de una misma foto. No tiene
-/// relación con las loterías de los números ganadores ni entra en la
-/// reconciliación.
+ int get total;/// Identificador de la lotería de este comprobante, de la lista cerrada
+/// (`lib/core/lotteries/lotteries.dart`); se guarda el identificador, no
+/// el nombre. Obligatoria al guardar (`validateImageReviewForm`, los dos
+/// roles). Sigue siendo `String?` porque un registro viejo trae texto
+/// libre o null: esos no coinciden con ningún ganador. Puede variar entre
+/// los boletos de una misma foto; no entra en la reconciliación.
  String? get loteria;
 /// Create a copy of Comprobante
 /// with the given fields replaced by the non-null parameter values.
@@ -231,10 +233,12 @@ class _Comprobante implements Comprobante {
 
 /// Pesos, sin decimales.
 @override final  int total;
-/// Dónde se compró el boleto: texto libre, opcional (null si quedó
-/// vacío). Puede variar entre los boletos de una misma foto. No tiene
-/// relación con las loterías de los números ganadores ni entra en la
-/// reconciliación.
+/// Identificador de la lotería de este comprobante, de la lista cerrada
+/// (`lib/core/lotteries/lotteries.dart`); se guarda el identificador, no
+/// el nombre. Obligatoria al guardar (`validateImageReviewForm`, los dos
+/// roles). Sigue siendo `String?` porque un registro viejo trae texto
+/// libre o null: esos no coinciden con ningún ganador. Puede variar entre
+/// los boletos de una misma foto; no entra en la reconciliación.
 @override final  String? loteria;
 
 /// Create a copy of Comprobante

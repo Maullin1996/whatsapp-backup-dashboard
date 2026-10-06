@@ -18,7 +18,7 @@ mixin _$ImageReviewForm {
 /// Obligatorio al guardar (`validateImageReviewForm`); null solo en
 /// registros guardados antes de este campo, que no se pueden subir
 /// hasta volver a guardarlos.
- String? get codigo; List<Comprobante> get comprobantes;/// Opcional, igual que `Comprobante.loteria`.
+ String? get codigo; List<Comprobante> get comprobantes;/// Opcional.
  String? get anotaciones;
 /// Create a copy of ImageReviewForm
 /// with the given fields replaced by the non-null parameter values.
@@ -228,7 +228,7 @@ class _ImageReviewForm implements ImageReviewForm {
   return EqualUnmodifiableListView(_comprobantes);
 }
 
-/// Opcional, igual que `Comprobante.loteria`.
+/// Opcional.
 @override final  String? anotaciones;
 
 /// Create a copy of ImageReviewForm

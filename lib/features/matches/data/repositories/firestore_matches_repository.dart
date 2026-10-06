@@ -17,7 +17,7 @@ import 'package:whatsapp_monitor_viewer/features/summary/data/datasources/group_
 /// mensaje de cada coincidencia y el nombre de su grupo. Nombre PROVISIONAL.
 ///
 /// Los ganadores de una fecha se comparan contra TODOS los números del
-/// Revisor de esa fecha (`findMatches`, solo el número); la jornada solo
+/// Revisor de esa fecha (`findMatches`, por lotería y número); la jornada solo
 /// agrupa lo que se muestra. Sin caché ni reintentos.
 class FirestoreMatchesRepository implements MatchesRepository {
   final WinningNumbersDatasource _winners;
@@ -90,14 +90,16 @@ class FirestoreMatchesRepository implements MatchesRepository {
     final records = recordsResult.fold((_) => null, (list) => list);
     if (records == null) return Left(_failureOf(recordsResult));
 
-    // Un MatchEntry provisional por registro y número, con el contexto vacío;
+    // Un MatchEntry provisional por registro y número (con la lotería de su
+    // comprobante), con el contexto vacío;
     // la jornada de cada uno se recuerda aparte (la entidad lleva la etiqueta).
     final shiftOf = <MatchEntry, Shift>{};
     final provisional = <MatchEntry>[];
     for (final r in records) {
-      for (final numero in r.numeros) {
+      for (final recorded in r.numeros) {
         final entry = MatchEntry(
-          numero: numero,
+          numero: recorded.numero,
+          loteria: recorded.loteria,
           messageId: r.messageId,
           chatJid: r.chatJid,
           groupName: '',

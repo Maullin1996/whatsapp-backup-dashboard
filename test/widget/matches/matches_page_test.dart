@@ -8,6 +8,7 @@ import 'package:whatsapp_monitor_viewer/core/errors/failure.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/domain/entities/day_matches.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/domain/entities/jornada_matches.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/domain/entities/match_entry.dart';
+import 'package:whatsapp_monitor_viewer/features/matches/domain/entities/winning_entry.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/domain/repositories/matches_repository.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/presentation/pages/matches_page.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/presentation/providers/matches_providers.dart';
@@ -83,10 +84,13 @@ DayMatches _conGanadores(String fecha) => DayMatches(
   jornadas: [
     JornadaMatches(
       shift: 'Jornada Mañana (06:00 – 10:54)',
-      winningNumbers: const ['4521'],
+      winningNumbers: const [
+        WinningEntry(loteria: 'dorado_manana', numero: '4521'),
+      ],
       matches: [
         MatchEntry(
           numero: '4521',
+          loteria: 'dorado_manana',
           messageId: 'm1',
           chatJid: 'demo-grupo-norte@g.us',
           groupName: 'Grupo Norte (demo)',
@@ -102,7 +106,7 @@ DayMatches _conGanadores(String fecha) => DayMatches(
     // página (distinto de "sin ningún número ganador").
     const JornadaMatches(
       shift: 'Jornada Tarde 1 (10:55 – 13:58)',
-      winningNumbers: ['9999'],
+      winningNumbers: [WinningEntry(loteria: 'medellin', numero: '9999')],
       matches: [],
     ),
   ],

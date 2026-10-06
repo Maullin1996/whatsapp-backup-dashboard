@@ -55,14 +55,15 @@ extension ImageReviewFailurePatterns on ImageReviewFailure {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( _SinComprobantes value)?  sinComprobantes,TResult Function( _CodigoVacio value)?  codigoVacio,TResult Function( _ComprobanteSinNumeros value)?  comprobanteSinNumeros,TResult Function( _TotalInvalido value)?  totalInvalido,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( _SinComprobantes value)?  sinComprobantes,TResult Function( _CodigoVacio value)?  codigoVacio,TResult Function( _ComprobanteSinNumeros value)?  comprobanteSinNumeros,TResult Function( _TotalInvalido value)?  totalInvalido,TResult Function( _LoteriaInvalida value)?  loteriaInvalida,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case _SinComprobantes() when sinComprobantes != null:
 return sinComprobantes(_that);case _CodigoVacio() when codigoVacio != null:
 return codigoVacio(_that);case _ComprobanteSinNumeros() when comprobanteSinNumeros != null:
 return comprobanteSinNumeros(_that);case _TotalInvalido() when totalInvalido != null:
-return totalInvalido(_that);case _:
+return totalInvalido(_that);case _LoteriaInvalida() when loteriaInvalida != null:
+return loteriaInvalida(_that);case _:
   return orElse();
 
 }
@@ -80,14 +81,15 @@ return totalInvalido(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( _SinComprobantes value)  sinComprobantes,required TResult Function( _CodigoVacio value)  codigoVacio,required TResult Function( _ComprobanteSinNumeros value)  comprobanteSinNumeros,required TResult Function( _TotalInvalido value)  totalInvalido,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( _SinComprobantes value)  sinComprobantes,required TResult Function( _CodigoVacio value)  codigoVacio,required TResult Function( _ComprobanteSinNumeros value)  comprobanteSinNumeros,required TResult Function( _TotalInvalido value)  totalInvalido,required TResult Function( _LoteriaInvalida value)  loteriaInvalida,}){
 final _that = this;
 switch (_that) {
 case _SinComprobantes():
 return sinComprobantes(_that);case _CodigoVacio():
 return codigoVacio(_that);case _ComprobanteSinNumeros():
 return comprobanteSinNumeros(_that);case _TotalInvalido():
-return totalInvalido(_that);case _:
+return totalInvalido(_that);case _LoteriaInvalida():
+return loteriaInvalida(_that);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -104,14 +106,15 @@ return totalInvalido(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( _SinComprobantes value)?  sinComprobantes,TResult? Function( _CodigoVacio value)?  codigoVacio,TResult? Function( _ComprobanteSinNumeros value)?  comprobanteSinNumeros,TResult? Function( _TotalInvalido value)?  totalInvalido,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( _SinComprobantes value)?  sinComprobantes,TResult? Function( _CodigoVacio value)?  codigoVacio,TResult? Function( _ComprobanteSinNumeros value)?  comprobanteSinNumeros,TResult? Function( _TotalInvalido value)?  totalInvalido,TResult? Function( _LoteriaInvalida value)?  loteriaInvalida,}){
 final _that = this;
 switch (_that) {
 case _SinComprobantes() when sinComprobantes != null:
 return sinComprobantes(_that);case _CodigoVacio() when codigoVacio != null:
 return codigoVacio(_that);case _ComprobanteSinNumeros() when comprobanteSinNumeros != null:
 return comprobanteSinNumeros(_that);case _TotalInvalido() when totalInvalido != null:
-return totalInvalido(_that);case _:
+return totalInvalido(_that);case _LoteriaInvalida() when loteriaInvalida != null:
+return loteriaInvalida(_that);case _:
   return null;
 
 }
@@ -128,13 +131,14 @@ return totalInvalido(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  sinComprobantes,TResult Function()?  codigoVacio,TResult Function( int indice)?  comprobanteSinNumeros,TResult Function( int indice)?  totalInvalido,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  sinComprobantes,TResult Function()?  codigoVacio,TResult Function( int indice)?  comprobanteSinNumeros,TResult Function( int indice)?  totalInvalido,TResult Function( int indice)?  loteriaInvalida,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _SinComprobantes() when sinComprobantes != null:
 return sinComprobantes();case _CodigoVacio() when codigoVacio != null:
 return codigoVacio();case _ComprobanteSinNumeros() when comprobanteSinNumeros != null:
 return comprobanteSinNumeros(_that.indice);case _TotalInvalido() when totalInvalido != null:
-return totalInvalido(_that.indice);case _:
+return totalInvalido(_that.indice);case _LoteriaInvalida() when loteriaInvalida != null:
+return loteriaInvalida(_that.indice);case _:
   return orElse();
 
 }
@@ -152,13 +156,14 @@ return totalInvalido(_that.indice);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  sinComprobantes,required TResult Function()  codigoVacio,required TResult Function( int indice)  comprobanteSinNumeros,required TResult Function( int indice)  totalInvalido,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  sinComprobantes,required TResult Function()  codigoVacio,required TResult Function( int indice)  comprobanteSinNumeros,required TResult Function( int indice)  totalInvalido,required TResult Function( int indice)  loteriaInvalida,}) {final _that = this;
 switch (_that) {
 case _SinComprobantes():
 return sinComprobantes();case _CodigoVacio():
 return codigoVacio();case _ComprobanteSinNumeros():
 return comprobanteSinNumeros(_that.indice);case _TotalInvalido():
-return totalInvalido(_that.indice);case _:
+return totalInvalido(_that.indice);case _LoteriaInvalida():
+return loteriaInvalida(_that.indice);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -175,13 +180,14 @@ return totalInvalido(_that.indice);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  sinComprobantes,TResult? Function()?  codigoVacio,TResult? Function( int indice)?  comprobanteSinNumeros,TResult? Function( int indice)?  totalInvalido,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  sinComprobantes,TResult? Function()?  codigoVacio,TResult? Function( int indice)?  comprobanteSinNumeros,TResult? Function( int indice)?  totalInvalido,TResult? Function( int indice)?  loteriaInvalida,}) {final _that = this;
 switch (_that) {
 case _SinComprobantes() when sinComprobantes != null:
 return sinComprobantes();case _CodigoVacio() when codigoVacio != null:
 return codigoVacio();case _ComprobanteSinNumeros() when comprobanteSinNumeros != null:
 return comprobanteSinNumeros(_that.indice);case _TotalInvalido() when totalInvalido != null:
-return totalInvalido(_that.indice);case _:
+return totalInvalido(_that.indice);case _LoteriaInvalida() when loteriaInvalida != null:
+return loteriaInvalida(_that.indice);case _:
   return null;
 
 }
@@ -377,6 +383,72 @@ class __$TotalInvalidoCopyWithImpl<$Res>
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') $Res call({Object? indice = null,}) {
   return _then(_TotalInvalido(
+null == indice ? _self.indice : indice // ignore: cast_nullable_to_non_nullable
+as int,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class _LoteriaInvalida implements ImageReviewFailure {
+  const _LoteriaInvalida(this.indice);
+  
+
+ final  int indice;
+
+/// Create a copy of ImageReviewFailure
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$LoteriaInvalidaCopyWith<_LoteriaInvalida> get copyWith => __$LoteriaInvalidaCopyWithImpl<_LoteriaInvalida>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _LoteriaInvalida&&(identical(other.indice, indice) || other.indice == indice));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,indice);
+
+@override
+String toString() {
+  return 'ImageReviewFailure.loteriaInvalida(indice: $indice)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$LoteriaInvalidaCopyWith<$Res> implements $ImageReviewFailureCopyWith<$Res> {
+  factory _$LoteriaInvalidaCopyWith(_LoteriaInvalida value, $Res Function(_LoteriaInvalida) _then) = __$LoteriaInvalidaCopyWithImpl;
+@useResult
+$Res call({
+ int indice
+});
+
+
+
+
+}
+/// @nodoc
+class __$LoteriaInvalidaCopyWithImpl<$Res>
+    implements _$LoteriaInvalidaCopyWith<$Res> {
+  __$LoteriaInvalidaCopyWithImpl(this._self, this._then);
+
+  final _LoteriaInvalida _self;
+  final $Res Function(_LoteriaInvalida) _then;
+
+/// Create a copy of ImageReviewFailure
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? indice = null,}) {
+  return _then(_LoteriaInvalida(
 null == indice ? _self.indice : indice // ignore: cast_nullable_to_non_nullable
 as int,
   ));

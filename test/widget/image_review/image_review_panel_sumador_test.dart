@@ -11,6 +11,8 @@ import 'package:whatsapp_monitor_viewer/features/image_review/presentation/provi
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/widgets/image_review_panel.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/widgets/review_status_chip.dart';
 
+import 'pick_loteria.dart';
+
 const _target = ImageReviewTarget(
   messageId: 'm1',
   chatJid: 'chat@g.us',
@@ -101,6 +103,9 @@ Future<void> _fill(
   await tester.enterText(_key('codigo'), codigo);
   await tester.enterText(_key('total-0'), total);
   await tester.pump();
+  // Ajuste (lotería obligatoria de lista cerrada): el helper elige una
+  // lotería; antes la lotería era opcional y no se llenaba.
+  await pickLoteria(tester, 0, 'Dorado tarde');
 }
 
 Future<void> _tapButton(WidgetTester tester, String label) async {
@@ -309,6 +314,7 @@ void main() {
       await tester.pump();
       await tester.enterText(_key('total-0'), '9000');
       await tester.pump();
+      await pickLoteria(tester, 0, 'Dorado tarde');
       await _tapButton(tester, 'Guardar');
       expect(_status(tester), ReviewStatus.saved);
       expect(find.text('REV'), findsOneWidget);

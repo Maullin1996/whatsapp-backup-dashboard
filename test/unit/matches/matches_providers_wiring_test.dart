@@ -10,6 +10,7 @@ import 'package:whatsapp_monitor_viewer/features/matches/data/datasources/messag
 import 'package:whatsapp_monitor_viewer/features/matches/data/datasources/revisor_records_datasource.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/data/datasources/winning_numbers_datasource.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/data/repositories/firestore_matches_repository.dart';
+import 'package:whatsapp_monitor_viewer/features/matches/domain/entities/winning_entry.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/presentation/providers/matches_providers.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/presentation/providers/real_matches_providers.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/data/datasources/group_name_datasource.dart';
@@ -17,8 +18,12 @@ import 'package:whatsapp_monitor_viewer/features/summary/presentation/providers/
 
 class _FakeWinners implements WinningNumbersDatasource {
   @override
-  Future<Either<Failure, List<String>>> fetchByFecha(String fecha) async =>
-      const Right(['4521']);
+  Future<Either<Failure, List<WinningEntry>>> fetchByFecha(
+    String fecha,
+  ) async => const Right([
+    // Ajuste: los ganadores son pares (lotería, número).
+    WinningEntry(loteria: 'dorado_tarde', numero: '4521'),
+  ]);
 }
 
 class _FakeRecords implements RevisorRecordsDatasource {
@@ -37,7 +42,9 @@ class _FakeRecords implements RevisorRecordsDatasource {
         messageId: 'm1',
         storagePath: 'img/m1.jpg',
         fechaJornada: fechaJornada,
-        numeros: const ['4521'],
+        numeros: const [
+          RecordedNumber(numero: '4521', loteria: 'dorado_tarde'),
+        ],
       ),
     ]);
   }

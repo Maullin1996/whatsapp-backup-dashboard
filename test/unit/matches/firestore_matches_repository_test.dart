@@ -8,6 +8,7 @@ import 'package:whatsapp_monitor_viewer/features/matches/data/datasources/winnin
 import 'package:whatsapp_monitor_viewer/features/matches/data/repositories/firestore_matches_repository.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/domain/entities/day_matches.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/domain/entities/match_entry.dart';
+import 'package:whatsapp_monitor_viewer/features/matches/domain/entities/winning_entry.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/data/datasources/group_name_datasource.dart';
 
 const _fecha = '2026-10-05'; // lunes
@@ -18,30 +19,48 @@ const _g2 = 'g2@g.us';
 
 String _label(Shift s) => shiftNames[s] ?? legacyShiftNames[s]!;
 
+// Ajuste (comparación por lotería): los ganadores pasaron a pares y cada
+// número del registro lleva la lotería de su comprobante. Los casos que ya
+// existían usan una sola lotería por defecto (`_lot`) en ganadores y
+// registros: lo que prueban (jornadas, orden, errores...) no cambia.
+const _lot = 'dorado_tarde';
+
 RevisorRecord _rec(
   String messageId,
   List<String> numeros, {
   String chatJid = _g1,
   Shift shift = Shift.morning,
+  String? loteria = _lot,
 }) => RevisorRecord(
   chatJid: chatJid,
   shift: shift,
   messageId: messageId,
   storagePath: 'img/$messageId.jpg',
   fechaJornada: _fecha,
-  numeros: numeros,
+  numeros: [
+    for (final n in numeros) RecordedNumber(numero: n, loteria: loteria),
+  ],
 );
 
 class _FakeWinners implements WinningNumbersDatasource {
+  /// Ganadores de la lotería por defecto (`_lot`).
   List<String> numbers = [];
+
+  /// Ganadores de otras loterías, ya como pares.
+  List<WinningEntry> extra = [];
   Failure? failure;
   final List<String> requested = [];
 
   @override
-  Future<Either<Failure, List<String>>> fetchByFecha(String fecha) async {
+  Future<Either<Failure, List<WinningEntry>>> fetchByFecha(String fecha) async {
     requested.add(fecha);
     final failure = this.failure;
-    return failure != null ? Left(failure) : Right(numbers);
+    return failure != null
+        ? Left(failure)
+        : Right([
+            for (final n in numbers) WinningEntry(loteria: _lot, numero: n),
+            ...extra,
+          ]);
   }
 }
 
@@ -149,6 +168,7 @@ void main() {
     expect(morning.matches, [
       MatchEntry(
         numero: '4521',
+        loteria: _lot,
         messageId: 'm1',
         chatJid: _g1,
         groupName: 'Grupo Uno',
@@ -212,7 +232,10 @@ void main() {
     final d = await day();
 
     for (final j in d.jornadas) {
-      expect(j.winningNumbers, ['4521', '9999'], reason: j.shift);
+      expect(j.winningNumbers.map((w) => w.numero), [
+        '4521',
+        '9999',
+      ], reason: j.shift);
     }
     final night1 = d.jornadas.firstWhere(
       (j) => j.shift == _label(Shift.night1),
@@ -386,6 +409,79 @@ void main() {
     expect(await failure(), malformed);
   });
 
+  group('lotería de cada número', () {
+    RevisorRecord mixed() => RevisorRecord(
+      chatJid: _g1,
+      shift: Shift.morning,
+      messageId: 'm1',
+      storagePath: 'img/m1.jpg',
+      fechaJornada: _fecha,
+      // Tres comprobantes de la misma imagen con loterías distintas, uno sin
+      // lotería (registro viejo) y uno con texto libre fuera de la lista.
+      numeros: const [
+        RecordedNumber(numero: '1288', loteria: 'dorado_tarde'),
+        RecordedNumber(numero: '1288', loteria: 'medellin'),
+        RecordedNumber(numero: '1288', loteria: null),
+        RecordedNumber(numero: '1288', loteria: 'Baloto'),
+      ],
+    );
+
+    test('cada número hereda la lotería de su comprobante y solo coincide con '
+        'un ganador de esa lotería', () async {
+      winners.extra = const [WinningEntry(loteria: 'medellin', numero: '1288')];
+      records.records = [mixed()];
+
+      final d = await day();
+
+      final morning = d.jornadas.firstWhere(
+        (j) => j.shift == _label(Shift.morning),
+      );
+      expect(morning.matches.map((m) => (m.loteria, m.numero)), [
+        ('medellin', '1288'),
+      ]);
+    });
+
+    test('con ganadores de dos loterías salen las dos, cada una con la suya; '
+        'sin lotería o con texto libre no sale ninguna', () async {
+      winners.extra = const [
+        WinningEntry(loteria: 'dorado_tarde', numero: '1288'),
+        WinningEntry(loteria: 'medellin', numero: '1288'),
+        WinningEntry(loteria: 'Baloto', numero: '1288'),
+        WinningEntry(loteria: '', numero: '1288'),
+      ];
+      records.records = [mixed()];
+
+      final d = await day();
+
+      final morning = d.jornadas.firstWhere(
+        (j) => j.shift == _label(Shift.morning),
+      );
+      expect(morning.matches.map((m) => m.loteria), [
+        'dorado_tarde',
+        'medellin',
+      ]);
+    });
+
+    test(
+      'un ganador de otra lotería no coincide aunque el número sea igual',
+      () async {
+        winners.extra = const [WinningEntry(loteria: 'valle', numero: '4521')];
+        records.records = [
+          _rec('m1', ['4521']),
+        ];
+
+        final d = await day();
+
+        expect(d.tieneGanador, isFalse);
+        expect(
+          d.jornadas.every((j) => j.winningNumbers.length == 1),
+          isTrue,
+          reason: 'el ganador se sigue mostrando en cada jornada',
+        );
+      },
+    );
+  });
+
   test('dos jornadas del mismo grupo y fecha quedan separadas', () async {
     winners.numbers = ['4521'];
     records.records = [
@@ -446,6 +542,6 @@ void main() {
 
 class _ThrowingWinners implements WinningNumbersDatasource {
   @override
-  Future<Either<Failure, List<String>>> fetchByFecha(String fecha) =>
+  Future<Either<Failure, List<WinningEntry>>> fetchByFecha(String fecha) =>
       throw StateError('se cayó');
 }

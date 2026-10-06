@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:whatsapp_monitor_viewer/core/lotteries/lotteries.dart';
 import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/helpers/thousands_input_formatter.dart';
@@ -11,9 +12,9 @@ import 'package:whatsapp_monitor_viewer/features/image_review/presentation/widge
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/widgets/review_section_card.dart';
 
 /// Tarjeta editable de un comprobante, en una columna: números, total y
-/// lotería (opcional). El Sumador no anota números: su tarjeta solo tiene
-/// total y lotería. El código no va aquí: es uno por imagen, arriba de las
-/// tarjetas.
+/// lotería (obligatoria, de una lista cerrada). El Sumador no anota números:
+/// su tarjeta solo tiene total y lotería. El código no va aquí: es uno por
+/// imagen, arriba de las tarjetas.
 class ComprobanteCard extends ConsumerStatefulWidget {
   /// Imagen y rol del borrador al que pertenece.
   final ReviewKey reviewKey;
@@ -46,7 +47,6 @@ class ComprobanteCard extends ConsumerStatefulWidget {
 class _ComprobanteCardState extends ConsumerState<ComprobanteCard> {
   late final TextEditingController _total;
   late final TextEditingController _numero;
-  late final TextEditingController _loteria;
   final FocusNode _totalFocus = FocusNode();
   // Sin atajo de teclado: un número registrado solo se quita con la "x" de su
   // chip (mantener Retroceso apretado llegó a borrarlos todos).
@@ -60,7 +60,6 @@ class _ComprobanteCardState extends ConsumerState<ComprobanteCard> {
     super.initState();
     _total = TextEditingController(text: formatThousands(widget.draft.total));
     _numero = TextEditingController(text: widget.draft.numeroPendiente);
-    _loteria = TextEditingController(text: widget.draft.loteria);
     if (widget.focusOnCreate) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
@@ -84,7 +83,6 @@ class _ComprobanteCardState extends ConsumerState<ComprobanteCard> {
   void dispose() {
     _total.dispose();
     _numero.dispose();
-    _loteria.dispose();
     _totalFocus.dispose();
     _numeroFocus.dispose();
     super.dispose();
@@ -105,6 +103,13 @@ class _ComprobanteCardState extends ConsumerState<ComprobanteCard> {
     if (widget.draft.totalValue <= 0) return ReviewFieldHints.totalPositive;
     return null;
   }
+
+  /// El borrador guarda el identificador; uno que no está en la lista (texto
+  /// libre de un registro viejo) cuenta como sin elegir.
+  String? get _loteriaError =>
+      widget.showErrors && !isKnownLoteria(widget.draft.loteria)
+      ? ReviewFieldHints.loteriaRequired
+      : null;
 
   static bool _isBlank(String value) => value.trim().isEmpty;
 
@@ -228,12 +233,25 @@ class _ComprobanteCardState extends ConsumerState<ComprobanteCard> {
             onChanged: (value) => _notifier.setTotal(id, onlyDigits(value)),
           ),
           const SizedBox(height: AppSpacing.md),
-          TextField(
+          // Lista cerrada: se guarda el identificador, se muestra el nombre. Un
+          // valor que no está en la lista (registro viejo) arranca sin
+          // selección.
+          DropdownMenu<String>(
             key: ValueKey('loteria-$id'),
-            controller: _loteria,
-            textInputAction: TextInputAction.next,
-            decoration: const InputDecoration(labelText: 'Lotería (opcional)'),
-            onChanged: (value) => _notifier.setLoteria(id, value),
+            expandedInsets: EdgeInsets.zero,
+            label: const Text('Lotería'),
+            initialSelection: isKnownLoteria(widget.draft.loteria)
+                ? widget.draft.loteria
+                : null,
+            enableFilter: true,
+            requestFocusOnTap: true,
+            menuHeight: 320,
+            errorText: _loteriaError,
+            dropdownMenuEntries: [
+              for (final lottery in lotteries)
+                DropdownMenuEntry(value: lottery.id, label: lottery.name),
+            ],
+            onSelected: (value) => _notifier.setLoteria(id, value ?? ''),
           ),
         ],
       ),

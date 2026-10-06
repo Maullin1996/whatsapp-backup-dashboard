@@ -15,10 +15,12 @@ abstract class Comprobante with _$Comprobante {
     /// Pesos, sin decimales.
     required int total,
 
-    /// Dónde se compró el boleto: texto libre, opcional (null si quedó
-    /// vacío). Puede variar entre los boletos de una misma foto. No tiene
-    /// relación con las loterías de los números ganadores ni entra en la
-    /// reconciliación.
+    /// Identificador de la lotería de este comprobante, de la lista cerrada
+    /// (`lib/core/lotteries/lotteries.dart`); se guarda el identificador, no
+    /// el nombre. Obligatoria al guardar (`validateImageReviewForm`, los dos
+    /// roles). Sigue siendo `String?` porque un registro viejo trae texto
+    /// libre o null: esos no coinciden con ningún ganador. Puede variar entre
+    /// los boletos de una misma foto; no entra en la reconciliación.
     String? loteria,
   }) = _Comprobante;
 }

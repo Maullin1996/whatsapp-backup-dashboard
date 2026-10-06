@@ -70,7 +70,7 @@ RevisorRecord parseRevisorRecord(RawDocument doc) {
   }
 
   final comprobantes = requireField<List<dynamic>>(doc, 'comprobantes', what);
-  final numeros = <String>[];
+  final numeros = <RecordedNumber>[];
   for (final c in comprobantes) {
     final lista = c is Map ? c['numeros'] : null;
     if (lista is! List || lista.any((n) => n is! String)) {
@@ -79,7 +79,17 @@ RevisorRecord parseRevisorRecord(RawDocument doc) {
         'texto.',
       );
     }
-    numeros.addAll(lista.cast<String>());
+    // La lotería del comprobante: texto, o null si falta (registro viejo).
+    final loteria = (c as Map)['loteria'];
+    if (loteria != null && loteria is! String) {
+      throw UnexpectedDocumentFormat(
+        '$what ${doc.id} tiene un comprobante con una "loteria" que no es '
+        'texto.',
+      );
+    }
+    for (final numero in lista.cast<String>()) {
+      numeros.add(RecordedNumber(numero: numero, loteria: loteria as String?));
+    }
   }
 
   return RevisorRecord(

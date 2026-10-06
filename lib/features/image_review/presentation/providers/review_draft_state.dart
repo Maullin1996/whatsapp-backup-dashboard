@@ -21,7 +21,7 @@ abstract class ComprobanteDraft with _$ComprobanteDraft {
     /// Solo dígitos (el input aplica `digitsOnly`).
     @Default('') String total,
 
-    /// Lotería (dónde se compró el boleto), opcional. Arranca vacía.
+    /// Identificador de la lotería elegida (lista cerrada). Arranca vacía.
     @Default('') String loteria,
   }) = _ComprobanteDraft;
 

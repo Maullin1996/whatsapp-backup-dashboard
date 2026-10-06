@@ -1,6 +1,7 @@
 import 'package:extended_image/extended_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:whatsapp_monitor_viewer/core/lotteries/lotteries.dart';
 import 'package:whatsapp_monitor_viewer/core/responsive/responsive_layout.dart';
 import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
 import 'package:whatsapp_monitor_viewer/core/time/jornada_labels.dart';
@@ -94,6 +95,11 @@ class _DialogShell extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: AppSpacing.sm),
+                if (match.loteria case final loteria? when loteria.isNotEmpty)
+                  _DetailRow(
+                    label: 'Lotería',
+                    value: loteriaDisplayName(loteria),
+                  ),
                 _DetailRow(label: 'Número', value: match.numero, tabular: true),
                 _DetailRow(label: 'Enviado por', value: match.senderName),
                 _DetailRow(
