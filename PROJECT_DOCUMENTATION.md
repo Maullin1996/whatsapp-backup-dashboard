@@ -150,6 +150,55 @@ Se invocan desde Flutter con `FirebaseFunctions.instance.httpsCallable(name)`.
 - **Deploy — HECHO (verificado por el usuario el 2026-10-03)**: secreto `WHATS_APUESTAS_KEY` creado en `whatsapp-pro-3d483` (versión 1). Deploy con `firebase deploy --only functions:syncWinningNumbers` (solo esa función, sin `--force`) hacia las 00:39 de Bogotá: `syncWinningNumbers` v2 programada, `us-central1`, 256 MB, `nodejs24`; el CLI habilitó Cloud Scheduler y dio acceso al secreto a la cuenta de servicio de Compute por defecto. Los 10 callables no se redesplegaron (`functions:list` los muestra intactos) y `setReviewAssignment` ya no está en producción. Primera corrida (forzada desde Cloud Scheduler a las 00:44): `escrita` para 2026-10-03 y 2026-10-02, sin errores; la llave lee el ERP y la función escribe `winning_numbers` con el formato esperado (lista de textos, ceros a la izquierda, "606" incluido, orden de texto); la entrada manual vacía del 2026-10-02 se descartó con `sin-loteria` y no se publicó. El cron corre solo (02:44, 03:44 y 04:44 de Bogotá, `sin-cambios` en las dos fechas): queda **CONFIRMADO** que Cloud Scheduler acepta `"every 60 minutes"`. El aviso `[GANADORES] descartado ... sin-loteria` se repite en cada corrida mientras exista esa entrada manual vacía (esperado, no afecta nada).
 - **Decidido por el usuario — plazo de los resultados**: los resultados del día D valen hasta las 5:30 a.m. (Bogotá) del día D+1; desde esa hora cuentan para el día nuevo. La función no cambia (procesa hoy y ayer en cada corrida) y no se agrega ninguna regla de horas.
 - **Observado (HECHO, sin explicar la causa)**, lecturas únicas de solo lectura de `whats-apuestas` del 2026-10-03: en una lectura de ese día, 258 de 259 documentos de `resultados_loterias` tienen su última actualización a las 13:30 de Bogotá, y cada documento se crea a las 20:30 del día anterior. `resultados_loterias/2026-10-03` tuvo 20 entradas a las 20:30, 32 a las 06:30 y 9 a las 13:30: la actualización de las 13:30 reemplaza el contenido (corrige la nota anterior de 20 entradas); `resultados_loterias/2026-10-02` quedó con `updatedAt` a las 13:30 y 9 entradas; `manual_lotteries/2026-10-03` no existía en la primera lectura. Por eso, antes de las 13:30, `winning_numbers/2026-10-03` contenía resultados de otra jornada, y `winning_numbers/2026-10-02` tiene solo los 9 de las 13:30. "Play four día" figuraba como 5362 en una lectura anterior y como 9252 después, sin explicación (según el usuario la API "a veces se equivoca"; no verificado). **SUPOSICIÓN** (nadie la verificó): que quien escribe `resultados_loterias` arma el id con la fecha en UTC.
+- **Pieza b3 — cada ganador con su lotería (HECHA el 2026-10-05, NO desplegada)**: **decidido por el usuario**: cada número registrado llevará su lotería y un ganador solo coincidirá con un número de la misma lotería (con la regla de 2, 3 y 4 cifras). La función puente escribe ahora `winning_numbers/{fecha}` con `numbers` (lista de textos, como siempre) **y** `entries` (lista de `{loteria, numero}`): `mergeWinningNumbers` devuelve `entries` (la lotería es la clave de `lotteryKey` con alias, sin duplicados por pareja, ordenada por lotería y número) y `syncWinningNumbers` compara contra lo guardado incluyendo `entries`, así que los documentos de hoy y ayer se reescriben una vez al desplegar. Alias nuevos decididos por el usuario: `doradotarde` → `dorado_tarde`, `doradonoche` → `dorado_noche`, `pija0`/`pijao`/`pijo` → `pijao_de_oro` (más `doramaña` → `dorado_manana`, con 119 fechas de coincidencia por número; los demás sin prueba por número). Lista cerrada del selector (la define la app, en otra pieza), 43 identificadores con su nombre para mostrar:
+
+| # | Identificador | Nombre para mostrar |
+|---|---|---|
+| 1 | `medellin` | Medellín |
+| 2 | `santander` | Santander |
+| 3 | `risaralda` | Risaralda |
+| 4 | `dorado_manana` | Dorado mañana |
+| 5 | `dorado_tarde` | Dorado tarde |
+| 6 | `dorado_noche` | Dorado noche |
+| 7 | `culona` | Culona |
+| 8 | `culona_noche` | Culona noche |
+| 9 | `astro_sol` | Astro sol |
+| 10 | `astro_luna` | Astro luna |
+| 11 | `pijao_de_oro` | Pijao de oro |
+| 12 | `paisita_dia` | Paisita día |
+| 13 | `paisita_noche` | Paisita noche |
+| 14 | `chontico_dia` | Chontico día |
+| 15 | `chontico_noche` | Chontico noche |
+| 16 | `cafeterito_tarde` | Cafeterito tarde |
+| 17 | `cafeterito_noche` | Cafeterito noche |
+| 18 | `sinuano_dia` | Sinuano día |
+| 19 | `sinuano_noche` | Sinuano noche |
+| 20 | `cash_three_dia` | Cash three día |
+| 21 | `cash_three_noche` | Cash three noche |
+| 22 | `play_four_dia` | Play four día |
+| 23 | `play_four_noche` | Play four noche |
+| 24 | `saman_dia` | Saman día |
+| 25 | `caribena_dia` | Caribeña día |
+| 26 | `caribena_noche` | Caribeña noche |
+| 27 | `motilon_tarde` | Motilón tarde |
+| 28 | `motilon_noche` | Motilón noche |
+| 29 | `fantastica_dia` | Fantástica día |
+| 30 | `fantastica_noche` | Fantástica noche |
+| 31 | `antioquenita_dia` | Antioqueñita día |
+| 32 | `antioquenita_tarde` | Antioqueñita tarde |
+| 33 | `meta` | Meta |
+| 34 | `valle` | Valle |
+| 35 | `manizales` | Manizales |
+| 36 | `bogota` | Bogotá |
+| 37 | `huila` | Huila |
+| 38 | `cruz_roja` | Cruz Roja |
+| 39 | `cundinamarca` | Cundinamarca |
+| 40 | `cauca` | Cauca |
+| 41 | `tolima` | Tolima |
+| 42 | `boyaca` | Boyacá |
+| 43 | `quindio` | Quindío |
+
+  Forma elegida para el cambio más chico (no decisión del usuario): `numbers` se conserva y se suma `entries`. Solo `functions/` y sus tests (152 en total). **Pendientes (no decididos)**: la app (selector obligatorio, `findMatches` por lotería, lectura de `entries`), el despliegue de la función, qué hacen los boletos viejos de texto libre (no van a coincidir con nada) y qué pasa con un ganador cuya lotería no está en la lista (no coincide). Detalle en `.claude/skills/image-review-firebase-integration.md` ("Pieza b3").
 - **Pendiente (no decidido)**: hasta las 13:30 de su fecha, el documento de la API trae datos de otra jornada, y por eso `winning_numbers` de ese día puede mostrar números que no son de ese día hasta esa hora (el usuario dijo que los ganadores se revisan al día siguiente); qué hacer con `discarded` (hoy solo se registra en el log). Detalle en `.claude/skills/image-review-firebase-integration.md` ("Función puente de ganadores (pieza b)").
 
 **Réplica de jornadas (horarios dinámicos, pieza 1) — HECHA en código y tests, NO desplegada**. **Decidido por el usuario (2026-10-03)**: el mismo disparador programado de `syncWinningNumbers`, después de los ganadores y con la misma conexión al ERP y el mismo secreto (sin otro export, secreto ni schedule), copia la colección `jornadas` de `whats-apuestas` a una colección `jornadas` de este proyecto (nombre **PROVISIONAL**, una sola constante): réplica exacta, mismos ids (`festivos`, `manana`, `tarde_1`, `tarde_2`, `noche`) y los 7 campos tal cual, sin convertir nada, sin historial ni fechas de vigencia. Por documento: escribe solo si es distinto o no existe, con `set` completo; antes valida solo que `startTime` y `endTime` sean texto `yyyy-MM-ddTHH:mm:ss.000` con hora y minuto válidos (un documento inválido se omite y se registra con su id y el motivo, sin tocar el guardado); cero documentos del ERP no escriben ni borran nada; nunca se borra nada. Un fallo en un documento no frena a los demás; ganadores y jornadas van en try/catch separados y ninguno lanza al otro. Resumen por documento: `escrito`, `sin-cambios`, `omitido-invalido` o `error` (log `[JORNADAS]`).

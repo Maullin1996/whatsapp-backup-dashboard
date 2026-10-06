@@ -49,8 +49,14 @@ cada vez. Antes de tocar código de este feature, lee esta skill completa.
   el ticket, no al ticket en sí** — por eso se repite entre imágenes.
   **Nunca se suman entre sí comprobantes por compartir código** — cada
   ticket es una unidad independiente.
-- **Lotería** (de un comprobante): el nombre de **dónde se compró el
-  boleto**. **Por comprobante**, porque puede variar entre los boletos de
+- **Lotería** (de un comprobante) — **CAMBIO DECIDIDO por el usuario
+  (2026-10-05, la app todavía no lo implementa)**: cada número registrado
+  llevará su lotería, elegida de una lista cerrada, y un ganador solo
+  coincidirá con un número de la misma lotería. Lo que sigue describe lo que
+  la app hace HOY (texto libre, opcional, sin relación con los ganadores);
+  los 43 identificadores y los pendientes están en
+  `image-review-firebase-integration` ("Pieza b3"). Hoy: el nombre de
+  **dónde se compró el boleto**. **Por comprobante**, porque puede variar entre los boletos de
   una misma foto. Texto libre, con `trim`; vacía o solo espacios = `null`;
   **OPCIONAL**. **No tiene relación con las loterías de los números
   ganadores**: no entra en la comparación con los ganadores ni en la

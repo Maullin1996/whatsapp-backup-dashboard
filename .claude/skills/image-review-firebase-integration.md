@@ -145,7 +145,8 @@ refactor grande — coherente con la Clean Architecture del proyecto.
   independiente, nunca acumulada con otras fechas.
 - **Formato de la lista de ganadores — PROVISIONAL**: un documento por
   fecha, `winning_numbers/{yyyy-MM-dd}` con el campo `numbers` (lista de
-  texto), definido en una sola constante (`winningNumbersSource`). Es la
+  texto; la función puente suma `entries` desde la pieza b3, aún sin
+  desplegar y sin que la app lo lea), definido en una sola constante (`winningNumbersSource`). Es la
   lista del DÍA: todas las jornadas de esa fecha muestran la misma.
   (`MockMatchesRepository`, ya borrado, los organizaba por fecha y
   jornada; era una decisión del mock.)
@@ -216,7 +217,9 @@ escribe nada, no usa Firebase y no está exportada en `index.js`.
   (`doramaña`→`antioqueñita_día`, `doradotarde`→`paisita_día`,
   `antioquenita_dia`→`dorado_mañana`, `antioqueña_dia`→`dorado_mañana`)
   porque se apoyan en una sola fecha cada uno. `doradotarde` y
-  `dorado_tarde` NO se emparejan.
+  `dorado_tarde` NO se emparejaban; **superado en la pieza b3**: el usuario
+  confirmó los alias `doradotarde` → `dorado_tarde`, `doradonoche` →
+  `dorado_noche`, `pija0`/`pijao`/`pijo` → `pijao_de_oro` (ver "Pieza b3").
 - Por cada clave presente en la manual cuentan TODAS sus entradas
   manuales y se ignoran las automáticas de esa clave. Una automática
   reemplazada no se evalúa (no aparece en `discarded`).
@@ -291,7 +294,8 @@ falsos; desplegado después, el 2026-10-03, ver "Pieza b2 — DESPLEGADA"):
       igual → `sin-cambios`; distinto o documento ausente → escribe
       (`escrita`).
   - **Escritura**: `set({ numbers })` sin merge, es decir el documento
-    queda con **solo** el campo `numbers` (lista de textos), lo único que
+    queda con **solo** el campo `numbers` (lista de textos; desde la pieza b3
+    también `entries`, ver abajo), lo único que
     lee Flutter. **SUPOSICIÓN**: que el documento no necesite otros campos
     (fecha de actualización, fuente, `discarded`).
   - **Errores por fecha**: si falla cualquier lectura (o la escritura) de
@@ -397,6 +401,125 @@ lectura de `whats-apuestas` del 2026-10-03:
   `[COINCIDENCIAS] falló (firestore): ...`).
 - Caché de Coincidencias y costo en lecturas.
 - Probar "Ver imagen" con una imagen real.
+
+### Pieza b3 — cada ganador con su lotería (`entries`) — HECHA (2026-10-05, NO desplegada)
+
+**DECIDIDO por el usuario**: cada número registrado lleva su lotería y un
+ganador solo coincide con un número de la MISMA lotería (con la regla ya
+implementada de 2, 3 y 4 cifras). La lista cerrada del selector (la define la
+app, en otra pieza) usa como identificadores la clave normalizada de
+`lotteryKey` (la tabla de abajo). Los alias, también **decididos por el
+usuario**, van de la variante de la colección manual al identificador final
+(sin encadenar): `doramaña` → `dorado_manana` (ya existía, 119 fechas de
+coincidencia por número en una lectura de solo lectura de `whats-apuestas`
+del 2026-10-05), `doradotarde` → `dorado_tarde`, `doradonoche` →
+`dorado_noche` y `pija0`, `pijao` y `pijo` → `pijao_de_oro` (estos últimos
+SIN prueba por número). Ningún otro alias.
+
+**Lista cerrada: 43 identificadores y sus nombres para mostrar (sin guion
+bajo)**:
+
+| # | Identificador | Nombre para mostrar |
+|---|---|---|
+| 1 | `medellin` | Medellín |
+| 2 | `santander` | Santander |
+| 3 | `risaralda` | Risaralda |
+| 4 | `dorado_manana` | Dorado mañana |
+| 5 | `dorado_tarde` | Dorado tarde |
+| 6 | `dorado_noche` | Dorado noche |
+| 7 | `culona` | Culona |
+| 8 | `culona_noche` | Culona noche |
+| 9 | `astro_sol` | Astro sol |
+| 10 | `astro_luna` | Astro luna |
+| 11 | `pijao_de_oro` | Pijao de oro |
+| 12 | `paisita_dia` | Paisita día |
+| 13 | `paisita_noche` | Paisita noche |
+| 14 | `chontico_dia` | Chontico día |
+| 15 | `chontico_noche` | Chontico noche |
+| 16 | `cafeterito_tarde` | Cafeterito tarde |
+| 17 | `cafeterito_noche` | Cafeterito noche |
+| 18 | `sinuano_dia` | Sinuano día |
+| 19 | `sinuano_noche` | Sinuano noche |
+| 20 | `cash_three_dia` | Cash three día |
+| 21 | `cash_three_noche` | Cash three noche |
+| 22 | `play_four_dia` | Play four día |
+| 23 | `play_four_noche` | Play four noche |
+| 24 | `saman_dia` | Saman día |
+| 25 | `caribena_dia` | Caribeña día |
+| 26 | `caribena_noche` | Caribeña noche |
+| 27 | `motilon_tarde` | Motilón tarde |
+| 28 | `motilon_noche` | Motilón noche |
+| 29 | `fantastica_dia` | Fantástica día |
+| 30 | `fantastica_noche` | Fantástica noche |
+| 31 | `antioquenita_dia` | Antioqueñita día |
+| 32 | `antioquenita_tarde` | Antioqueñita tarde |
+| 33 | `meta` | Meta |
+| 34 | `valle` | Valle |
+| 35 | `manizales` | Manizales |
+| 36 | `bogota` | Bogotá |
+| 37 | `huila` | Huila |
+| 38 | `cruz_roja` | Cruz Roja |
+| 39 | `cundinamarca` | Cundinamarca |
+| 40 | `cauca` | Cauca |
+| 41 | `tolima` | Tolima |
+| 42 | `boyaca` | Boyacá |
+| 43 | `quindio` | Quindío |
+
+**HECHO en `functions/`** (solo código y tests con datos falsos; no se tocó
+`index.js`, `jornadasSync.js`, Flutter ni el bot):
+- `LOTTERY_KEY_ALIASES` (`winningNumbers.js`) con los 6 alias de arriba, ya con
+  las claves normalizadas por `lotteryKey`.
+- `mergeWinningNumbers` devuelve además **`entries`**: `{loteria, numero}`
+  de cada ganador válido, donde `loteria` es la clave de emparejamiento
+  (`lotteryKey` con alias) y `numero` el valor ya validado y con `trim`. Sin
+  duplicados por pareja, ordenada por `loteria` y luego por `numero`. Un mismo
+  número en dos loterías da dos entradas (y `numbers` lo trae una sola vez).
+  Una entrada sin slug pero con nombre cuenta en `numbers` como siempre y en
+  `entries` lleva `loteria: ""` (sin más lógica para ese caso). `numbers` y
+  `discarded` no cambian, y lo descartado no entra a `entries`.
+- `syncWinningNumbers` escribe `set({ numbers, entries })` (un solo `set`, sin
+  merge) y compara contra lo guardado **incluyendo `entries`**: los
+  documentos de hoy y ayer, que hasta ahora no tienen `entries`, se reescriben
+  una vez. Un resultado vacío sigue sin escribir nada; errores aislados,
+  resumen y `discarded` solo al log, sin cambios. La dependencia
+  `writeNumbers(dateId, numbers, entries)` recibe ahora el tercer argumento.
+- Tests (`node:test`): 152 (136 anteriores + 16 nuevos). Se ajustaron 6 de los
+  anteriores porque fijaban la forma de lo que se devuelve o se escribe:
+  `sin nada devuelve listas vacías` (ahora incluye `entries: []`);
+  `doradotarde y dorado_tarde no se emparejan` (fijaba el comportamiento SIN
+  alias; con el alias confirmado se emparejan y gana la manual);
+  `no escribe cuando los guardados son iguales…` (el guardado de ejemplo ahora
+  trae `entries`: sin ellos se reescribe); `escribe solo el campo numbers…`
+  (ahora `numbers` y `entries`); `discarded se registra y nunca se escribe`
+  (las claves del documento son `numbers` y `entries`); y `firestoreSources`
+  (el `set` lleva `numbers` y `entries`).
+- **Verificado** con `lotteryKey` real: cada uno de los 43 identificadores
+  coincide con la clave de todos los slugs reales vistos (ERP, manual y
+  tests), p. ej. `fantástica_día` → `fantastica_dia`, `cash_three_día` →
+  `cash_three_dia`, `medellín` → `medellin`. Sin slug real visto todavía (la
+  coincidencia es SUPOSICIÓN por el patrón): `cash_three_noche`,
+  `play_four_noche`, `motilon_noche`, `fantastica_noche`. En la colección
+  manual hay claves que quedan FUERA de los 43 (y de los alias): p. ej.
+  `super_astro_luna`, `super_astro_sol`, `cruzroja`, `cruz_r`, `astroluna`,
+  `astrosol`, `saman`, `pijao_noche`, `pijao_tarde`, `culona_dia`,
+  `antioquena_dia`, `carbena_dia`, `extra_colombia`, `paisita_1`: siguen con su
+  propia clave.
+
+**Forma elegida para el cambio más chico (NO es una decisión del usuario)**:
+`winning_numbers/{fecha}` **conserva `numbers`** (lista de textos, como
+siempre) y **suma `entries`** (lista de `{loteria, numero}`). La app actual
+solo lee `numbers`, así que sigue funcionando. Los documentos de fechas
+anteriores a este cambio no se reescriben (la función solo procesa hoy y
+ayer, sin historial) y no tendrán `entries`.
+
+**PENDIENTES (no decididos)**:
+- **La app**: selector obligatorio de la lotería (lista cerrada) en el
+  formulario, `findMatches` por lotería y la lectura de `entries`.
+- **El despliegue** de la función (esta pieza NO está desplegada; producción
+  sigue escribiendo solo `numbers`).
+- **Los boletos viejos de texto libre** (`loteria` escrita a mano o `null`):
+  no van a coincidir con nada.
+- **Un ganador cuya lotería no está en la lista**: no coincide.
 
 ## Jornadas desde otro proyecto de Firebase
 

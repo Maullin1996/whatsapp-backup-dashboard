@@ -437,6 +437,20 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    lectura anterior y como 9252 después, sin explicación. **SUPOSICIÓN**
    (no verificada): que quien escribe `resultados_loterias` arma el id con
    la fecha en UTC. Detalle en `image-review-firebase-integration`.
+   **Pieza b3 — HECHA (2026-10-05, NO desplegada)**: **DECIDIDO por el
+   usuario**: cada número registrado lleva su lotería y un ganador solo
+   coincide con la misma lotería; la lista cerrada de 43 identificadores
+   (clave de `lotteryKey`, con sus nombres para mostrar) y los alias
+   `doradotarde`, `doradonoche`, `pija0`, `pijao` y `pijo` (más el
+   `doramaña` que ya existía). La función puente escribe
+   `winning_numbers/{fecha}` con `numbers` **y** `entries` (`{loteria,
+   numero}`; forma elegida para el cambio más chico, no decisión del
+   usuario); solo `functions/` y sus tests (152). La lista completa y el
+   detalle están en `image-review-firebase-integration` ("Pieza b3").
+   **PENDIENTES (no decididos)**: la app (selector obligatorio, `findMatches`
+   por lotería, lectura de `entries`), desplegar la función, qué hacen los
+   boletos viejos de texto libre (no van a coincidir con nada) y qué pasa con
+   un ganador cuya lotería no está en la lista (no coincide).
    **PENDIENTES de la función puente (no decididos)**: hasta las 13:30 de
    su fecha, el documento de la API trae datos de otra jornada, y por eso
    `winning_numbers` de ese día puede mostrar números que no son de ese día
