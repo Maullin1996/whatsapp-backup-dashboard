@@ -158,9 +158,10 @@ El repo ya tiene un patrón completo en `lib/features/admin/` y
   campo arriba de las tarjetas) y al menos un comprobante. Para el
   **Revisor**, cada comprobante con al menos un número y total > 0. Para
   el **Sumador**, cada comprobante con total > 0, sin números. Ambas
-  reglas están implementadas en `validateImageReviewForm(form, rol)`. Las
-  anotaciones y la lotería de cada comprobante ("Lotería (opcional)")
-  nunca son obligatorias.
+  reglas están implementadas en `validateImageReviewForm(form, rol)`. Desde
+  el 2026-10-05, **los dos roles** también eligen, por comprobante, una lotería
+  de la lista cerrada (selector "Lotería"; el Sumador usa el mismo formulario
+  y también la exige). Solo las anotaciones nunca son obligatorias.
 - Esta validación es **de navegación dentro del visor**, no de guardado:
   no impide cerrar la app o salir de `image_detail_page` por completo,
   solo bloquea el gesto/flecha/botón de cambio de imagen mientras falte
@@ -216,13 +217,13 @@ al formulario es "Llenar formularios" → `/review`.
   `PendingUploadPill` con `showJornada: false` → "Subir · N pendientes";
   mismo diálogo y `ReviewUploadNotifier`; solo los pendientes de ESA
   jornada). "Cerrar" en el lugar del botón de cerrar la imagen (en la
-  cabecera si la lista está vacía), solo cuando todas las imágenes tienen
-  registro guardado del rol (ver `image-review-domain`, "Cierre de
-  jornada"); vacía la sesión y el guard lleva a `/home`. Esc también cierra
-  cuando "Cerrar" está visible. Con ancho < 840: aviso arriba ("Gira la
-  tablet o agranda la ventana para llenar el formulario."), panel oculto,
-  navegación libre, "Subir" disponible y "Cerrar" con la misma regla; al
-  volver a ≥ 840 el panel reaparece en la misma imagen.
+  cabecera si no hay visor), SIEMPRE visible (ya no solo cuando todas las
+  imágenes tienen registro; ver `image-review-domain`, "Cierre de jornada");
+  vacía la sesión y el guard lleva a `/home`. **Salida con diálogo — DECIDIDO por el usuario e IMPLEMENTADO (hosting sin desplegar)**: "Cerrar" se ve SIEMPRE (con el visor, en el lugar del botón de cerrar la imagen; sin visor, en la cabecera) pero queda deshabilitado mientras se sube esa jornada y mientras la mezcla de lo ya subido no terminó (cargando o con error); Esc tampoco cierra entonces. Si la jornada tiene registros sin subir (`pendingUploadsProvider` filtrado por esa jornada y fecha, como "Subir"), tocarlo abre el diálogo "¿Salir de la revisión?" ("Lo que no se haya subido a la nube se puede perder.") con dos botones: "Subir a Firebase y salir" (reutiliza `ReviewUploadNotifier.upload`, sin el diálogo "Subir registros"; sale SOLO si no quedó ningún registro pendiente, si no se queda y muestra el mismo aviso de "Subir") y "Salir sin subir" (sale sin tocar la subida ni los registros del dispositivo); tocar fuera, o el "atrás" del sistema con el diálogo abierto, lo cierra y deja en la pantalla. Sin registros sin subir sale directo, sin diálogo. Los dos roles igual. Esc también
+  cierra cuando "Cerrar" está habilitado. Con ancho < 840: aviso arriba
+  ("Gira la tablet o agranda la ventana para llenar el formulario."), panel
+  oculto, navegación libre, "Subir" disponible y "Cerrar" con la misma
+  regla; al volver a ≥ 840 el panel reaparece en la misma imagen.
 - **Hecho (capa 4)**: botón "Llenar formularios" (`FillFormsButton`) en
   `MessageList`, en el mismo bloque flotante que la cápsula (debajo de sus
   píldoras). Misma condición que el panel del formulario: ancho >=
@@ -244,7 +245,8 @@ al formulario es "Llenar formularios" → `/review`.
   autorizado" dice que no tiene asignada esa jornada). El visor abre en la
   primera imagen SIN formulario (todas llenas → la primera), calculada una
   vez. "Subir" aparece solo con la mezcla terminada sin error; "Cerrar" (y
-  Esc) no aparece mientras se sube esa jornada.
+  Esc) se ve deshabilitado (ya no oculto) mientras se sube esa jornada y
+  mientras la mezcla no termina.
 - **Corte de la subida por chat activo**: `ReviewUploadNotifier` corta si el
   chat activo deja de ser el de la jornada; en `/review` no pasa (el chat
   activo solo se vacía en el móvil < 700 px de `HomePage`, al cerrar sesión o
@@ -305,7 +307,9 @@ limpio (sin migración de datos).
     `ASSIGNABLE_SHIFTS` (`functions/index.js`) y debe mantenerse
     sincronizada con `lib/core/time/shifts.dart`. Con la tabla única
     (paso 7, pieza e) el cliente ya no ofrece `night2`, pero
-    `ASSIGNABLE_SHIFTS` todavía la acepta (PENDIENTE retirarla).
+    `ASSIGNABLE_SHIFTS` todavía la acepta, igual que la regla `shiftKeyValido`
+    de `firestore.rules.draft` (night2 ya no existe como jornada; PENDIENTE
+    retirarla de las dos).
     Ojo: los registros de `image_review` guardan `shift` como la
     **etiqueta** (`shiftNames`, las actuales; los registros viejos pueden
     traer una de `legacyShiftNames`), así que al comparar una asignación

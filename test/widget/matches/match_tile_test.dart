@@ -3,14 +3,20 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/domain/entities/jornada_matches.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/domain/entities/match_entry.dart';
+import 'package:whatsapp_monitor_viewer/features/matches/domain/entities/winning_entry.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/presentation/widgets/jornada_matches_section.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/presentation/widgets/match_detail_dialog.dart';
 
 const _chatJidLargo = '120363012345678901@g.us';
 const _groupNameLargo = 'Grupo Norte Sector Industrial Zona Franca';
 
+// Ajuste (comparación por lotería): el chip y la tarjeta muestran
+// "Dorado mañana · número" (ver `loteriaNumeroLabel`).
+String _label(MatchEntry m) => 'Dorado mañana · ${m.numero}';
+
 MatchEntry _entry({String numero = '4521'}) => MatchEntry(
   numero: numero,
+  loteria: 'dorado_manana',
   messageId: 'm1',
   chatJid: _chatJidLargo,
   groupName: _groupNameLargo,
@@ -33,7 +39,9 @@ Future<void> _pumpAt(WidgetTester tester, Size size, MatchEntry match) async {
           child: JornadaMatchesSection(
             jornada: JornadaMatches(
               shift: 'Jornada Mañana (06:00 – 10:54)',
-              winningNumbers: [match.numero],
+              winningNumbers: [
+                WinningEntry(loteria: 'dorado_manana', numero: match.numero),
+              ],
               matches: [match],
             ),
           ),
@@ -71,7 +79,7 @@ void main() {
       expect(find.text(match.senderName), findsOneWidget);
       expect(find.text(match.groupName), findsOneWidget);
       expect(find.text(match.localTime), findsOneWidget);
-      expect(find.text(match.numero), findsWidgets); // chip + tile
+      expect(find.text(_label(match)), findsWidgets); // chip + tile
 
       await tester.tap(find.text('Ver más'));
       await tester.pumpAndSettle();
@@ -92,7 +100,7 @@ void main() {
         expect(find.byKey(const Key('match_tile_mobile')), findsNothing);
 
         expect(find.textContaining(match.chatJid), findsOneWidget);
-        expect(find.text(match.numero), findsWidgets); // chip + tile
+        expect(find.text(_label(match)), findsWidgets); // chip + tile
       },
     );
 
@@ -117,9 +125,9 @@ void main() {
     final match = _entry(numero: '0042');
 
     await _pumpAt(tester, const Size(360, 900), match);
-    expect(find.text('0042'), findsWidgets);
+    expect(find.text('Dorado mañana · 0042'), findsWidgets);
 
     await _pumpAt(tester, const Size(1280, 900), match);
-    expect(find.text('0042'), findsWidgets);
+    expect(find.text('Dorado mañana · 0042'), findsWidgets);
   });
 }

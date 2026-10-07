@@ -13,6 +13,8 @@ abstract class ImageReviewFailure with _$ImageReviewFailure {
   const factory ImageReviewFailure.comprobanteSinNumeros(int indice) =
       _ComprobanteSinNumeros;
   const factory ImageReviewFailure.totalInvalido(int indice) = _TotalInvalido;
+  const factory ImageReviewFailure.loteriaInvalida(int indice) =
+      _LoteriaInvalida;
 }
 
 extension ImageReviewFailureMessageX on ImageReviewFailure {
@@ -23,6 +25,7 @@ extension ImageReviewFailureMessageX on ImageReviewFailure {
       'Comprobante $indice: agrega al menos un número',
     _TotalInvalido(:final indice) =>
       'Comprobante $indice: el total debe ser mayor que 0',
+    _LoteriaInvalida(:final indice) => 'Comprobante $indice: elige la lotería',
     ImageReviewFailure() => throw UnimplementedError(),
   };
 }

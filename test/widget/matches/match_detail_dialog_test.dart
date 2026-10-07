@@ -8,6 +8,7 @@ import 'package:whatsapp_monitor_viewer/features/messages/presentation/providers
 
 MatchEntry _match() => MatchEntry(
   numero: '4521',
+  loteria: 'dorado_manana',
   messageId: 'm1',
   chatJid: 'demo-grupo-norte@g.us',
   groupName: 'Grupo Norte (demo)',
@@ -57,6 +58,10 @@ void main() {
     // Cada dato va dentro de una fila "Etiqueta: valor" (`Text.rich`), así
     // que se busca por contenido, no por texto exacto.
     expect(find.textContaining('4521'), findsOneWidget);
+    // Ajuste: ahora también muestra la lotería (el nombre, no el identificador).
+    expect(find.textContaining('Lotería'), findsOneWidget);
+    expect(find.textContaining('Dorado mañana'), findsOneWidget);
+    expect(find.textContaining('dorado_manana'), findsNothing);
     expect(find.textContaining('Ana'), findsOneWidget);
     expect(
       find.textContaining('Grupo Norte (demo) (demo-grupo-norte@g.us)'),

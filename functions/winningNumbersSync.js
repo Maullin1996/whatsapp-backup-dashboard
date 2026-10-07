@@ -7,7 +7,8 @@
 // Decidido por el usuario: cada 60 minutos; procesa hoy y ayer en hora de
 // Bogotá; si el resultado sale vacío no escribe nada (deja lo que había);
 // escribe solo si cambió. `discarded` solo va al log (qué hacer con él sigue
-// PENDIENTE).
+// PENDIENTE). Se escribe `{ numbers, entries }`: `numbers` (lista de textos,
+// la forma de siempre) y `entries` (la pareja lotería + número de cada ganador).
 
 const { mergeWinningNumbers } = require("./winningNumbers.js");
 const { syncJornadas } = require("./jornadasSync.js");
@@ -22,7 +23,7 @@ const WHATS_APUESTAS_APP_NAME = "whats-apuestas";
 const COLLECTIONS = {
   automatic: "resultados_loterias", // whats-apuestas, campo `resultados`
   manual: "manual_lotteries", // whats-apuestas, campo `list`
-  winning: "winning_numbers", // este proyecto, campo `numbers`
+  winning: "winning_numbers", // este proyecto, campos `numbers` y `entries`
 };
 
 // Bogotá es UTC-5 todo el año (sin horario de verano): se calcula con el
@@ -68,6 +69,24 @@ function sameNumbers(stored, numbers) {
   return sorted.every((n, i) => n === numbers[i]);
 }
 
+/**
+ * true si `stored` es una lista de `{loteria, numero}` (textos) con las mismas
+ * parejas que `entries`, en cualquier orden. Un documento sin `entries` (el de
+ * antes de este campo) nunca es igual.
+ */
+function sameEntries(stored, entries) {
+  if (!Array.isArray(stored) || stored.length !== entries.length) return false;
+  const isPair = (e) =>
+    e !== null &&
+    typeof e === "object" &&
+    typeof e.loteria === "string" &&
+    typeof e.numero === "string";
+  if (!stored.every(isPair)) return false;
+  const key = (e) => `${e.loteria}\u0000${e.numero}`;
+  const sorted = stored.map(key).sort();
+  return sorted.every((k, i) => k === key(entries[i]));
+}
+
 async function syncDate(dateId, deps) {
   const { readAutomatic, readManual, readStored, writeNumbers, logger } = deps;
 
@@ -78,7 +97,7 @@ async function syncDate(dateId, deps) {
   ]);
 
   // b. La mezcla, sin cambios.
-  const { numbers, discarded } = mergeWinningNumbers(
+  const { numbers, entries, discarded } = mergeWinningNumbers(
     automaticDoc ?? null,
     manualDoc?.list ?? null
   );
@@ -101,12 +120,16 @@ async function syncDate(dateId, deps) {
 
   // d. Solo si cambió (o si no existe el documento).
   const stored = await readStored(dateId);
-  if (stored && sameNumbers(stored.numbers, numbers)) {
+  if (
+    stored &&
+    sameNumbers(stored.numbers, numbers) &&
+    sameEntries(stored.entries, entries)
+  ) {
     return STATUS.unchanged;
   }
 
-  // e. Solo el campo `numbers`.
-  await writeNumbers(dateId, numbers);
+  // e. `numbers` y `entries`, en el mismo set.
+  await writeNumbers(dateId, numbers, entries);
   return STATUS.written;
 }
 
@@ -118,7 +141,8 @@ async function syncDate(dateId, deps) {
  *   readAutomatic: (dateId: string) => Promise<object|null>,
  *   readManual: (dateId: string) => Promise<object|null>,
  *   readStored: (dateId: string) => Promise<object|null>,
- *   writeNumbers: (dateId: string, numbers: string[]) => Promise<void>,
+ *   writeNumbers: (dateId: string, numbers: string[],
+ *     entries: {loteria: string, numero: string}[]) => Promise<void>,
  *   logger: {info: Function, warn: Function, error: Function},
  *   now: () => number,
  * }} deps
@@ -158,8 +182,8 @@ function firestoreSources(sourceDb, targetDb) {
     readAutomatic: (id) => read(sourceDb, COLLECTIONS.automatic, id),
     readManual: (id) => read(sourceDb, COLLECTIONS.manual, id),
     readStored: (id) => read(targetDb, COLLECTIONS.winning, id),
-    writeNumbers: (id, numbers) =>
-      targetDb.collection(COLLECTIONS.winning).doc(id).set({ numbers }),
+    writeNumbers: (id, numbers, entries) =>
+      targetDb.collection(COLLECTIONS.winning).doc(id).set({ numbers, entries }),
   };
 }
 

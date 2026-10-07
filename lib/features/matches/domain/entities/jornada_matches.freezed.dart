@@ -15,10 +15,10 @@ T _$identity<T>(T value) => value;
 mixin _$JornadaMatches {
 
 /// Etiqueta larga en español, igual que `Message.shift`.
- String get shift;/// Números ganadores del DÍA (la misma lista en todas las jornadas de
-/// ese día: se comparan contra el Revisor de todas las jornadas). Vacía
-/// si el día todavía no tiene ganadores.
- List<String> get winningNumbers;/// Coincidencias encontradas en esta jornada (puede ser más de una si el
+ String get shift;/// Ganadores del DÍA, cada uno con su lotería (la misma lista en todas
+/// las jornadas de ese día: se comparan contra el Revisor de todas las
+/// jornadas). Vacía si el día todavía no tiene ganadores.
+ List<WinningEntry> get winningNumbers;/// Coincidencias encontradas en esta jornada (puede ser más de una si el
 /// mismo número ganador coincide con registros de distintos grupos).
  List<MatchEntry> get matches;
 /// Create a copy of JornadaMatches
@@ -51,7 +51,7 @@ abstract mixin class $JornadaMatchesCopyWith<$Res>  {
   factory $JornadaMatchesCopyWith(JornadaMatches value, $Res Function(JornadaMatches) _then) = _$JornadaMatchesCopyWithImpl;
 @useResult
 $Res call({
- String shift, List<String> winningNumbers, List<MatchEntry> matches
+ String shift, List<WinningEntry> winningNumbers, List<MatchEntry> matches
 });
 
 
@@ -72,7 +72,7 @@ class _$JornadaMatchesCopyWithImpl<$Res>
   return _then(_self.copyWith(
 shift: null == shift ? _self.shift : shift // ignore: cast_nullable_to_non_nullable
 as String,winningNumbers: null == winningNumbers ? _self.winningNumbers : winningNumbers // ignore: cast_nullable_to_non_nullable
-as List<String>,matches: null == matches ? _self.matches : matches // ignore: cast_nullable_to_non_nullable
+as List<WinningEntry>,matches: null == matches ? _self.matches : matches // ignore: cast_nullable_to_non_nullable
 as List<MatchEntry>,
   ));
 }
@@ -158,7 +158,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String shift,  List<String> winningNumbers,  List<MatchEntry> matches)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String shift,  List<WinningEntry> winningNumbers,  List<MatchEntry> matches)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _JornadaMatches() when $default != null:
 return $default(_that.shift,_that.winningNumbers,_that.matches);case _:
@@ -179,7 +179,7 @@ return $default(_that.shift,_that.winningNumbers,_that.matches);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String shift,  List<String> winningNumbers,  List<MatchEntry> matches)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String shift,  List<WinningEntry> winningNumbers,  List<MatchEntry> matches)  $default,) {final _that = this;
 switch (_that) {
 case _JornadaMatches():
 return $default(_that.shift,_that.winningNumbers,_that.matches);case _:
@@ -199,7 +199,7 @@ return $default(_that.shift,_that.winningNumbers,_that.matches);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String shift,  List<String> winningNumbers,  List<MatchEntry> matches)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String shift,  List<WinningEntry> winningNumbers,  List<MatchEntry> matches)?  $default,) {final _that = this;
 switch (_that) {
 case _JornadaMatches() when $default != null:
 return $default(_that.shift,_that.winningNumbers,_that.matches);case _:
@@ -214,19 +214,19 @@ return $default(_that.shift,_that.winningNumbers,_that.matches);case _:
 
 
 class _JornadaMatches implements JornadaMatches {
-  const _JornadaMatches({required this.shift, required final  List<String> winningNumbers, required final  List<MatchEntry> matches}): _winningNumbers = winningNumbers,_matches = matches;
+  const _JornadaMatches({required this.shift, required final  List<WinningEntry> winningNumbers, required final  List<MatchEntry> matches}): _winningNumbers = winningNumbers,_matches = matches;
   
 
 /// Etiqueta larga en español, igual que `Message.shift`.
 @override final  String shift;
-/// Números ganadores del DÍA (la misma lista en todas las jornadas de
-/// ese día: se comparan contra el Revisor de todas las jornadas). Vacía
-/// si el día todavía no tiene ganadores.
- final  List<String> _winningNumbers;
-/// Números ganadores del DÍA (la misma lista en todas las jornadas de
-/// ese día: se comparan contra el Revisor de todas las jornadas). Vacía
-/// si el día todavía no tiene ganadores.
-@override List<String> get winningNumbers {
+/// Ganadores del DÍA, cada uno con su lotería (la misma lista en todas
+/// las jornadas de ese día: se comparan contra el Revisor de todas las
+/// jornadas). Vacía si el día todavía no tiene ganadores.
+ final  List<WinningEntry> _winningNumbers;
+/// Ganadores del DÍA, cada uno con su lotería (la misma lista en todas
+/// las jornadas de ese día: se comparan contra el Revisor de todas las
+/// jornadas). Vacía si el día todavía no tiene ganadores.
+@override List<WinningEntry> get winningNumbers {
   if (_winningNumbers is EqualUnmodifiableListView) return _winningNumbers;
   // ignore: implicit_dynamic_type
   return EqualUnmodifiableListView(_winningNumbers);
@@ -274,7 +274,7 @@ abstract mixin class _$JornadaMatchesCopyWith<$Res> implements $JornadaMatchesCo
   factory _$JornadaMatchesCopyWith(_JornadaMatches value, $Res Function(_JornadaMatches) _then) = __$JornadaMatchesCopyWithImpl;
 @override @useResult
 $Res call({
- String shift, List<String> winningNumbers, List<MatchEntry> matches
+ String shift, List<WinningEntry> winningNumbers, List<MatchEntry> matches
 });
 
 
@@ -295,7 +295,7 @@ class __$JornadaMatchesCopyWithImpl<$Res>
   return _then(_JornadaMatches(
 shift: null == shift ? _self.shift : shift // ignore: cast_nullable_to_non_nullable
 as String,winningNumbers: null == winningNumbers ? _self._winningNumbers : winningNumbers // ignore: cast_nullable_to_non_nullable
-as List<String>,matches: null == matches ? _self._matches : matches // ignore: cast_nullable_to_non_nullable
+as List<WinningEntry>,matches: null == matches ? _self._matches : matches // ignore: cast_nullable_to_non_nullable
 as List<MatchEntry>,
   ));
 }

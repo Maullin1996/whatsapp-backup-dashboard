@@ -1,7 +1,11 @@
+import 'package:whatsapp_monitor_viewer/core/lotteries/lotteries.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/domain/entities/match_entry.dart';
+import 'package:whatsapp_monitor_viewer/features/matches/domain/entities/winning_entry.dart';
 
-/// Cruza los números ganadores contra los registros de una jornada
-/// (`image-review-domain`, regla 7). Todo se compara carácter por carácter
+/// Cruza los ganadores contra los registros de una jornada
+/// (`image-review-domain`, regla 7). Un ganador SOLO coincide con un número de
+/// la MISMA lotería (`WinningEntry.loteria` contra `MatchEntry.loteria`, texto
+/// exacto). Dentro de una lotería, todo se compara carácter por carácter
 /// después de `trim` en ambos lados, sin normalizar mayúsculas ni quitar
 /// ceros a la izquierda, y sin comparación numérica:
 ///
@@ -14,42 +18,55 @@ import 'package:whatsapp_monitor_viewer/features/matches/domain/entities/match_e
 /// - Un registro de 4 nunca coincide con un ganador de 3: "0606" no
 ///   coincide con "606".
 /// - Un registro o un ganador de otra longitud se ignora, sin aviso.
+/// - Un registro con lotería nula, vacía o fuera de la lista (`lotteries`)
+///   no coincide con nada.
 ///
 /// No valida que sean cifras (no está decidido). Devuelve TODOS los
-/// registrados que coinciden con ALGÚN ganador, una entrada por registro y
-/// nunca dos veces, aunque coincida con varios ganadores: si el mismo número
-/// ganador coincide con registros de dos grupos distintos, los dos salen.
+/// registrados que coinciden con ALGÚN ganador de su lotería, una entrada por
+/// registro y nunca dos veces, aunque coincida con varios ganadores: si el
+/// mismo número ganador coincide con registros de dos grupos distintos, los
+/// dos salen.
 List<MatchEntry> findMatches(
-  List<String> winningNumbers,
+  List<WinningEntry> winners,
   List<MatchEntry> registered,
 ) {
-  final fourDigit = <String>{};
-  final threeDigit = <String>{};
-  final twoDigit = <String>{};
-  for (final raw in winningNumbers) {
-    final winner = raw.trim();
+  // Por lotería: los ganadores de 4 cifras y las últimas 3 y 2 de los de 4 y 3.
+  final byLoteria = <String, _Winners>{};
+  for (final entry in winners) {
+    final winner = entry.numero.trim();
+    final bucket = byLoteria.putIfAbsent(entry.loteria, _Winners.new);
     if (winner.length == 4) {
-      fourDigit.add(winner);
-      threeDigit.add(winner.substring(1));
-      twoDigit.add(winner.substring(2));
+      bucket.fourDigit.add(winner);
+      bucket.threeDigit.add(winner.substring(1));
+      bucket.twoDigit.add(winner.substring(2));
     } else if (winner.length == 3) {
-      threeDigit.add(winner);
-      twoDigit.add(winner.substring(1));
+      bucket.threeDigit.add(winner);
+      bucket.twoDigit.add(winner.substring(1));
     }
   }
 
-  bool matches(String raw) {
-    final numero = raw.trim();
+  bool matches(MatchEntry entry) {
+    final loteria = entry.loteria;
+    if (!isKnownLoteria(loteria)) return false;
+    final bucket = byLoteria[loteria];
+    if (bucket == null) return false;
+    final numero = entry.numero.trim();
     return switch (numero.length) {
-      4 => fourDigit.contains(numero),
-      3 => threeDigit.contains(numero),
-      2 => twoDigit.contains(numero),
+      4 => bucket.fourDigit.contains(numero),
+      3 => bucket.threeDigit.contains(numero),
+      2 => bucket.twoDigit.contains(numero),
       _ => false,
     };
   }
 
   return [
     for (final entry in registered)
-      if (matches(entry.numero)) entry,
+      if (matches(entry)) entry,
   ];
+}
+
+class _Winners {
+  final fourDigit = <String>{};
+  final threeDigit = <String>{};
+  final twoDigit = <String>{};
 }

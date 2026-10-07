@@ -81,6 +81,7 @@ void main() {
     draft.setCodigo('A1');
     if (rol == ReviewRole.revisor) draft.setNumeroPendiente(0, '0123');
     draft.setTotal(0, '9000');
+    draft.setLoteria(0, 'dorado_tarde');
     await draft.save(
       ImageReviewTarget(
         messageId: id,
@@ -237,6 +238,7 @@ void main() {
     final draft = container.read(reviewDraftProvider(_key('m1')).notifier);
     draft.startEditing(synced);
     draft.setTotal(0, '12000');
+    draft.setLoteria(0, 'dorado_tarde');
     await draft.save(_target);
 
     final edited = (await container.read(
@@ -270,6 +272,7 @@ void main() {
     draft.setCodigo('A1');
     draft.setNumeroPendiente(0, '0123');
     draft.setTotal(0, '9000');
+    draft.setLoteria(0, 'dorado_tarde');
     await draft.save(_target);
     expect(broken.read(reviewDraftProvider(_key('m1'))).saveError, failure);
   });

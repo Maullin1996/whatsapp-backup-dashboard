@@ -82,8 +82,10 @@ refactor grande — coherente con la Clean Architecture del proyecto.
   reconciliación (`image-review-domain`, regla 3-4) y los reportes (regla
   5). **La comparación, en cambio, es del día (DECIDIDO, pieza c)**: los
   ganadores de una fecha se comparan contra los números del Revisor de
-  TODAS las jornadas y grupos de esa fecha (solo cuenta el número); la
-  jornada solo agrupa lo que se muestra.
+  TODAS las jornadas y grupos de esa fecha (por lotería y número: un ganador
+  solo coincide con un número de la misma lotería, ver "Lotería por
+  comprobante y comparación por lotería (la app)"); la jornada solo agrupa lo
+  que se muestra.
 - **Disparador de la comparación — HECHO (pieza c)**: se recalcula en
   cada consulta, en el cliente: la pantalla consulta **cualquier fecha a
   demanda** (selector de calendario, hoy por defecto), lee los ganadores
@@ -144,8 +146,10 @@ refactor grande — coherente con la Clean Architecture del proyecto.
   respetar eso: cada fecha se consulta y se muestra de forma
   independiente, nunca acumulada con otras fechas.
 - **Formato de la lista de ganadores — PROVISIONAL**: un documento por
-  fecha, `winning_numbers/{yyyy-MM-dd}` con el campo `numbers` (lista de
-  texto), definido en una sola constante (`winningNumbersSource`). Es la
+  fecha, `winning_numbers/{yyyy-MM-dd}` con el campo `entries` (lista de
+  `{loteria, numero}`, texto ambos), que es lo que lee la app; `numbers`
+  (lista de texto) lo sigue escribiendo la función puente (pieza b3, aún sin
+  desplegar) pero la app ya no lo lee. Definido en una sola constante (`winningNumbersSource`). Es la
   lista del DÍA: todas las jornadas de esa fecha muestran la misma.
   (`MockMatchesRepository`, ya borrado, los organizaba por fecha y
   jornada; era una decisión del mock.)
@@ -216,7 +220,9 @@ escribe nada, no usa Firebase y no está exportada en `index.js`.
   (`doramaña`→`antioqueñita_día`, `doradotarde`→`paisita_día`,
   `antioquenita_dia`→`dorado_mañana`, `antioqueña_dia`→`dorado_mañana`)
   porque se apoyan en una sola fecha cada uno. `doradotarde` y
-  `dorado_tarde` NO se emparejan.
+  `dorado_tarde` NO se emparejaban; **superado en la pieza b3**: el usuario
+  confirmó los alias `doradotarde` → `dorado_tarde`, `doradonoche` →
+  `dorado_noche`, `pija0`/`pijao`/`pijo` → `pijao_de_oro` (ver "Pieza b3").
 - Por cada clave presente en la manual cuentan TODAS sus entradas
   manuales y se ignoran las automáticas de esa clave. Una automática
   reemplazada no se evalúa (no aparece en `discarded`).
@@ -291,7 +297,8 @@ falsos; desplegado después, el 2026-10-03, ver "Pieza b2 — DESPLEGADA"):
       igual → `sin-cambios`; distinto o documento ausente → escribe
       (`escrita`).
   - **Escritura**: `set({ numbers })` sin merge, es decir el documento
-    queda con **solo** el campo `numbers` (lista de textos), lo único que
+    queda con **solo** el campo `numbers` (lista de textos; desde la pieza b3
+    también `entries`, ver abajo), lo único que
     lee Flutter. **SUPOSICIÓN**: que el documento no necesite otros campos
     (fecha de actualización, fuente, `discarded`).
   - **Errores por fecha**: si falla cualquier lectura (o la escritura) de
@@ -398,6 +405,176 @@ lectura de `whats-apuestas` del 2026-10-03:
 - Caché de Coincidencias y costo en lecturas.
 - Probar "Ver imagen" con una imagen real.
 
+### Pieza b3 — cada ganador con su lotería (`entries`) — HECHA (2026-10-05) y DESPLEGADA (entre el 2026-10-05 y el 2026-10-06, deducido de la conversación, sin confirmar)
+
+**DECIDIDO por el usuario**: cada número registrado lleva su lotería y un
+ganador solo coincide con un número de la MISMA lotería (con la regla ya
+implementada de 2, 3 y 4 cifras). La lista cerrada del selector (la define la
+app, en otra pieza) usa como identificadores la clave normalizada de
+`lotteryKey` (la tabla de abajo). Los alias, también **decididos por el
+usuario**, van de la variante de la colección manual al identificador final
+(sin encadenar): `doramaña` → `dorado_manana` (ya existía, 119 fechas de
+coincidencia por número en una lectura de solo lectura de `whats-apuestas`
+del 2026-10-05), `doradotarde` → `dorado_tarde`, `doradonoche` →
+`dorado_noche` y `pija0`, `pijao` y `pijo` → `pijao_de_oro` (estos últimos
+SIN prueba por número). Ningún otro alias.
+
+**Deploys de la función (dato del usuario; la salida del CLI no está en el repo)**: la copia de `jornadas` y los alias (`doramaña`, `doradotarde`, `doradonoche`, `pija0`, `pijao`, `pijo`) se desplegaron entre el 2026-10-03 y la madrugada del 2026-10-04; respaldo: la colección ya existía y el log de la función del 2026-10-04 11:03 UTC ya traía `[JORNADAS] resumen`. **HECHO (historial de git)**: esos cambios son posteriores al primer deploy (2026-10-03, hacia las 00:39 de Bogotá, según su log): la copia de `jornadas` (`6067f2c`) es de las 13:12 y el alias (`64b5700`) de las 18:01 de ese día. La pieza b3 (`entries`, `64a96ac`, 2026-10-05 21:14) también se desplegó entre el 2026-10-05 y el 2026-10-06, deducido de la conversación, sin confirmar; su primer intento falló en un paso previo (`Error generating the service identity for pubsub.googleapis.com`) sin subir nada, y el segundo terminó en `Successful update operation`. **HECHO, verificado por el usuario con capturas de la consola de Firebase el 2026-10-06 hacia las 20:00 (Bogotá)**: `winning_numbers/2026-10-06` trae `entries`, una lista de mapas `{loteria, numero}` con identificadores de la lista de 43 (por ejemplo `antioquenita_dia`, `cash_three_dia` y `dorado_tarde`), con los ceros a la izquierda conservados ("0414") y con un ganador de 3 cifras ("238"). **Sigue sin verificar**: el campo `numbers` de ese documento no se vio en las capturas (se espera que esté, porque se escribe en el mismo `set`), y `entries` en los documentos de 2026-10-04 y 2026-10-05 no se revisó. Corrida programada cada hora; el resumen se registra como `[GANADORES] resumen` y `[JORNADAS] resumen`.
+
+**Lista cerrada: 43 identificadores y sus nombres para mostrar (sin guion
+bajo)**:
+
+| # | Identificador | Nombre para mostrar |
+|---|---|---|
+| 1 | `medellin` | Medellín |
+| 2 | `santander` | Santander |
+| 3 | `risaralda` | Risaralda |
+| 4 | `dorado_manana` | Dorado mañana |
+| 5 | `dorado_tarde` | Dorado tarde |
+| 6 | `dorado_noche` | Dorado noche |
+| 7 | `culona` | Culona |
+| 8 | `culona_noche` | Culona noche |
+| 9 | `astro_sol` | Astro sol |
+| 10 | `astro_luna` | Astro luna |
+| 11 | `pijao_de_oro` | Pijao de oro |
+| 12 | `paisita_dia` | Paisita día |
+| 13 | `paisita_noche` | Paisita noche |
+| 14 | `chontico_dia` | Chontico día |
+| 15 | `chontico_noche` | Chontico noche |
+| 16 | `cafeterito_tarde` | Cafeterito tarde |
+| 17 | `cafeterito_noche` | Cafeterito noche |
+| 18 | `sinuano_dia` | Sinuano día |
+| 19 | `sinuano_noche` | Sinuano noche |
+| 20 | `cash_three_dia` | Cash three día |
+| 21 | `cash_three_noche` | Cash three noche |
+| 22 | `play_four_dia` | Play four día |
+| 23 | `play_four_noche` | Play four noche |
+| 24 | `saman_dia` | Saman día |
+| 25 | `caribena_dia` | Caribeña día |
+| 26 | `caribena_noche` | Caribeña noche |
+| 27 | `motilon_tarde` | Motilón tarde |
+| 28 | `motilon_noche` | Motilón noche |
+| 29 | `fantastica_dia` | Fantástica día |
+| 30 | `fantastica_noche` | Fantástica noche |
+| 31 | `antioquenita_dia` | Antioqueñita día |
+| 32 | `antioquenita_tarde` | Antioqueñita tarde |
+| 33 | `meta` | Meta |
+| 34 | `valle` | Valle |
+| 35 | `manizales` | Manizales |
+| 36 | `bogota` | Bogotá |
+| 37 | `huila` | Huila |
+| 38 | `cruz_roja` | Cruz Roja |
+| 39 | `cundinamarca` | Cundinamarca |
+| 40 | `cauca` | Cauca |
+| 41 | `tolima` | Tolima |
+| 42 | `boyaca` | Boyacá |
+| 43 | `quindio` | Quindío |
+
+**HECHO en `functions/`** (solo código y tests con datos falsos; no se tocó
+`index.js`, `jornadasSync.js`, Flutter ni el bot):
+- `LOTTERY_KEY_ALIASES` (`winningNumbers.js`) con los 6 alias de arriba, ya con
+  las claves normalizadas por `lotteryKey`.
+- `mergeWinningNumbers` devuelve además **`entries`**: `{loteria, numero}`
+  de cada ganador válido, donde `loteria` es la clave de emparejamiento
+  (`lotteryKey` con alias) y `numero` el valor ya validado y con `trim`. Sin
+  duplicados por pareja, ordenada por `loteria` y luego por `numero`. Un mismo
+  número en dos loterías da dos entradas (y `numbers` lo trae una sola vez).
+  Una entrada sin slug pero con nombre cuenta en `numbers` como siempre y en
+  `entries` lleva `loteria: ""` (sin más lógica para ese caso). `numbers` y
+  `discarded` no cambian, y lo descartado no entra a `entries`.
+- `syncWinningNumbers` escribe `set({ numbers, entries })` (un solo `set`, sin
+  merge) y compara contra lo guardado **incluyendo `entries`**: los
+  documentos de hoy y ayer, que hasta ahora no tienen `entries`, se reescriben
+  una vez. Un resultado vacío sigue sin escribir nada; errores aislados,
+  resumen y `discarded` solo al log, sin cambios. La dependencia
+  `writeNumbers(dateId, numbers, entries)` recibe ahora el tercer argumento.
+- Tests (`node:test`): 152 (136 anteriores + 16 nuevos). Se ajustaron 6 de los
+  anteriores porque fijaban la forma de lo que se devuelve o se escribe:
+  `sin nada devuelve listas vacías` (ahora incluye `entries: []`);
+  `doradotarde y dorado_tarde no se emparejan` (fijaba el comportamiento SIN
+  alias; con el alias confirmado se emparejan y gana la manual);
+  `no escribe cuando los guardados son iguales…` (el guardado de ejemplo ahora
+  trae `entries`: sin ellos se reescribe); `escribe solo el campo numbers…`
+  (ahora `numbers` y `entries`); `discarded se registra y nunca se escribe`
+  (las claves del documento son `numbers` y `entries`); y `firestoreSources`
+  (el `set` lleva `numbers` y `entries`).
+- **Verificado** con `lotteryKey` real: cada uno de los 43 identificadores
+  coincide con la clave de todos los slugs reales vistos (ERP, manual y
+  tests), p. ej. `fantástica_día` → `fantastica_dia`, `cash_three_día` →
+  `cash_three_dia`, `medellín` → `medellin`. Sin slug real visto todavía (la
+  coincidencia es SUPOSICIÓN por el patrón): `cash_three_noche`,
+  `play_four_noche`, `motilon_noche`, `fantastica_noche`. En la colección
+  manual hay claves que quedan FUERA de los 43 (y de los alias): p. ej.
+  `super_astro_luna`, `super_astro_sol`, `cruzroja`, `cruz_r`, `astroluna`,
+  `astrosol`, `saman`, `pijao_noche`, `pijao_tarde`, `culona_dia`,
+  `antioquena_dia`, `carbena_dia`, `extra_colombia`, `paisita_1`: siguen con su
+  propia clave.
+
+**Forma elegida para el cambio más chico (NO es una decisión del usuario)**:
+`winning_numbers/{fecha}` **conserva `numbers`** (lista de textos, como
+siempre) y **suma `entries`** (lista de `{loteria, numero}`). La app ya lee
+`entries` y dejó de leer `numbers` (ver abajo): la función se desplegó (entre el 2026-10-05 y el 2026-10-06, deducido de la conversación, sin confirmar), y `winning_numbers/2026-10-06` ya trae `entries` (HECHO, verificado por el usuario con capturas de la consola el 2026-10-06 hacia las 20:00, Bogotá; sin verificar: `numbers` de ese documento y `entries` en los de 2026-10-04 y 2026-10-05). Los documentos de fechas anteriores a este cambio
+no se reescriben (la función solo procesa hoy y ayer, sin historial) y no
+tendrán `entries` (Coincidencias los trata como "todavía no hay ganadores").
+
+### Lotería por comprobante y comparación por lotería (la app) — HECHA (2026-10-05, hosting sin desplegar)
+
+**DECIDIDO por el usuario e IMPLEMENTADO en la app (2026-10-05; el hosting no está desplegado)**: cada comprobante lleva su lotería, elegida de una lista cerrada de 43 identificadores (`lib/core/lotteries/lotteries.dart`: constante en un solo archivo, con `loteriaDisplayName(id)`, que devuelve el nombre o el mismo texto si no está en la lista) y obligatoria para los dos roles; lo que se guarda en `loteria` es el identificador; un ganador solo coincide con un número de la misma lotería; la app lee `entries` de `winning_numbers/{fecha}` y dejó de leer `numbers`.
+
+**HECHO en la app** (solo código y tests con datos falsos; no se tocó
+`functions/`, `firestore.rules.draft`, el Resumen, `edit_attempts`, `editado`,
+la lógica de tiempo ni el modelo de jornadas):
+- **Lista cerrada** (`lib/core/lotteries/lotteries.dart`): `lotteries` (43
+  identificadores con su nombre para mostrar, los de "Pieza b3"),
+  `isKnownLoteria(id)` y `loteriaDisplayName(id)`. No se lee de Firestore.
+- **Formulario**: `ComprobanteCard` reemplaza el `TextField` "Lotería
+  (opcional)" por un `DropdownMenu` (clave `loteria-N`) con los nombres y
+  filtro al escribir; guarda el identificador en el borrador. Si el valor del
+  comprobante no está en la lista (texto libre de un registro viejo), arranca
+  sin selección. Error inline "Elige una lotería" tras el primer intento de
+  guardar. `Comprobante.loteria` sigue siendo `String?`; `toMap`/`fromMap` y
+  la forma del payload no cambian (solo que ahora se escribe un
+  identificador). La vista de solo lectura muestra el nombre
+  (`loteriaDisplayName`).
+- **Validación**: `validateImageReviewForm` exige, por comprobante, una
+  lotería de la lista (después de números y total), con
+  `ImageReviewFailure.loteriaInvalida(indice)`: "Comprobante N: elige la
+  lotería". **Los dos roles usan el mismo formulario y el Sumador también la
+  exige.**
+- **Comparación**: `WinningEntry {loteria, numero}` (entidad nueva);
+  `findMatches(List<WinningEntry>, List<MatchEntry>)` solo compara dentro de la
+  misma lotería, con la misma regla de 2, 3 y 4 cifras; una entrada con la
+  lotería nula, vacía o fuera de la lista no coincide con nada; una entrada por
+  registro. `MatchEntry` suma `loteria` (`String?`).
+- **Datos de Coincidencias**: `RevisorRecord.numeros` pasó de `List<String>` a
+  `List<RecordedNumber {numero, loteria}>`: `parseRevisorRecord` pone en cada
+  número la lotería de su comprobante (null si falta; una `loteria` que no es
+  texto es un error con el id del documento, como los demás campos).
+  `WinningNumbersDatasource.fetchByFecha` devuelve `List<WinningEntry>` y lee
+  **`entries`** (`winningNumbersSource.field`); un documento ausente o sin
+  `entries` es lista vacía ("todavía no hay ganadores"); un `entries` mal
+  formado (no es lista, o un elemento sin `loteria` o `numero` de texto) es
+  `Left`. `JornadaMatches.winningNumbers` lleva los pares.
+- **Pantallas**: el chip de ganadores y la tarjeta muestran "Dorado mañana ·
+  1288" (`loteriaNumeroLabel`; sin lotería, solo el número); el detalle suma la
+  fila "Lotería". En la variante móvil de la tarjeta el texto puede envolver (a
+  360 px desbordaba 63 px con el nombre de la lotería).
+- **Tests**: `flutter test` pasó de 906 a **938** en verde; los únicos fallos
+  son los 2 conocidos (`message_bubble_test.dart` y `message_list_test.dart`,
+  `package:web`). Nuevos: la lista (8), `findMatches` por lotería (6), el
+  datasource de ganadores y de registros del Revisor, el repositorio (cada
+  número hereda la lotería de su comprobante), el selector y la validación. Se
+  ajustaron los que dependían de la forma anterior: ganadores como lista de
+  textos (`find_matches`, repositorio, datasources, wiring, widgets de
+  Coincidencias, con una lotería por defecto en ganadores y registros), la
+  lotería opcional (`validate_image_review_form_test`, `review_role_test`, los
+  helpers de llenado de los tests del panel y del visor, que ahora eligen una
+  lotería con `pick_loteria.dart`) y el skeleton de Coincidencias (su fixture
+  usa un chip con "Meta", el nombre más corto, para mantener la forma de UNA
+  fila de ganadores; el skeleton no cambió).
+
+**PENDIENTES**: lista única en `image-review-workflow` ("Pendientes consolidados").
+
 ## Jornadas desde otro proyecto de Firebase
 
 ### Tabla definitiva (2026-09-30)
@@ -441,8 +618,10 @@ horario (mientras `pendingApproval` sea `true` rigen `startTime`/`endTime`).
   10:58–13:55, `afternoon2` 14:01–15:20, `night1` 15:28–22:15, `holiday`
   06:00–19:15 (domingos y, desde la pieza 2, festivos). Todo lo demás es
   `outOfShift`.
-- **night2** queda solo como valor del enum y en etiquetas legacy;
-  `getCurrentShift` nunca lo devuelve.
+- **night2** ya no existe como jornada: queda solo como valor del enum y en
+  etiquetas legacy; `getCurrentShift` nunca lo devuelve. **Sigue** en
+  `ASSIGNABLE_SHIFTS` (`functions/index.js`) y en la regla `shiftKeyValido`
+  (`firestore.rules.draft`): PENDIENTE de limpiar.
 - Las claves del enum NO cambian (no cambian ids de `shift_image_counts`,
   de `reviewShifts` ni de la ruta de subida).
 - `shiftNames` tiene las etiquetas ACTUALES; las viejas están en
@@ -457,15 +636,14 @@ horario (mientras `pendingApproval` sea `true` rigen `startTime`/`endTime`).
   su propio repo.
 
 **PENDIENTE** (no decidido):
-- Actualizar el BOT con los mismos rangos y sin night2 (en su repo). Hasta
-  entonces los contadores de `shift_image_counts` siguen la tabla vieja y
-  el "imágenes en la jornada" del Resumen puede estar desfasado en los
-  bordes.
-- Retirar night2 de `ASSIGNABLE_SHIFTS` en `functions/` (el cliente ya no
-  la ofrece, el servidor todavía la acepta).
+- **Bot (otro repo) — dato del usuario (2026-10-04; no se puede comprobar desde este repo)**: el worker se reconstruyó en el servidor con la tabla de jornadas nueva (sin night2) y la lectura de `jornadas` y `festivos_colombia`, y arrancó con `Shift config loader iniciado` y la tabla actualizada; siguen llegando imágenes; los 17 tests del repo del bot dieron verde en un contenedor Node 20 el 2026-10-03. Los contadores `night2` de `shift_image_counters` no se migran y el día del
+  deploy una jornada pudo mezclar límites viejos y nuevos (aceptado).
+- **PENDIENTE de limpiar**: retirar night2 de `ASSIGNABLE_SHIFTS` en
+  `functions/` y de la regla `shiftKeyValido` (el cliente ya no la ofrece, el
+  servidor y las reglas todavía la aceptan).
 - (Fuente de festivos y "el horario del ERP puede cambiar sin aviso", para
-  la APP: resueltos por la pieza 2, ver "Lectura en la app". El bot sigue
-  con su tabla vieja: pieza 3.)
+  la APP: resueltos por la pieza 2, ver "Lectura en la app". El bot (pieza
+  3) ya lee las colecciones: dato del usuario, 2026-10-04.)
 - Caché de la PWA tras desplegar (versiones viejas con la tabla vieja).
 - Consecuencia a tener presente: los mensajes ya guardados se reclasifican
   con la tabla única (su etiqueta del visor se calcula al cargarlos).
@@ -519,7 +697,7 @@ no convierte nada, la réplica guarda los ids del ERP):
 comparar los horarios de cada documento con la tabla fija de
 `lib/core/time/shifts.dart` (coinciden uno a uno).
 
-**Pieza 1 — HECHA (código y tests con datos falsos; NO desplegada)**:
+**Pieza 1 — HECHA y DESPLEGADA (entre el 2026-10-03 y la madrugada del 2026-10-04, dato del usuario; respaldo: la colección ya existía y el log de la función del 2026-10-04 11:03 UTC ya traía `[JORNADAS] resumen`)**: `syncWinningNumbers`, con la copia de `jornadas`, se desplegó en ese lapso; la colección `jornadas` existe en nuestro proyecto con los 5 documentos (`festivos`, `manana`, `noche`, `tarde_1`, `tarde_2`) y el log de cada corrida trae `[JORNADAS]` con el resumen. Código y tests con datos falsos:
 - **`functions/jornadasSync.js`** (no importa `firebase-admin`):
   - `syncJornadas({readSourceJornadas, readStoredJornada, writeJornada,
     logger})`: lee todos los documentos del ERP; por cada uno valida, lee el
@@ -565,9 +743,9 @@ comparar los horarios de cada documento con la tabla fija de
 
 **PENDIENTE (no decidido)**:
 - ~~Pieza 2: la app lee la colección~~ — HECHA (ver "Lectura en la app").
-- Pieza 3: el bot la lee.
+- ~~Pieza 3: el bot la lee~~ — HECHA (dato del usuario, otro repo, 2026-10-04).
 - ~~La lista de festivos~~ — HECHA: `festivos_colombia` (ver abajo).
-- Desplegar la función con este cambio.
+- ~~Desplegar la función con este cambio~~ — HECHO (dato del usuario: entre el 2026-10-03 y la madrugada del 2026-10-04).
 - Qué significan `pendingApproval` y `proposed*` en el ERP.
 
 ### Festivos en Firebase: `festivos_colombia`
@@ -651,15 +829,18 @@ clasificar. **La tabla fija actual es el respaldo.**
 **PENDIENTE (no decidido)**:
 - ~~Publicar a mano las reglas de `jornadas` y de `festivos_colombia`~~ —
   HECHO (confirmado por el usuario el 2026-10-04).
-- El bot sigue con su tabla vieja y no lee las colecciones (pieza 3).
-  **RIESGO CONOCIDO (hasta actualizar el bot)**: en cada festivo entre semana, empezando por el **lunes 2026-10-12**, la app (con la pieza 2) trata el día como domingo (solo la jornada `holiday`, 06:00–19:15; lo de fuera queda "fuera de jornada") y el bot lo clasifica como un día normal con su tabla vieja: `shift_image_counts` de ese día no coincide con lo que ve la app, y el Resumen mostrará diferencias en "imágenes en la jornada".
+- Pieza 3 (el bot lee las colecciones) — HECHA (dato del usuario, 2026-10-04):
+  el riesgo del lunes 2026-10-12 y de cada festivo entre semana (la app
+  trataba el día como domingo y el bot con su tabla vieja no) queda cerrado
+  si el bot clasifica con `jornadas` y `festivos_colombia`; no se puede
+  comprobar desde este repo.
 - El texto de las etiquetas lleva las horas escritas y no se actualiza si el
   ERP cambia un horario: defecto cosmético.
 - Zona horaria del dispositivo: un festivo depende de la fecha local, así
   que un dispositivo fuera de UTC-5 podría ver otro día.
 - Qué hacer si el ERP trae `pendingApproval: true` o valores en
   `proposed*` (hoy se ignoran).
-- Desplegar el hosting con este cambio.
+- Desplegar el hosting con este cambio (esperando el visto bueno del cliente; la función ya está desplegada).
 
 ### Antecedente: la idea de leer las jornadas del otro proyecto
 

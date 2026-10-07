@@ -49,13 +49,18 @@ cada vez. Antes de tocar código de este feature, lee esta skill completa.
   el ticket, no al ticket en sí** — por eso se repite entre imágenes.
   **Nunca se suman entre sí comprobantes por compartir código** — cada
   ticket es una unidad independiente.
-- **Lotería** (de un comprobante): el nombre de **dónde se compró el
-  boleto**. **Por comprobante**, porque puede variar entre los boletos de
-  una misma foto. Texto libre, con `trim`; vacía o solo espacios = `null`;
-  **OPCIONAL**. **No tiene relación con las loterías de los números
-  ganadores**: no entra en la comparación con los ganadores ni en la
-  reconciliación. La pueden llenar los dos roles (valor por defecto, no
-  una decisión de negocio: se puede restringir después).
+- **Lotería** (de un comprobante) — **DECIDIDO por el usuario e IMPLEMENTADO en la app (2026-10-05; el hosting no está desplegado)**: cada comprobante lleva su lotería, elegida de una lista cerrada de 43 identificadores (`lib/core/lotteries/lotteries.dart`: constante en un solo archivo, con `loteriaDisplayName(id)`, que devuelve el nombre o el mismo texto si no está en la lista) y obligatoria para los dos roles; lo que se guarda en `loteria` es el identificador; un ganador solo coincide con un número de la misma lotería; la app lee `entries` de `winning_numbers/{fecha}` y dejó de leer `numbers`. La lotería es **de la
+  lista cerrada de 43** (identificador y nombre para mostrar en
+  `image-review-firebase-integration`, "Pieza b3"), **por comprobante**
+  (puede variar entre los boletos de una misma foto; todos los números de un
+  comprobante comparten la suya) y **OBLIGATORIA para los dos roles**: el
+  Sumador usa el mismo formulario y también la elige. En el formulario es un
+  selector (no un campo de texto) que muestra los nombres y guarda el
+  identificador. **No entra en la reconciliación de totales**; sí en la
+  comparación con los ganadores (regla 7). Un registro viejo con texto libre
+  o sin lotería se lee igual, pero su selector aparece sin selección, no se
+  puede volver a guardar sin elegir una y mientras tanto no coincide con
+  ningún ganador.
 - **Número**: cada entrada escrita a mano dentro de un comprobante (en el
   ejemplo, cosas como `5311`, `1111`, `2023`...). Un comprobante tiene
   **N números** (cantidad variable, no fija). **Solo los anota el
@@ -95,8 +100,9 @@ Imagen (1)
       ├── Total del comprobante
       │    ├── anotado por el Revisor
       │    └── anotado por el Sumador (independiente, para verificación)
-      └── lotería — OPCIONAL, texto libre (dónde se compró el boleto; sin
-           relación con las loterías ganadoras ni con la reconciliación)
+      └── lotería — OBLIGATORIA, de la lista cerrada de 43 (se guarda el
+           identificador; los dos roles; compara contra los ganadores de
+           esa misma lotería; no entra en la reconciliación de totales)
 
 Registro de imagen (lo que se guarda por imagen Y POR ROL, ver
 image-review-roles: cada imagen tiene DOS registros independientes, uno del
@@ -218,13 +224,15 @@ Consecuencias para el feature de revisión:
 > **CAMBIO DELIBERADO (2026-10-04, pedido por los usuarios; pantalla
 > `/review`, capa 3b — HECHO)**: en la pantalla de llenado `/review` (una
 > jornada de un chat en un día, ver `image-review-roles`), **"terminar" la
-> jornada SÍ depende de las imágenes**: el botón "Cerrar" solo aparece cuando
-> TODAS las imágenes de la lista tienen registro guardado del rol activo
-> (`reviewSessionCompleteProvider`; el mismo criterio que el bloqueo de
-> navegación: registro en local, pendiente o ya subido). Con la lista vacía
-> también aparece (decisión del usuario). Si llega una imagen nueva (la
-> lista es en vivo cuando la fecha es hoy), "Cerrar" se oculta hasta que
-> también tenga registro. Lo que sigue abajo **sigue valiendo** en lo demás:
+> jornada SÍ depende de las imágenes**: **cambio posterior (DECIDIDO e
+> IMPLEMENTADO, hosting sin desplegar)**: el botón "Cerrar" ya NO se oculta
+> hasta terminar los formularios: se ve siempre, y al tocarlo, si hay
+> registros sin subir, abre el diálogo "¿Salir de la revisión?" con "Subir a
+> Firebase y salir" y "Salir sin subir" (ver `image-review-roles`).
+> `reviewSessionCompleteProvider` (todas las imágenes con registro guardado
+> del rol activo; el mismo criterio que el bloqueo de navegación: registro
+> en local, pendiente o ya subido) ya no condiciona el botón. Lo que sigue
+> abajo **sigue valiendo** en lo demás:
 > la subida NO depende de contar imágenes ("Subir" aparece con el primer
 > pendiente de esa jornada y se puede repetir), la validación de que todo
 > cuadra sigue siendo la reconciliación del Resumen, y el contador del bot
@@ -233,8 +241,8 @@ Consecuencias para el feature de revisión:
 > no un total esperado. "Cerrar" no exige haber subido. Desde el
 > 2026-10-04 (cambio deliberado) "tener registro" incluye lo ya subido que
 > `/review` trae de Firebase al entrar (ver `image-review-offline-sync`), y
-> "Cerrar" se oculta mientras se sube esa jornada (para que una subida y la
-> mezcla de lo subido no se crucen).
+> "Cerrar" se ve deshabilitado (ya no oculto) mientras se sube esa jornada
+> (para que una subida y la mezcla de lo subido no se crucen).
 
 Dado que no existe un conteo confiable de "cuántas imágenes va a tener
 esta jornada en total" (ver arriba), y dado que **cada jornada+grupo
@@ -303,9 +311,10 @@ recomendación de diseño es:
   - El bot solo publica hoy y ayer (fecha UTC-5) y no borra nada. Antes
     del 2026-09-26 no hay documentos.
   - App y bot deben usar los mismos rangos horarios. La app ya usa la
-    tabla única; el bot todavía usa la VIEJA hasta actualizarlo en su repo
-    (PENDIENTE: mientras tanto el contador puede estar desfasado en los
-    bordes; ver "Jornadas: una sola tabla"). Los dos truncan a minutos con
+    tabla única; el bot (otro repo) se reconstruyó con la misma tabla (fecha: la
+    confirma el usuario; dato del usuario: sin night2, lee `jornadas` y
+    `festivos_colombia`; no se puede comprobar desde este repo; ver "Jornadas:
+    una sola tabla"). Los dos truncan a minutos con
     límites inclusivos; el bot detecta solo domingos (la app, desde la
     pieza 2 de horarios dinámicos, también los festivos de
     `festivos_colombia`, ver "Jornadas" más abajo). Diferencia: la app
@@ -452,8 +461,11 @@ fijo. Detalle en `image-review-firebase-integration` ("Lectura en la app").
   legacyShiftNames[s]` en el Resumen y Coincidencias). También cambiaron
   `newShiftGapLabels` → `shiftGapLabels` y `newShiftLastMinute` →
   `shiftLastMinute` (sin night2).
-- **night2**: el valor se queda en el enum (lo usan el bot, `reviewShifts`
-  y etiquetas guardadas), pero `getCurrentShift` nunca lo devuelve,
+- **night2**: el valor se queda en el enum (lo usan `reviewShifts`, las
+  etiquetas guardadas y los contadores viejos del bot; ya no existe como
+  jornada, pero `ASSIGNABLE_SHIFTS` en `functions/index.js` y la regla
+  `shiftKeyValido` de `firestore.rules.draft` todavía la aceptan: PENDIENTE de
+  limpiar), pero `getCurrentShift` nunca lo devuelve,
   `jornadaTerminada(night2)` es `false`, el diálogo de horarios no lo
   ofrece y el panel de control no tiene fila de night2.
 - **Claves sin cambios**: el enum `Shift` sigue igual (valores y orden; ids
@@ -481,10 +493,12 @@ fijo. Detalle en `image-review-firebase-integration` ("Lectura en la app").
 - **DECIDIDO por el usuario (2026-10-03)**: "Mañana" vale para las mañanas
   de todos los días excepto domingos y festivos, que usan `festivos` del
   ERP.
-- **Horarios dinámicos, pieza 1 — HECHA (no desplegada)**: la función
-  programada copia `jornadas` del ERP a una colección `jornadas` de nuestro
-  proyecto (réplica exacta, nombre PROVISIONAL). La app la lee desde la
-  pieza 2; su regla de lectura **no está publicada**. Conversión de
+- **Horarios dinámicos, pieza 1 — HECHA y DESPLEGADA (entre el
+  2026-10-03 y la madrugada del 2026-10-04, dato del usuario)**: la
+  función programada copia `jornadas` del ERP a una colección `jornadas` de
+  nuestro proyecto (réplica exacta, nombre PROVISIONAL; existe con los 5
+  documentos, dato del usuario). La app la lee desde la pieza 2; su regla de
+  lectura está **publicada** (confirmado el 2026-10-04). Conversión de
   ids del ERP a claves de `Shift`: `manana` → `morning`, `tarde_1` →
   `afternoon1`, `tarde_2` → `afternoon2`, `noche` → `night1`, `festivos` →
   `holiday`. Detalle en `image-review-firebase-integration` ("Réplica de
@@ -499,23 +513,25 @@ fijo. Detalle en `image-review-firebase-integration` ("Lectura en la app").
   deploy puede quedar con etiquetas desfasadas.
 
 **PENDIENTE** (no decidido):
-- Actualizar el BOT con los mismos rangos y sin night2 (en su repo). Hasta
-  entonces los contadores de `shift_image_counts` siguen la tabla vieja y
-  el "imágenes en la jornada" del Resumen puede estar desfasado en los
-  bordes.
-- Retirar night2 de `ASSIGNABLE_SHIFTS` en `functions/` (el cliente ya no
-  la ofrece, el servidor todavía la acepta).
-- Caché de la PWA tras desplegar (versiones viejas con la tabla vieja).
+- **Bot (otro repo) — dato del usuario (2026-10-04; no se puede comprobar desde este repo)**: el worker se reconstruyó en el servidor con la tabla de jornadas nueva (sin night2) y la lectura de `jornadas` y `festivos_colombia`, y arrancó con `Shift config loader iniciado` y la tabla actualizada; siguen llegando imágenes; los 17 tests del repo del bot dieron verde en un contenedor Node 20 el 2026-10-03. Los contadores `night2` que ya existían en `shift_image_counters` no
+  se migran, y el día del deploy una jornada pudo mezclar límites viejos y
+  nuevos (aceptado).
+- **PENDIENTE de limpiar**: retirar night2 de `ASSIGNABLE_SHIFTS` en
+  `functions/` y de la regla `shiftKeyValido` (el cliente ya no la ofrece, el
+  servidor y las reglas todavía la aceptan).
+- Caché de la PWA: `CACHE_NAME` es `whatsapp-monitor-v5` (HECHO: `web/sw.js`);
+  sale con el deploy del hosting, que NO está desplegado (espera el visto
+  bueno del cliente).
 - Consecuencia a tener presente: los mensajes ya guardados se reclasifican
   con la tabla única (su etiqueta del visor se calcula al cargarlos).
-- Horarios dinámicos (las reglas de `jornadas` y `festivos_colombia` ya
-  están PUBLICADAS, confirmado el 2026-10-04): pieza 3 (el bot sigue con su
-  tabla vieja y no lee las colecciones; **RIESGO CONOCIDO (hasta actualizar el bot)**: en cada festivo entre semana, empezando por el **lunes 2026-10-12**, la app (con la pieza 2) trata el día como domingo (solo la jornada `holiday`, 06:00–19:15; lo de fuera queda "fuera de jornada") y el bot lo clasifica como un día normal con su tabla vieja: `shift_image_counts` de ese día no coincide con lo que ve la app, y el Resumen mostrará diferencias en "imágenes en la jornada".); el texto de las etiquetas lleva las horas escritas
-  y no se actualiza si el ERP cambia un horario (defecto cosmético); la
-  zona horaria del dispositivo (un festivo depende de la fecha local: fuera
-  de UTC-5 se podría ver otro día); qué hacer si el ERP trae
-  `pendingApproval: true` o valores en `proposed*` (hoy se ignoran);
-  desplegar. **SUPOSICIÓN**: los horarios que se usan son siempre
+- Horarios dinámicos (reglas de `jornadas` y `festivos_colombia` PUBLICADAS,
+  confirmado el 2026-10-04; el bot ya lee las colecciones): el texto de las
+  etiquetas lleva las horas escritas y no se actualiza si el ERP cambia un
+  horario (defecto cosmético); la zona horaria del dispositivo (un festivo
+  depende de la fecha local: fuera de UTC-5 se podría ver otro día); qué hacer
+  si el ERP trae `pendingApproval: true` o valores en `proposed*` (hoy se
+  ignoran); desplegar el hosting. Pendientes: lista única en `image-review-workflow` ("Pendientes consolidados").
+  **SUPOSICIÓN**: los horarios que se usan son siempre
   `startTime` y `endTime`.
 
 ## Reglas de negocio (no negociables sin confirmación explícita del usuario)
@@ -558,25 +574,26 @@ fijo. Detalle en `image-review-firebase-integration` ("Lectura en la app").
    día es una unidad de reporte independiente. Si se necesita histórico,
    es una vista de "varios reportes diarios lado a lado", nunca una
    suma acumulada.
-6. **Anotaciones y lotería son los ÚNICOS campos opcionales del
-   formulario, para los dos roles** (texto libre; vacías o solo espacios
-   se normalizan a `null`; las anotaciones son una por imagen, la lotería
-   una por comprobante). No afectan la reconciliación numérica; las
-   anotaciones sirven para que un humano revise después ("este número no
-   se ve bien", "esta suma no me da"). Todo lo demás es obligatorio, y
-   varía por rol:
+6. **Las anotaciones son el ÚNICO campo opcional del formulario, para los
+   dos roles** (texto libre; vacías o solo espacios se normalizan a `null`;
+   una por imagen). No afectan la reconciliación numérica; sirven para que
+   un humano revise después ("este número no se ve bien", "esta suma no me
+   da"). Todo lo demás es obligatorio, y varía por rol:
    - **Los dos roles**: el código de la imagen (uno por foto, texto
-     libre, `trim`, no vacío) y al menos un comprobante.
+     libre, `trim`, no vacío), al menos un comprobante y, por comprobante,
+     una **lotería de la lista cerrada** (`lotteries`; el identificador
+     exacto, sin normalizar: la lotería ya no es texto libre ni opcional).
    - **Revisor**: por comprobante, al menos un número (String, con
      `trim`, conservando ceros a la izquierda) y total entero > 0.
    - **Sumador**: por comprobante, total entero > 0. **Sin números.**
 
    `validateImageReviewForm(form, rol)` (fail-fast; orden: código de la
-   imagen, comprobantes, números —solo Revisor—, total) aplica las reglas
-   del rol. Para el Sumador la lista de números se normaliza siempre a
-   vacía (lo que llegue se descarta). El error de código no lleva índice
-   ("Ingresa el código de la imagen"). **PENDIENTE (no decidido)**: si la
-   lotería pasa a ser una lista cerrada.
+   imagen, comprobantes y, por comprobante, números —solo Revisor—, total
+   y lotería) aplica las reglas del rol. Para el Sumador la lista de números
+   se normaliza siempre a vacía (lo que llegue se descarta). El error de
+   código no lleva índice ("Ingresa el código de la imagen"); el de lotería
+   sí ("Comprobante N: elige la lotería", `ImageReviewFailure.loteriaInvalida`).
+   La lotería se valida por comprobante, sin normalizar.
 7. **Coincidencia con números ganadores**: se busca solo contra los
    **números** que registró el Revisor, porque el Sumador no anota
    números. Si un número coincide con un número ganador, debe
@@ -587,7 +604,10 @@ fijo. Detalle en `image-review-firebase-integration` ("Lectura en la app").
    propio, **sin navegar al visor** ("Ver imagen" carga la imagen real).
    **DECIDIDO (pieza c)**: los ganadores de una fecha se comparan contra
    los números del Revisor de TODAS las jornadas y grupos de esa fecha;
-   solo cuenta el número (`findMatches`, regla de 2, 3 y 4 cifras, abajo). La
+   cuenta la lotería y el número (`findMatches`: un ganador solo coincide con
+   un número de la MISMA lotería, y dentro de ella rige la regla de 2, 3 y 4
+   cifras, abajo; un registro con la lotería nula, vacía o fuera de la lista
+   no coincide con nada). La
    pantalla muestra siempre una lista por jornada; una jornada sin
    coincidencias dice "Todavía no hay ganadores". Ya no se muestra si el
    mensaje de WhatsApp fue editado.

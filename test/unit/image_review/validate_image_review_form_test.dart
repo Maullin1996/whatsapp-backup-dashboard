@@ -6,10 +6,16 @@ import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/re
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/helpers/validate_image_review_form.dart';
 import 'package:whatsapp_monitor_viewer/helpers/map_failure_to_message.dart';
 
+// Ajuste (lotería obligatoria de lista cerrada): antes la lotería era texto
+// libre y opcional, y `_c` la dejaba en null. Ahora todo comprobante necesita
+// una lotería de la lista, así que `_c` usa una por defecto; los casos que
+// prueban otra cosa (código, números, total, anotaciones...) no cambian.
+const _loteria = 'dorado_tarde';
+
 Comprobante _c({
   List<String> numeros = const ['5311'],
   int total = 9000,
-  String? loteria,
+  String? loteria = _loteria,
 }) => Comprobante(numeros: numeros, total: total, loteria: loteria);
 
 /// Formulario con el código de la imagen ya puesto (salvo que se pase otro).
@@ -97,60 +103,94 @@ void main() {
       });
     });
 
-    group('lotería (por comprobante, opcional)', () {
-      test('null se mantiene null', () {
-        expect(_ok(_form([_c()])).comprobantes.single.loteria, isNull);
+    group('lotería (por comprobante, obligatoria, lista cerrada)', () {
+      test('sin lotería (null) -> loteriaInvalida', () {
+        expect(
+          _failure(_form([_c(loteria: null)])),
+          const ImageReviewFailure.loteriaInvalida(1),
+        );
       });
 
-      test('en blanco -> null', () {
+      test('vacía o en blanco -> loteriaInvalida', () {
         for (final blank in ['', '   ', ' \n ']) {
           expect(
-            _ok(_form([_c(loteria: blank)])).comprobantes.single.loteria,
-            isNull,
+            _failure(_form([_c(loteria: blank)])),
+            const ImageReviewFailure.loteriaInvalida(1),
             reason: '"$blank"',
           );
         }
       });
 
-      test('con espacios -> trim', () {
-        expect(
-          _ok(
-            _form([_c(loteria: '  Lotería de Medellín ')]),
-          ).comprobantes.single.loteria,
+      test('fuera de la lista -> loteriaInvalida (texto libre, nombre en vez '
+          'del identificador, otra escritura, espacios)', () {
+        for (final fuera in [
+          'baloto',
           'Lotería de Medellín',
+          'Medellín',
+          'MEDELLIN',
+          ' medellin',
+          'dorado tarde',
+          'dorado_tarde ',
+        ]) {
+          expect(
+            _failure(_form([_c(loteria: fuera)])),
+            const ImageReviewFailure.loteriaInvalida(1),
+            reason: '"$fuera"',
+          );
+        }
+      });
+
+      test('una de la lista pasa y se guarda el identificador tal cual', () {
+        expect(
+          _ok(_form([_c(loteria: 'medellin')])).comprobantes.single.loteria,
+          'medellin',
+        );
+      });
+
+      test('cada comprobante se valida por separado', () {
+        expect(
+          _failure(_form([_c(), _c(loteria: null)])),
+          const ImageReviewFailure.loteriaInvalida(2),
+        );
+        expect(
+          _failure(_form([_c(loteria: 'baloto'), _c()])),
+          const ImageReviewFailure.loteriaInvalida(1),
         );
       });
 
       test('distinta entre comprobantes de la misma foto', () {
         final r = _ok(
           _form([
-            _c(loteria: 'Baloto'),
-            _c(loteria: null),
-            _c(loteria: 'Chance'),
+            _c(loteria: 'valle'),
+            _c(loteria: 'cruz_roja'),
+            _c(loteria: 'valle'),
           ]),
         );
         expect(r.comprobantes.map((c) => c.loteria), [
-          'Baloto',
-          null,
-          'Chance',
+          'valle',
+          'cruz_roja',
+          'valle',
         ]);
       });
 
-      test('nunca bloquea el guardado (Revisor y Sumador)', () {
+      test('los dos roles la exigen', () {
         for (final rol in ReviewRole.values) {
-          for (final loteria in [null, '', '  ', 'x']) {
-            final numeros = rol == ReviewRole.revisor
-                ? const ['1']
-                : const <String>[];
-            expect(
-              validateImageReviewForm(
-                _form([_c(numeros: numeros, loteria: loteria)]),
-                rol,
-              ).isRight(),
-              isTrue,
-              reason: '${rol.name} "$loteria"',
-            );
-          }
+          final numeros = rol == ReviewRole.revisor
+              ? const ['1']
+              : const <String>[];
+          expect(
+            _failure(_form([_c(numeros: numeros, loteria: null)]), rol),
+            const ImageReviewFailure.loteriaInvalida(1),
+            reason: rol.name,
+          );
+          expect(
+            validateImageReviewForm(
+              _form([_c(numeros: numeros, loteria: 'meta')]),
+              rol,
+            ).isRight(),
+            isTrue,
+            reason: rol.name,
+          );
         }
       });
     });
@@ -233,10 +273,26 @@ void main() {
         );
       });
 
-      test('por comprobante: números antes que total', () {
+      test('por comprobante: números, luego total, luego lotería', () {
         expect(
-          _failure(_form([_c(numeros: const [], total: 0)])),
+          _failure(_form([_c(numeros: const [], total: 0, loteria: null)])),
           const ImageReviewFailure.comprobanteSinNumeros(1),
+        );
+        expect(
+          _failure(_form([_c(total: 0, loteria: null)])),
+          const ImageReviewFailure.totalInvalido(1),
+        );
+        expect(
+          _failure(_form([_c(loteria: null)])),
+          const ImageReviewFailure.loteriaInvalida(1),
+        );
+      });
+
+      test('fail-fast: la lotería de un comprobante anterior gana al total '
+          'del siguiente', () {
+        expect(
+          _failure(_form([_c(loteria: null), _c(total: 0)])),
+          const ImageReviewFailure.loteriaInvalida(1),
         );
       });
 
@@ -286,7 +342,7 @@ void main() {
     Comprobante c({
       List<String> numeros = const [],
       int total = 9000,
-      String? loteria,
+      String? loteria = _loteria,
     }) => _c(numeros: numeros, total: total, loteria: loteria);
 
     test('código de la imagen y total, sin números: es válido', () {
@@ -316,9 +372,17 @@ void main() {
       expect(r.codigo, 'A1');
     });
 
-    test('lotería opcional, con trim y vacía -> null', () {
-      final r = _ok(_form([c(loteria: ' Baloto '), c(loteria: ' ')]), sumador);
-      expect(r.comprobantes.map((x) => x.loteria), ['Baloto', null]);
+    test('también exige la lotería de cada comprobante, de la lista', () {
+      expect(
+        _failure(_form([c(loteria: null)]), sumador),
+        const ImageReviewFailure.loteriaInvalida(1),
+      );
+      expect(
+        _failure(_form([c(), c(loteria: 'baloto')]), sumador),
+        const ImageReviewFailure.loteriaInvalida(2),
+      );
+      final r = _ok(_form([c(loteria: 'valle'), c(loteria: 'meta')]), sumador);
+      expect(r.comprobantes.map((x) => x.loteria), ['valle', 'meta']);
     });
 
     test('total 0 o negativo -> totalInvalido; 1 es válido', () {
@@ -392,6 +456,10 @@ void main() {
       expect(
         mapFailureToMessage(const ImageReviewFailure.totalInvalido(1)),
         'Comprobante 1: el total debe ser mayor que 0',
+      );
+      expect(
+        mapFailureToMessage(const ImageReviewFailure.loteriaInvalida(2)),
+        'Comprobante 2: elige la lotería',
       );
     });
   });

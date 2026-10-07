@@ -1,5 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/domain/entities/match_entry.dart';
+import 'package:whatsapp_monitor_viewer/features/matches/domain/entities/winning_entry.dart';
 
 part 'jornada_matches.freezed.dart';
 
@@ -15,10 +16,10 @@ abstract class JornadaMatches with _$JornadaMatches {
     /// Etiqueta larga en español, igual que `Message.shift`.
     required String shift,
 
-    /// Números ganadores del DÍA (la misma lista en todas las jornadas de
-    /// ese día: se comparan contra el Revisor de todas las jornadas). Vacía
-    /// si el día todavía no tiene ganadores.
-    required List<String> winningNumbers,
+    /// Ganadores del DÍA, cada uno con su lotería (la misma lista en todas
+    /// las jornadas de ese día: se comparan contra el Revisor de todas las
+    /// jornadas). Vacía si el día todavía no tiene ganadores.
+    required List<WinningEntry> winningNumbers,
 
     /// Coincidencias encontradas en esta jornada (puede ser más de una si el
     /// mismo número ganador coincide con registros de distintos grupos).

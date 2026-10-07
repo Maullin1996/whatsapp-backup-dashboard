@@ -416,12 +416,16 @@ void main() {
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
       expect(find.byType(ImageDetailPage), findsNothing);
       expect(find.byType(ImageReviewPanel), findsNothing);
+      // La mezcla no terminó: "Cerrar" se ve (en la cabecera), deshabilitado.
+      expect(_cerrar, findsOneWidget);
+      expect(_cerrarHabilitado(tester), isFalse);
 
       remote.gate!.complete();
       await _settle(tester);
 
       expect(find.byType(ImageDetailPage), findsOneWidget);
       expect(find.byType(ImageReviewPanel), findsOneWidget);
+      expect(_cerrarHabilitado(tester), isTrue);
       expect(remote.calls, 1);
     });
 
@@ -576,10 +580,15 @@ final _uidProvider = NotifierProvider<_Uid, String?>(_Uid.new);
 /// Botón "Cerrar" (en la barra del visor o en la cabecera).
 final _cerrar = find.widgetWithText(ElevatedButton, 'Cerrar');
 
+/// El botón "Cerrar" está habilitado (se ve siempre; se deshabilita mientras
+/// se sube la jornada o la mezcla de lo ya subido no termina).
+bool _cerrarHabilitado(WidgetTester tester) =>
+    tester.widget<ElevatedButton>(_cerrar).onPressed != null;
+
 void _main3b() {
   group('Cerrar', () {
-    testWidgets('no aparece hasta que TODAS las imágenes tienen formulario; '
-        'entonces aparece en el lugar del botón de cerrar y lleva a /home', (
+    testWidgets('el botón se ve con formularios sin terminar y con todos '
+        'terminados, en el lugar del botón de cerrar de la imagen', (
       tester,
     ) async {
       final app = await _pump(
@@ -589,7 +598,9 @@ void _main3b() {
       );
       await _start(tester);
 
-      expect(_cerrar, findsNothing);
+      // Ajuste: antes no aparecía hasta que TODAS tenían formulario.
+      expect(_cerrar, findsOneWidget);
+      expect(_cerrarHabilitado(tester), isTrue);
       // Sin el icono de cerrar del visor del chat.
       expect(find.byTooltip('Cerrar'), findsNothing);
 
@@ -599,16 +610,191 @@ void _main3b() {
       app.container.invalidate(savedRecordProvider);
       await _settle(tester);
       expect(_cerrar, findsOneWidget);
+      expect(_cerrarHabilitado(tester), isTrue);
+    });
+
+    testWidgets('con registros sin subir, tocarlo abre el diálogo con su '
+        'título, su texto y solo dos botones', (tester) async {
+      final app = await _pump(
+        tester,
+        repo: _FakeRepo([_msg('primera', 6, 0)]),
+        records: [_record('primera')],
+      );
+      await _start(tester);
 
       await tester.tap(_cerrar);
       await _settle(tester);
+
+      expect(find.text('¿Salir de la revisión?'), findsOneWidget);
+      expect(
+        find.text('Lo que no se haya subido a la nube se puede perder.'),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.widgetWithText(
+            ElevatedButton,
+            'Subir a Firebase y salir',
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.widgetWithText(TextButton, 'Salir sin subir'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.byWidgetPredicate((w) => w is ButtonStyleButton),
+        ),
+        findsNWidgets(2),
+      );
+      // Todavía en la pantalla.
+      expect(_location(app.router), '/review');
+    });
+
+    testWidgets('"Subir a Firebase y salir" sube (sin el diálogo "Subir '
+        'registros") y después sale', (tester) async {
+      final app = await _pump(
+        tester,
+        repo: _FakeRepo([_msg('primera', 6, 0)]),
+        records: [_record('primera')],
+      );
+      await _start(tester);
+
+      await tester.tap(_cerrar);
+      await _settle(tester);
+      await tester.tap(find.text('Subir a Firebase y salir'));
+      await _settle(tester);
+
+      expect(app.uploader.uploaded, ['primera']);
+      expect(find.text('Subir registros'), findsNothing);
       expect(_location(app.router), '/home');
       expect(app.container.read(reviewSessionProvider), isNull);
     });
 
-    testWidgets('con la lista vacía aparece (en la cabecera) y cierra', (
+    testWidgets('si algún registro falla al subir, no sale: avisa con el '
+        'mismo SnackBar y el registro sigue pendiente', (tester) async {
+      final app = await _pump(
+        tester,
+        repo: _FakeRepo([_msg('primera', 6, 0)]),
+        records: [_record('primera')],
+      );
+      app.uploader.failWith = const Failure.unknown(
+        message: 'El registro no se pudo subir a tiempo.',
+      );
+      await _start(tester);
+
+      await tester.tap(_cerrar);
+      await _settle(tester);
+      await tester.tap(find.text('Subir a Firebase y salir'));
+      await _settle(tester);
+
+      expect(_location(app.router), '/review');
+      expect(app.container.read(reviewSessionProvider), isNotNull);
+      expect(
+        find.text('0 subidos, 1 no se pudieron subir; siguen pendientes'),
+        findsOneWidget,
+      );
+      final saved = await app.reviews.getByMessageId(
+        'primera',
+        ReviewRole.revisor,
+      );
+      expect(
+        saved.fold((_) => null, (r) => r)?.estadoSync,
+        EstadoSync.pendiente,
+      );
+    });
+
+    testWidgets('"Salir sin subir" sale sin llamar a la subida y sin tocar '
+        'el registro del dispositivo', (tester) async {
+      final app = await _pump(
+        tester,
+        repo: _FakeRepo([_msg('primera', 6, 0)]),
+        records: [_record('primera')],
+      );
+      await _start(tester);
+
+      await tester.tap(_cerrar);
+      await _settle(tester);
+      await tester.tap(find.text('Salir sin subir'));
+      await _settle(tester);
+
+      expect(app.uploader.uploaded, isEmpty);
+      expect(_location(app.router), '/home');
+      expect(app.container.read(reviewSessionProvider), isNull);
+      final saved = await app.reviews.getByMessageId(
+        'primera',
+        ReviewRole.revisor,
+      );
+      expect(
+        saved.fold((_) => null, (r) => r)?.estadoSync,
+        EstadoSync.pendiente,
+      );
+    });
+
+    testWidgets('tocar fuera del diálogo, o el "atrás" del sistema con el '
+        'diálogo abierto, lo cierra: sigue en la pantalla sin subir', (
       tester,
     ) async {
+      final app = await _pump(
+        tester,
+        repo: _FakeRepo([_msg('primera', 6, 0)]),
+        records: [_record('primera')],
+      );
+      await _start(tester);
+
+      // Fuera del diálogo.
+      await tester.tap(_cerrar);
+      await _settle(tester);
+      expect(find.text('¿Salir de la revisión?'), findsOneWidget);
+      await tester.tapAt(const Offset(5, 5));
+      await _settle(tester);
+      expect(find.text('¿Salir de la revisión?'), findsNothing);
+      expect(_location(app.router), '/review');
+      expect(app.container.read(reviewSessionProvider), isNotNull);
+      expect(app.uploader.uploaded, isEmpty);
+
+      // El "atrás" del sistema con el diálogo abierto.
+      await tester.tap(_cerrar);
+      await _settle(tester);
+      expect(find.text('¿Salir de la revisión?'), findsOneWidget);
+      await tester.binding.handlePopRoute();
+      await _settle(tester);
+      expect(find.text('¿Salir de la revisión?'), findsNothing);
+      expect(_location(app.router), '/review');
+      expect(app.container.read(reviewSessionProvider), isNotNull);
+      expect(app.uploader.uploaded, isEmpty);
+    });
+
+    testWidgets('sin registros sin subir sale directo, sin diálogo', (
+      tester,
+    ) async {
+      final app = await _pump(
+        tester,
+        repo: _FakeRepo([_msg('primera', 6, 0)]),
+        records: [
+          _record('primera').copyWith(estadoSync: EstadoSync.sincronizado),
+        ],
+      );
+      await _start(tester);
+
+      await tester.tap(_cerrar);
+      await _settle(tester);
+
+      expect(find.text('¿Salir de la revisión?'), findsNothing);
+      expect(app.uploader.uploaded, isEmpty);
+      expect(_location(app.router), '/home');
+      expect(app.container.read(reviewSessionProvider), isNull);
+    });
+
+    testWidgets('con la lista vacía aparece (en la cabecera) y cierra directo '
+        '(no hay registros sin subir)', (tester) async {
       final app = await _pump(tester, repo: _FakeRepo([_msg('tarde', 12, 0)]));
       await _start(tester);
 
@@ -621,14 +807,17 @@ void _main3b() {
       expect(_location(app.router), '/home');
     });
 
-    testWidgets('mientras carga la lectura inicial no aparece (ni con la '
-        'lista que resultará vacía)', (tester) async {
+    // Ajuste: antes el botón no aparecía mientras cargaba; ahora se ve
+    // deshabilitado (la protección es la misma).
+    testWidgets('mientras carga la lectura inicial se ve deshabilitado (ni '
+        'con la lista que resultará vacía)', (tester) async {
       final repo = _FakeRepo([_msg('tarde', 12, 0)])..gate = Completer<void>();
       final app = await _pump(tester, repo: repo);
       await _start(tester);
 
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
-      expect(_cerrar, findsNothing);
+      expect(_cerrar, findsOneWidget);
+      expect(_cerrarHabilitado(tester), isFalse);
       expect(
         app.container.read(reviewSessionCompleteProvider(_session.jornada)),
         isFalse,
@@ -636,11 +825,11 @@ void _main3b() {
 
       repo.gate!.complete();
       await _settle(tester);
-      // Ya leída (vacía): ahora sí.
-      expect(_cerrar, findsOneWidget);
+      // Ya leída (vacía): ahora se habilita.
+      expect(_cerrarHabilitado(tester), isTrue);
     });
 
-    testWidgets('con error de lectura no aparece', (tester) async {
+    testWidgets('con error de lectura se ve deshabilitado', (tester) async {
       await _pump(
         tester,
         repo: _FakeRepo([_msg('a', 6, 0)])
@@ -649,7 +838,8 @@ void _main3b() {
       await _start(tester);
 
       expect(find.text('sin red'), findsOneWidget);
-      expect(_cerrar, findsNothing);
+      expect(_cerrar, findsOneWidget);
+      expect(_cerrarHabilitado(tester), isFalse);
     });
 
     test(
@@ -753,8 +943,12 @@ void _main3b() {
       expect(find.text('Subir · 1 pendiente'), findsOneWidget);
     });
 
-    testWidgets('con una subida de esta jornada en curso, "Cerrar" no '
-        'aparece (ni con Esc); al terminar, aparece', (tester) async {
+    // Ajuste: antes "Cerrar" desaparecía durante la subida; ahora se ve
+    // deshabilitado (y Esc tampoco cierra).
+    testWidgets('con una subida de esta jornada en curso, "Cerrar" se ve '
+        'deshabilitado (y Esc no cierra); al terminar, se habilita', (
+      tester,
+    ) async {
       final app = await _pump(
         tester,
         repo: _FakeRepo([_msg('primera', 6, 0)]),
@@ -769,19 +963,21 @@ void _main3b() {
       await tester.tap(find.widgetWithText(ElevatedButton, 'Subir'));
       await _settle(tester);
 
-      expect(_cerrar, findsNothing);
+      expect(_cerrar, findsOneWidget);
+      expect(_cerrarHabilitado(tester), isFalse);
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await _settle(tester);
       expect(_location(app.router), '/review');
+      expect(find.text('¿Salir de la revisión?'), findsNothing);
 
       app.uploader.gate!.complete();
       await _settle(tester);
 
       expect(app.uploader.uploaded, ['primera']);
-      expect(_cerrar, findsOneWidget);
+      expect(_cerrarHabilitado(tester), isTrue);
     });
 
-    testWidgets('si la subida falla, "Cerrar" vuelve a aparecer y el '
+    testWidgets('si la subida falla, "Cerrar" se vuelve a habilitar y el '
         'registro sigue pendiente', (tester) async {
       final app = await _pump(
         tester,
@@ -799,12 +995,12 @@ void _main3b() {
       await _settle(tester);
       await tester.tap(find.widgetWithText(ElevatedButton, 'Subir'));
       await _settle(tester);
-      expect(_cerrar, findsNothing);
+      expect(_cerrarHabilitado(tester), isFalse);
 
       app.uploader.gate!.complete();
       await _settle(tester);
 
-      expect(_cerrar, findsOneWidget);
+      expect(_cerrarHabilitado(tester), isTrue);
       expect(find.text('Subir · 1 pendiente'), findsOneWidget);
       final saved = await app.reviews.getByMessageId(
         'primera',
@@ -833,7 +1029,7 @@ void _main3b() {
 
   group('ancho < 840', () {
     testWidgets('aviso arriba, sin panel, navegación libre, "Subir" '
-        'disponible y "Cerrar" con su regla', (tester) async {
+        'disponible y "Cerrar" siempre visible', (tester) async {
       final app = await _pump(
         tester,
         width: 700,
@@ -850,8 +1046,10 @@ void _main3b() {
       );
       expect(find.byType(ImageReviewPanel), findsNothing);
       expect(find.text('Subir · 1 pendiente'), findsOneWidget);
-      // "primera" no tiene formulario: no hay "Cerrar" aunque sea angosto.
-      expect(_cerrar, findsNothing);
+      // Ajuste: "primera" no tiene formulario y antes no había "Cerrar"; ahora
+      // se ve (habilitado) también en angosto.
+      expect(_cerrar, findsOneWidget);
+      expect(_cerrarHabilitado(tester), isTrue);
 
       // Navegación libre aunque la actual no tenga registro.
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
@@ -866,7 +1064,7 @@ void _main3b() {
       expect(app.container.read(reviewSessionProvider), isNotNull);
     });
 
-    testWidgets('con todas guardadas, "Cerrar" aparece también en angosto', (
+    testWidgets('con todas guardadas, "Cerrar" se ve también en angosto', (
       tester,
     ) async {
       await _pump(

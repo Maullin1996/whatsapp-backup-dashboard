@@ -205,6 +205,7 @@ describe("mergeWinningNumbers", () => {
       ]) {
         assert.deepEqual(mergeWinningNumbers(a, m), {
           numbers: [],
+          entries: [],
           discarded: [],
         });
       }
@@ -384,13 +385,16 @@ describe("mergeWinningNumbers", () => {
       assert.deepEqual(result.numbers, ["2222", "4828"]);
     });
 
-    test("doradotarde y dorado_tarde no se emparejan", () => {
-      assert.notEqual(lotteryKey("doradotarde"), lotteryKey("dorado_tarde"));
+    // Antes de confirmar el alias `doradotarde` → `dorado_tarde` este caso
+    // fijaba que NO se emparejaban; el usuario confirmó el alias, así que ahora
+    // la manual reemplaza a la automática.
+    test("doradotarde (alias) y dorado_tarde se emparejan: gana la manual", () => {
+      assert.equal(lotteryKey("doradotarde"), lotteryKey("dorado_tarde"));
       const result = mergeWinningNumbers(
         autoDoc(auto("dorado_tarde", "1111")),
         [manual("doradotarde", "2222")],
       );
-      assert.deepEqual(result.numbers, ["1111", "2222"]);
+      assert.deepEqual(result.numbers, ["2222"]);
     });
 
     test("una manual doradotarde sola cuenta como una más", () => {
@@ -398,6 +402,143 @@ describe("mergeWinningNumbers", () => {
         manual("doradotarde", "2222"),
       ]);
       assert.deepEqual(result.numbers, ["2222", "3333"]);
+    });
+  });
+
+  describe("entries: la pareja (lotería, número)", () => {
+    const entriesOf = (a, m) => mergeWinningNumbers(a, m).entries;
+
+    test("alias pija0, pijao y pijo con la automática Pijao de oro: una sola entrada", () => {
+      for (const slug of ["Pija0", "Pijao", "Pijo", "pija0", "PIJAO"]) {
+        const result = mergeWinningNumbers(
+          autoDoc(auto("pijao_de_oro", "1111", { nombreLoteria: "Pijao de oro" })),
+          [manual(slug, "2222", { lottery: slug })],
+        );
+        assert.deepEqual(
+          result.entries,
+          [{ loteria: "pijao_de_oro", numero: "2222" }],
+          slug,
+        );
+        assert.deepEqual(result.numbers, ["2222"], slug);
+      }
+    });
+
+    test("alias doradotarde → dorado_tarde y doradonoche → dorado_noche", () => {
+      const result = mergeWinningNumbers(
+        autoDoc(auto("dorado_tarde", "1111"), auto("dorado_noche", "2222")),
+        [manual("doradotarde", "3333"), manual("doradonoche", "4444")],
+      );
+      assert.deepEqual(result.entries, [
+        { loteria: "dorado_noche", numero: "4444" },
+        { loteria: "dorado_tarde", numero: "3333" },
+      ]);
+    });
+
+    test("doramaña sigue dando dorado_manana", () => {
+      assert.deepEqual(entriesOf(null, [manual("doramaña", "4828")]), [
+        { loteria: "dorado_manana", numero: "4828" },
+      ]);
+    });
+
+    test("cada alias apunta directo a su identificador final", () => {
+      const esperado = {
+        doramaña: "dorado_manana",
+        doradotarde: "dorado_tarde",
+        doradonoche: "dorado_noche",
+        pija0: "pijao_de_oro",
+        pijao: "pijao_de_oro",
+        pijo: "pijao_de_oro",
+      };
+      for (const [slug, key] of Object.entries(esperado)) {
+        assert.equal(lotteryKey(slug), key, slug);
+      }
+    });
+
+    test("la pareja correcta: cash_three_dia con 3 cifras, fantastica_dia, medellin y valle", () => {
+      const result = mergeWinningNumbers(
+        autoDoc(
+          auto("cash_three_día", "606"),
+          auto("fantástica_día", "0457"),
+          auto("medellín", "8812"),
+        ),
+        [manual("valle", "2012")],
+      );
+      assert.deepEqual(result.entries, [
+        { loteria: "cash_three_dia", numero: "606" },
+        { loteria: "fantastica_dia", numero: "0457" },
+        { loteria: "medellin", numero: "8812" },
+        { loteria: "valle", numero: "2012" },
+      ]);
+      assert.deepEqual(result.numbers, ["0457", "2012", "606", "8812"]);
+    });
+
+    test("dos loterías con el mismo número: dos entradas y numbers lo trae una vez", () => {
+      const result = mergeWinningNumbers(
+        autoDoc(auto("boyaca", "1234"), auto("cauca", "1234")),
+        [],
+      );
+      assert.deepEqual(result.entries, [
+        { loteria: "boyaca", numero: "1234" },
+        { loteria: "cauca", numero: "1234" },
+      ]);
+      assert.deepEqual(result.numbers, ["1234"]);
+    });
+
+    test("la misma pareja repetida (con espacios y en la manual) da una sola entrada", () => {
+      const result = mergeWinningNumbers(
+        autoDoc(auto("boyaca", "1234"), auto("boyaca", " 1234 ")),
+        [manual("huila", "5555"), manual("huila", "5555")],
+      );
+      assert.deepEqual(result.entries, [
+        { loteria: "boyaca", numero: "1234" },
+        { loteria: "huila", numero: "5555" },
+      ]);
+    });
+
+    test("el orden no depende del de entrada: loteria y luego numero", () => {
+      const a = [auto("meta", "9999"), auto("boyaca", "2222"), auto("boyaca", "1111")];
+      const m = [manual("valle", "0001"), manual("cauca", "7777")];
+      const first = entriesOf(autoDoc(...a), m);
+      const second = entriesOf(autoDoc(...[...a].reverse()), [...m].reverse());
+      assert.deepEqual(first, second);
+      assert.deepEqual(first, [
+        { loteria: "boyaca", numero: "1111" },
+        { loteria: "boyaca", numero: "2222" },
+        { loteria: "cauca", numero: "7777" },
+        { loteria: "meta", numero: "9999" },
+        { loteria: "valle", numero: "0001" },
+      ]);
+    });
+
+    test("sin slug pero con nombre: cuenta en numbers y sale con loteria vacía", () => {
+      const result = mergeWinningNumbers(
+        autoDoc(auto("", "1111", { nombreLoteria: "Boyacá" })),
+        [],
+      );
+      assert.deepEqual(result.numbers, ["1111"]);
+      assert.deepEqual(result.entries, [{ loteria: "", numero: "1111" }]);
+    });
+
+    test("discarded no cambia y lo descartado no aparece en entries", () => {
+      const result = mergeWinningNumbers(
+        autoDoc(
+          auto("boyaca", "12"),
+          auto("cauca", "abcd"),
+          { nombreLoteria: " ", slug: " ", numero: "1234" },
+          auto("huila", "4321"),
+        ),
+        [],
+      );
+      assert.deepEqual(result.numbers, ["4321"]);
+      assert.deepEqual(result.entries, [{ loteria: "huila", numero: "4321" }]);
+      assert.deepEqual(
+        result.discarded.map((d) => d.reason).sort(),
+        [
+          DISCARD_REASONS.notDigits,
+          DISCARD_REASONS.noLottery,
+          DISCARD_REASONS.wrongLength,
+        ].sort(),
+      );
     });
   });
 

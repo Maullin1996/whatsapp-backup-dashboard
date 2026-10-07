@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:whatsapp_monitor_viewer/core/lotteries/lotteries.dart';
 import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/image_review_record.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
@@ -72,7 +73,10 @@ class ReviewReadOnlyView extends StatelessWidget {
                   ),
                   if (comprobantes[i].loteria case final loteria?) ...[
                     const SizedBox(height: AppSpacing.md),
-                    _ReadField(label: 'Lotería', child: Text(loteria)),
+                    _ReadField(
+                      label: 'Lotería',
+                      child: Text(loteriaDisplayName(loteria)),
+                    ),
                   ],
                 ],
               ),

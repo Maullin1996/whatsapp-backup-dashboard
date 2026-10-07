@@ -12,6 +12,8 @@ import 'package:whatsapp_monitor_viewer/features/image_review/presentation/model
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/image_review_providers.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/widgets/image_review_panel.dart';
 
+import 'pick_loteria.dart';
+
 const _target = ImageReviewTarget(
   messageId: 'm1',
   chatJid: 'chat@g.us',
@@ -87,6 +89,9 @@ Future<void> _fillValid(
   await tester.pump();
   await tester.enterText(_key('total-$id'), total);
   await tester.pump();
+  // Ajuste (lotería obligatoria de lista cerrada): el helper elige una
+  // lotería; antes la lotería era opcional y no se llenaba.
+  await pickLoteria(tester, id, 'Dorado tarde');
 }
 
 Future<void> _tapButton(WidgetTester tester, String label) async {
@@ -137,8 +142,8 @@ void main() {
       await _pumpPanel(tester);
       await tester.tap(find.text('Agregar comprobante'));
       await tester.pump();
-      await tester.enterText(_key('loteria-1'), 'Baloto');
-      await tester.pump(); // enterText no dibuja un frame por sí solo
+      // Ajuste: la lotería ya no es un campo de texto: se elige de la lista.
+      await pickLoteria(tester, 1, 'Valle');
 
       await tester.tap(_key('quitar-1'));
       await tester.pumpAndSettle();
@@ -208,6 +213,7 @@ void main() {
       await tester.enterText(_key('codigo'), 'A1');
       await tester.enterText(_key('numero-0'), '0042');
       await tester.enterText(_key('total-0'), '500');
+      await pickLoteria(tester, 0, 'Dorado tarde'); // obligatoria
       await _tapButton(tester, 'Guardar');
 
       final record = await _savedRecord(container);
@@ -313,10 +319,10 @@ void main() {
       );
       expect(_key('loteria-0'), findsOneWidget);
       expect(_key('loteria-1'), findsOneWidget);
-      expect(
-        find.widgetWithText(TextField, 'Lotería (opcional)'),
-        findsNWidgets(2),
-      );
+      // Ajuste: antes era un TextField "Lotería (opcional)"; ahora es un
+      // selector de lista cerrada, obligatorio, uno por tarjeta.
+      expect(find.byType(DropdownMenu<String>), findsNWidgets(2));
+      expect(find.text('Lotería (opcional)'), findsNothing);
     });
 
     testWidgets('sin código no se guarda (aunque las tarjetas estén '
@@ -331,30 +337,109 @@ void main() {
       expect(await _savedRecord(container), isNull);
     });
 
-    testWidgets('la lotería es opcional y distinta entre tarjetas; al agregar '
-        'un comprobante arranca vacía', (tester) async {
+    DropdownMenu<String> selector(WidgetTester tester, int id) =>
+        tester.widget<DropdownMenu<String>>(_key('loteria-$id'));
+
+    testWidgets('elegir una lotería guarda el identificador en el borrador, '
+        'no el nombre', (tester) async {
+      final container = await _pumpPanel(tester);
+      final draft = reviewDraftProvider((
+        messageId: 'm1',
+        rol: ReviewRole.revisor,
+      ));
+      expect(container.read(draft).comprobantes.single.loteria, isEmpty);
+
+      await pickLoteria(tester, 0, 'Dorado tarde');
+
+      expect(container.read(draft).comprobantes.single.loteria, 'dorado_tarde');
+    });
+
+    testWidgets('la lotería es obligatoria y distinta entre tarjetas; al '
+        'agregar un comprobante arranca sin selección', (tester) async {
       final container = await _pumpPanel(tester);
       await _fillValid(tester);
-      await tester.enterText(_key('loteria-0'), '  Baloto ');
+      await pickLoteria(tester, 0, 'Medellín'); // cambia la de la tarjeta 1
       await tester.tap(find.text('Agregar comprobante'));
       await tester.pumpAndSettle();
-      expect(_text(tester, 'loteria-1'), isEmpty);
+      expect(selector(tester, 0).initialSelection, 'medellin');
+      expect(selector(tester, 1).initialSelection, isNull);
       await tester.enterText(_key('numero-1'), '5311');
       await tester.tap(_key('agregar-numero-1'));
       await tester.pump();
       await tester.enterText(_key('total-1'), '3000');
       await tester.pump();
 
+      // Sin la lotería del comprobante 2 no se guarda.
+      await _tapButton(tester, 'Guardar');
+      expect(find.text('Comprobante 2: elige la lotería'), findsOneWidget);
+      expect(
+        find.text('Elige una lotería'),
+        findsOneWidget,
+      ); // solo la tarjeta 2
+      expect(await _savedRecord(container), isNull);
+
+      await pickLoteria(tester, 1, 'Valle');
       await _tapButton(tester, 'Guardar');
 
       final record = await _savedRecord(container);
       expect(record, isNotNull);
       expect(record!.form.codigo, 'A1');
-      expect(record.form.comprobantes.map((c) => c.loteria), ['Baloto', null]);
-      // Modo lectura: el código una vez y la lotería solo donde se anotó.
+      expect(record.form.comprobantes.map((c) => c.loteria), [
+        'medellin',
+        'valle',
+      ]);
+      // Modo lectura: el código una vez y la lotería de cada tarjeta, con su
+      // nombre para mostrar.
       expect(find.text('A1'), findsOneWidget);
+      expect(find.text('Medellín'), findsOneWidget);
+      expect(find.text('Valle'), findsOneWidget);
+      expect(find.text('Lotería'), findsNWidgets(2));
+    });
+
+    testWidgets('un registro viejo con texto libre en la lotería: el selector '
+        'aparece sin selección y no se guarda sin elegir', (tester) async {
+      final repository = InMemoryImageReviewRepository();
+      await repository.save(
+        ImageReviewRecord(
+          messageId: 'm1',
+          chatJid: 'chat@g.us',
+          shift: 'Jornada Mañana',
+          rol: ReviewRole.revisor,
+          storagePath: 'img_m1.png',
+          fechaJornada: '2026-01-15',
+          messageTimestamp: 1788489942000,
+          form: const ImageReviewForm(
+            codigo: 'A1',
+            comprobantes: [
+              Comprobante(numeros: ['0123'], total: 9000, loteria: 'Baloto'),
+              Comprobante(numeros: ['0456'], total: 500),
+            ],
+          ),
+          registradoEn: DateTime(2026, 1, 15, 8),
+          registradoPor: _email,
+        ),
+      );
+      final container = await _pumpPanel(tester, repository: repository);
+      // En lectura el texto libre se ve tal cual.
       expect(find.text('Baloto'), findsOneWidget);
-      expect(find.text('Lotería'), findsOneWidget);
+
+      await _tapButton(tester, 'Editar');
+      expect(selector(tester, 0).initialSelection, isNull); // texto libre
+      expect(selector(tester, 1).initialSelection, isNull); // sin lotería
+
+      await _tapButton(tester, 'Guardar');
+      expect(find.text('Comprobante 1: elige la lotería'), findsOneWidget);
+      expect(find.text('Elige una lotería'), findsNWidgets(2));
+
+      await pickLoteria(tester, 0, 'Valle');
+      await pickLoteria(tester, 1, 'Meta');
+      await _tapButton(tester, 'Guardar');
+      final record = await _savedRecord(container);
+      expect(record!.form.comprobantes.map((c) => c.loteria), [
+        'valle',
+        'meta',
+      ]);
+      expect(record.editado, isTrue);
     });
 
     testWidgets('un registro anterior (sin código) abre "Editar" con el '
@@ -390,6 +475,8 @@ void main() {
       expect((await _savedRecord(container))!.form.codigo, isNull);
 
       await tester.enterText(_key('codigo'), 'A1');
+      // Ajuste: el registro tampoco tiene lotería (obligatoria ahora).
+      await pickLoteria(tester, 0, 'Dorado tarde');
       await _tapButton(tester, 'Guardar');
       final record = await _savedRecord(container);
       expect(record!.form.codigo, 'A1');

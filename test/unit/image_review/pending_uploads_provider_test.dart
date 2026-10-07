@@ -198,6 +198,7 @@ void main() {
       draft.setCodigo('A1');
       draft.setNumeroPendiente(0, '0123');
       draft.setTotal(0, '9000');
+      draft.setLoteria(0, 'dorado_tarde');
       await draft.save(target);
     }
 

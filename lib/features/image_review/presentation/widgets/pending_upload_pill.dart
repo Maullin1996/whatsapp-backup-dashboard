@@ -72,10 +72,12 @@ class PendingUploadPill extends ConsumerWidget {
     if (outcome == null) return; // ya se estaba subiendo
     messenger
       ..hideCurrentSnackBar()
-      ..showSnackBar(_resultSnackBar(outcome));
+      ..showSnackBar(resultSnackBar(outcome));
   }
 
-  static SnackBar _resultSnackBar(UploadOutcome outcome) {
+  /// El aviso del resultado de una subida (lo usa también el diálogo de salida
+  /// de `/review`).
+  static SnackBar resultSnackBar(UploadOutcome outcome) {
     final error = outcome.error;
     if (error != null) {
       return SnackBar(

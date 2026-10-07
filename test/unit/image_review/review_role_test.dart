@@ -175,6 +175,9 @@ void main() {
         draft.setNumeroPendiente(0, '0123');
       }
       draft.setTotal(0, total);
+      // Ajuste: la lotería es obligatoria (lista cerrada) y la validación
+      // corre en save(); antes el helper la dejaba sin elegir.
+      draft.setLoteria(0, 'dorado_tarde');
       await draft.save(_target);
     }
 
@@ -192,16 +195,19 @@ void main() {
       }
     });
 
+    // Ajuste (lotería obligatoria de lista cerrada): antes guardaba la lotería
+    // con trim y una vacía quedaba en null; ahora se guarda el identificador
+    // de cada comprobante y una vacía no se puede guardar (ver el siguiente).
     test(
-      'save() guarda el código de la imagen (con trim) y la lotería de '
-      'cada comprobante (con trim; vacía -> null), en los dos roles',
+      'save() guarda el código de la imagen (con trim) y el identificador de '
+      'la lotería de cada comprobante, en los dos roles',
       () async {
         for (final rol in ReviewRole.values) {
           final draft = container.read(reviewDraftProvider(_key(rol)).notifier);
           draft.setCodigo('  0457 ');
           if (rol == ReviewRole.revisor) draft.setNumeroPendiente(0, '0123');
           draft.setTotal(0, '9000');
-          draft.setLoteria(0, ' Lotería de Medellín ');
+          draft.setLoteria(0, 'medellin');
           draft.addComprobante();
           final second = container
               .read(reviewDraftProvider(_key(rol)))
@@ -221,7 +227,7 @@ void main() {
             draft.setNumeroPendiente(second, '5311');
           }
           draft.setTotal(second, '3000');
-          draft.setLoteria(second, '   ');
+          draft.setLoteria(second, 'valle');
           await draft.save(_target);
 
           final saved = await container.read(
@@ -229,12 +235,36 @@ void main() {
           );
           expect(saved!.form.codigo, '0457', reason: rol.name);
           expect(saved.form.comprobantes.map((c) => c.loteria), [
-            'Lotería de Medellín',
-            null,
+            'medellin',
+            'valle',
           ], reason: rol.name);
         }
       },
     );
+
+    test('sin lotería elegida no guarda: error y nada en el repositorio, en '
+        'los dos roles', () async {
+      for (final rol in ReviewRole.values) {
+        final draft = container.read(reviewDraftProvider(_key(rol)).notifier);
+        draft.setCodigo('A1');
+        if (rol == ReviewRole.revisor) draft.setNumeroPendiente(0, '0123');
+        draft.setTotal(0, '9000');
+        await draft.save(_target);
+
+        final state = container.read(reviewDraftProvider(_key(rol)));
+        expect(
+          state.saveError,
+          const ImageReviewFailure.loteriaInvalida(1),
+          reason: rol.name,
+        );
+        expect(state.showErrors, isTrue, reason: rol.name);
+        expect(
+          await container.read(savedRecordProvider(_key(rol)).future),
+          isNull,
+          reason: rol.name,
+        );
+      }
+    });
 
     test('lo guardado como Revisor no aparece como Sumador', () async {
       await saveAs(ReviewRole.revisor);
@@ -320,6 +350,7 @@ void main() {
         ))!,
       );
       draft.setTotal(0, '12000');
+      draft.setLoteria(0, 'dorado_tarde');
       await draft.save(_target);
 
       final revisor = await container.read(
@@ -374,6 +405,7 @@ void main() {
       draft.setCodigo('A1');
       draft.setNumeroPendiente(0, '5311'); // no debería pasar por la UI
       draft.setTotal(0, '500');
+      draft.setLoteria(0, 'dorado_tarde');
       await draft.save(_target);
 
       final record = await container.read(

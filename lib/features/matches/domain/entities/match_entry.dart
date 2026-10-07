@@ -12,6 +12,11 @@ abstract class MatchEntry with _$MatchEntry {
     /// El número tal cual lo anotó el Revisor (conserva ceros a la
     /// izquierda; ver `findMatches`).
     required String numero,
+
+    /// Identificador de la lotería del comprobante donde el Revisor anotó el
+    /// número (`lib/core/lotteries/lotteries.dart`). Null o fuera de la lista
+    /// en un registro viejo de texto libre: esa entrada nunca coincide.
+    required String? loteria,
     required String messageId,
     required String chatJid,
     required String groupName,

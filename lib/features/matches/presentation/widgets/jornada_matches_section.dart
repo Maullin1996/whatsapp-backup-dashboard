@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:whatsapp_monitor_viewer/core/lotteries/lotteries.dart';
 import 'package:whatsapp_monitor_viewer/core/responsive/responsive_layout.dart';
 import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
 import 'package:whatsapp_monitor_viewer/core/time/jornada_labels.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/domain/entities/jornada_matches.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/domain/entities/match_entry.dart';
+import 'package:whatsapp_monitor_viewer/features/matches/domain/entities/winning_entry.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/presentation/widgets/match_detail_dialog.dart';
 
 /// Una jornada de Coincidencias: sus números ganadores y, si los hay, las
@@ -58,10 +60,17 @@ class JornadaMatchesSection extends StatelessWidget {
   }
 }
 
-/// Los números ganadores del día, tal cual (conservan ceros a la izquierda).
-/// Solo se muestra si hay alguno.
+/// "Dorado mañana · 1288": el nombre de la lotería junto al número. Sin
+/// lotería (nula o vacía), solo el número.
+String loteriaNumeroLabel(String? loteria, String numero) =>
+    (loteria == null || loteria.isEmpty)
+    ? numero
+    : '${loteriaDisplayName(loteria)} · $numero';
+
+/// Los ganadores del día con su lotería, tal cual (conservan ceros a la
+/// izquierda). Solo se muestra si hay alguno.
 class _WinningNumbersRow extends StatelessWidget {
-  final List<String> numbers;
+  final List<WinningEntry> numbers;
 
   const _WinningNumbersRow({required this.numbers});
 
@@ -76,19 +85,20 @@ class _WinningNumbersRow extends StatelessWidget {
           'Números ganadores:',
           style: TextStyle(fontWeight: FontWeight.w600),
         ),
-        for (final numero in numbers) _NumberChip(numero: numero),
+        for (final winner in numbers)
+          _NumberChip(label: loteriaNumeroLabel(winner.loteria, winner.numero)),
       ],
     );
   }
 }
 
-/// Píldora con un número ganador (patrón de badge: fondo al 12 % de alpha,
-/// texto del mismo color, radio pill). Cifras de ancho fijo para comparar a
-/// simple vista.
+/// Píldora con un ganador y su lotería (patrón de badge: fondo al 12 % de
+/// alpha, texto del mismo color, radio pill). Cifras de ancho fijo para
+/// comparar a simple vista.
 class _NumberChip extends StatelessWidget {
-  final String numero;
+  final String label;
 
-  const _NumberChip({required this.numero});
+  const _NumberChip({required this.label});
 
   @override
   Widget build(BuildContext context) {
@@ -103,7 +113,7 @@ class _NumberChip extends StatelessWidget {
           vertical: AppSpacing.xs,
         ),
         child: Text(
-          numero,
+          label,
           style: AppTypography.badge
               .copyWith(color: AppColors.accentTeal)
               .merge(AppTypography.tabular),
@@ -174,8 +184,15 @@ class _MatchTileMobile extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text(match.numero, style: _numeroStyle(context)),
-              const Spacer(),
+              // Con el nombre de la lotería el texto es más largo: puede
+              // envolver a varias líneas en vez de desbordar a 360 px.
+              Expanded(
+                child: Text(
+                  loteriaNumeroLabel(match.loteria, match.numero),
+                  style: _numeroStyle(context),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
               Text(match.localTime, style: AppTypography.timestamp(context)),
             ],
           ),
@@ -219,7 +236,10 @@ class _MatchTileDesktop extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Text(match.numero, style: _numeroStyle(context)),
+          Text(
+            loteriaNumeroLabel(match.loteria, match.numero),
+            style: _numeroStyle(context),
+          ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             flex: 2,

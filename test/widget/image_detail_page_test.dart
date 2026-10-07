@@ -28,6 +28,8 @@ import 'package:whatsapp_monitor_viewer/features/messages/presentation/widgets/n
 
 import 'test_asset_bundle.dart';
 
+import 'image_review/pick_loteria.dart';
+
 const _blockedMessage = 'Guarda el formulario para continuar';
 
 /// `pumpAndSettle` no termina aquí: la imagen de red nunca carga y su spinner
@@ -255,6 +257,9 @@ Future<void> _fillAndSave(
   await tester.pump();
   await tester.enterText(find.byKey(const ValueKey('total-0')), total);
   await tester.pump();
+  // Ajuste (lotería obligatoria de lista cerrada): el helper elige una
+  // lotería; antes la lotería era opcional y no se llenaba.
+  await pickLoteria(tester, 0, 'Dorado tarde', settle: _settle);
   await tester.tap(find.widgetWithText(ElevatedButton, 'Guardar'));
   await _settle(tester);
 }

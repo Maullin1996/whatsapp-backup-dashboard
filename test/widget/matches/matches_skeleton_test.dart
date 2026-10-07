@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/domain/entities/jornada_matches.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/domain/entities/match_entry.dart';
+import 'package:whatsapp_monitor_viewer/features/matches/domain/entities/winning_entry.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/presentation/widgets/jornada_matches_section.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/presentation/widgets/matches_skeleton.dart';
 
 MatchEntry _entry(String numero) => MatchEntry(
   numero: numero,
+  loteria: 'meta',
   messageId: 'm-$numero',
   chatJid: 'demo-grupo-norte@g.us',
   groupName: 'Grupo Norte (demo)',
@@ -18,10 +20,18 @@ MatchEntry _entry(String numero) => MatchEntry(
 );
 
 /// Misma forma que aproxima el skeleton: ganadores + 2 coincidencias.
+///
+/// Ajuste (comparación por lotería): el chip ahora lleva el nombre de la
+/// lotería ("Dorado mañana · 4521"), mucho más ancho que el número solo. Con
+/// dos chips la fila de ganadores envolvía a 3 líneas a 360 px y la sección
+/// real quedaba 72 px más alta que el skeleton. Se mantiene la forma que el
+/// skeleton aproxima (UNA fila de ganadores): un solo chip con el nombre más
+/// corto de la lista ("Meta · 4521"), y las 2 coincidencias de ese ganador.
+/// El skeleton no cambia.
 final _typicalJornada = JornadaMatches(
   shift: 'Jornada Mañana (06:00 – 10:54)',
-  winningNumbers: const ['4521', '0123'],
-  matches: [_entry('4521'), _entry('0123')],
+  winningNumbers: const [WinningEntry(loteria: 'meta', numero: '4521')],
+  matches: [_entry('4521'), _entry('4521')],
 );
 
 /// Mide [child] con alto NO acotado (como el primer hijo de un `ListView`

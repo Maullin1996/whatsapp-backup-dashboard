@@ -12,4 +12,5 @@ abstract class ReviewFieldHints {
   static const String required = 'Obligatorio';
   static const String numbersRequired = 'Agrega al menos un número';
   static const String totalPositive = 'Debe ser mayor que 0';
+  static const String loteriaRequired = 'Elige una lotería';
 }

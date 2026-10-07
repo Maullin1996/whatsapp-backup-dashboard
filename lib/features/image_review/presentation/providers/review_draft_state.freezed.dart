@@ -16,7 +16,7 @@ mixin _$ComprobanteDraft {
 
  int get id; List<String> get numeros;/// Texto tipeado en el campo de número que aún no se agregó como chip.
  String get numeroPendiente;/// Solo dígitos (el input aplica `digitsOnly`).
- String get total;/// Lotería (dónde se compró el boleto), opcional. Arranca vacía.
+ String get total;/// Identificador de la lotería elegida (lista cerrada). Arranca vacía.
  String get loteria;
 /// Create a copy of ComprobanteDraft
 /// with the given fields replaced by the non-null parameter values.
@@ -228,7 +228,7 @@ class _ComprobanteDraft extends ComprobanteDraft {
 @override@JsonKey() final  String numeroPendiente;
 /// Solo dígitos (el input aplica `digitsOnly`).
 @override@JsonKey() final  String total;
-/// Lotería (dónde se compró el boleto), opcional. Arranca vacía.
+/// Identificador de la lotería elegida (lista cerrada). Arranca vacía.
 @override@JsonKey() final  String loteria;
 
 /// Create a copy of ComprobanteDraft

@@ -77,6 +77,10 @@ class ImageDetailPage extends ConsumerStatefulWidget {
   /// cierra desde aquí.
   final bool showClose;
 
+  /// `false`: el botón de cerrar se ve pero deshabilitado (y Esc no cierra).
+  /// Solo tiene efecto con [showClose].
+  final bool closeEnabled;
+
   /// Qué hace cerrar. `null` (por defecto): `Navigator.pop`.
   final VoidCallback? onClose;
 
@@ -101,6 +105,7 @@ class ImageDetailPage extends ConsumerStatefulWidget {
     this.reverse = true,
     this.paginate = true,
     this.showClose = true,
+    this.closeEnabled = true,
     this.onClose,
     this.closeLabel,
     this.actions = const [],
@@ -480,6 +485,7 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage>
           zoomRest: _resetZoom,
           close: widget.showClose ? _close : null,
           closeLabel: widget.closeLabel,
+          closeEnabled: widget.closeEnabled,
           actions: widget.actions,
         ),
         Expanded(
@@ -556,7 +562,7 @@ class _ImageDetailPageState extends ConsumerState<ImageDetailPage>
               _viewerFocus.requestFocus();
               return null;
             }
-            if (widget.showClose) _close();
+            if (widget.showClose && widget.closeEnabled) _close();
             return null;
           },
         ),
@@ -805,6 +811,7 @@ class _ViwerTopBar extends StatelessWidget {
   final VoidCallback zoomRest;
   final VoidCallback? close;
   final String? closeLabel;
+  final bool closeEnabled;
   final List<Widget> actions;
 
   const _ViwerTopBar({
@@ -818,6 +825,7 @@ class _ViwerTopBar extends StatelessWidget {
     required this.zoomRest,
     required this.close,
     required this.closeLabel,
+    required this.closeEnabled,
     required this.actions,
   });
 
@@ -835,6 +843,7 @@ class _ViwerTopBar extends StatelessWidget {
         zoomRest: zoomRest,
         close: close,
         closeLabel: closeLabel,
+        closeEnabled: closeEnabled,
         actions: actions,
       ),
       desktop: _ViewerTopBarDesktop(
@@ -848,6 +857,7 @@ class _ViwerTopBar extends StatelessWidget {
         zoomRest: zoomRest,
         close: close,
         closeLabel: closeLabel,
+        closeEnabled: closeEnabled,
         actions: actions,
       ),
     );
@@ -865,6 +875,7 @@ class _ViewerTopBarMobile extends StatelessWidget {
   final VoidCallback zoomRest;
   final VoidCallback? close;
   final String? closeLabel;
+  final bool closeEnabled;
   final List<Widget> actions;
 
   const _ViewerTopBarMobile({
@@ -878,6 +889,7 @@ class _ViewerTopBarMobile extends StatelessWidget {
     required this.zoomRest,
     required this.close,
     required this.closeLabel,
+    required this.closeEnabled,
     required this.actions,
   });
 
@@ -906,7 +918,7 @@ class _ViewerTopBarMobile extends StatelessWidget {
           icon: const Icon(Icons.zoom_in_rounded, size: iconSize),
         ),
         ...actions,
-        ?_closeButton(close, closeLabel, iconSize),
+        ?_closeButton(close, closeLabel, iconSize, closeEnabled),
       ],
     );
 
@@ -982,6 +994,7 @@ class _ViewerTopBarDesktop extends StatelessWidget {
   final VoidCallback zoomRest;
   final VoidCallback? close;
   final String? closeLabel;
+  final bool closeEnabled;
   final List<Widget> actions;
 
   const _ViewerTopBarDesktop({
@@ -995,6 +1008,7 @@ class _ViewerTopBarDesktop extends StatelessWidget {
     required this.zoomRest,
     required this.close,
     required this.closeLabel,
+    required this.closeEnabled,
     required this.actions,
   });
 
@@ -1023,7 +1037,7 @@ class _ViewerTopBarDesktop extends StatelessWidget {
           icon: const Icon(Icons.zoom_in_rounded, size: iconSize),
         ),
         ...actions,
-        ?_closeButton(close, closeLabel, iconSize),
+        ?_closeButton(close, closeLabel, iconSize, closeEnabled),
       ],
     );
 
@@ -1093,17 +1107,25 @@ class _ViewerTopBarDesktop extends StatelessWidget {
 
 /// Botón de cerrar de la barra: icono (el visor del chat) o, con [label], un
 /// botón con texto. Sin [close] no hay botón.
-Widget? _closeButton(VoidCallback? close, String? label, double iconSize) {
+Widget? _closeButton(
+  VoidCallback? close,
+  String? label,
+  double iconSize,
+  bool enabled,
+) {
   if (close == null) return null;
   if (label != null) {
     return Padding(
       padding: const EdgeInsets.only(left: AppSpacing.sm),
-      child: ElevatedButton(onPressed: close, child: Text(label)),
+      child: ElevatedButton(
+        onPressed: enabled ? close : null,
+        child: Text(label),
+      ),
     );
   }
   return IconButton(
     tooltip: 'Cerrar',
-    onPressed: close,
+    onPressed: enabled ? close : null,
     icon: Icon(Icons.close, size: iconSize),
   );
 }
