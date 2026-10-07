@@ -7,17 +7,18 @@ import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/domain/entities/jornada_summary.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/presentation/providers/summary_providers.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/domain/helpers/summary_overview.dart';
-import 'package:whatsapp_monitor_viewer/features/summary/presentation/widgets/summary_group_section.dart';
-import 'package:whatsapp_monitor_viewer/features/summary/presentation/widgets/summary_overview_panel.dart';
+import 'package:whatsapp_monitor_viewer/features/summary/presentation/pages/summary_role_detail_page.dart';
+import 'package:whatsapp_monitor_viewer/features/summary/presentation/widgets/summary_group_tile.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/presentation/widgets/summary_skeleton.dart';
 import 'package:whatsapp_monitor_viewer/helpers/format_long_date.dart';
 import 'package:whatsapp_monitor_viewer/helpers/map_failure_to_message.dart';
 
 /// Resumen por grupo y jornada de un día: qué registró cada rol y si cuadra.
 ///
-/// Arriba, un panel informativo con lo que hay que atender (descuadres,
-/// pendientes, imágenes sin registrar) que también filtra; debajo, las
-/// jornadas por grupo, con los grupos con problemas primero.
+/// Una lista de grupos (los que tienen problemas primero), cada uno con dos
+/// tarjetas, Revisor y Sumador, que muestran el total sumado y las jornadas
+/// registradas; tocar una abre su detalle por jornada
+/// (`SummaryRoleDetailPage`).
 ///
 /// Lee datos reales de Firestore (ver `summaryRepositoryProvider`); solo para
 /// admin y superAdmin.
@@ -83,7 +84,7 @@ class _SummaryScaffold extends ConsumerWidget {
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(
-            maxWidth: AppSizes.summaryPanelMaxWidth,
+            maxWidth: AppSizes.summaryListMaxWidth,
           ),
           child: const Column(
             children: [
@@ -179,8 +180,7 @@ class _SummaryContent extends ConsumerWidget {
   }
 }
 
-/// Panel informativo arriba y, debajo, las jornadas por grupo (los grupos
-/// que necesitan atención primero), filtradas según la cifra elegida.
+/// Un [SummaryGroupTile] por grupo, con los que necesitan atención primero.
 class _SummaryList extends ConsumerWidget {
   final List<JornadaSummary> summaries;
 
@@ -190,81 +190,23 @@ class _SummaryList extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Una sola lectura del reloj para todo lo que se construye aquí.
     final now = ref.watch(clockProvider)();
-    final filter = ref.watch(summaryFilterProvider);
-    final filterNotifier = ref.read(summaryFilterProvider.notifier);
-    final overview = SummaryOverview.of(summaries, now);
-    final groups = groupsBySeverity([
-      for (final s in summaries)
-        if (matchesSummaryFilter(s, filter, now)) s,
-    ], now);
+    final groups = groupsBySeverity(summaries, now);
 
-    return ListView(
+    return ListView.separated(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.md,
         0,
         AppSpacing.md,
         AppSpacing.xl,
       ),
-      children: [
-        SummaryOverviewPanel(
-          overview: overview,
-          filter: filter,
-          onFilter: filterNotifier.toggle,
+      itemCount: groups.length,
+      separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.md),
+      itemBuilder: (context, i) => SummaryGroupTile(
+        jornadas: groups[i],
+        now: now,
+        onOpenRole: (rol) => context.push(
+          summaryRoleDetailLocation(groups[i].first.chatJid, rol),
         ),
-        const SizedBox(height: AppSpacing.md),
-        if (filter != SummaryFilter.todas) ...[
-          _ActiveFilter(
-            filter: filter,
-            count: overview.countOf(filter),
-            onClear: filterNotifier.clear,
-          ),
-          const SizedBox(height: AppSpacing.md),
-        ],
-        if (groups.isEmpty)
-          _MessageState(
-            icon: Icons.filter_alt_off_rounded,
-            message: 'Ninguna jornada en «${_filterLabel(filter)}»',
-            actionLabel: 'Ver todas',
-            onAction: filterNotifier.clear,
-          ),
-        SummaryGroupGrid(groups: groups, now: now),
-      ],
-    );
-  }
-}
-
-String _filterLabel(SummaryFilter filter) => switch (filter) {
-  SummaryFilter.todas => 'Todas',
-  SummaryFilter.descuadre => 'Descuadres',
-  SummaryFilter.pendiente => 'Pendientes',
-  SummaryFilter.imagenes => 'Imágenes sin registrar',
-  SummaryFilter.cuadra => 'Cuadran',
-};
-
-/// Qué filtro está activo, con cuántas jornadas, y cómo quitarlo.
-class _ActiveFilter extends StatelessWidget {
-  final SummaryFilter filter;
-  final int count;
-  final VoidCallback onClear;
-
-  const _ActiveFilter({
-    required this.filter,
-    required this.count,
-    required this.onClear,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: InputChip(
-        avatar: const Icon(Icons.filter_alt_rounded, size: 18),
-        label: Text(
-          'Mostrando: ${_filterLabel(filter)} ($count)',
-          style: AppTypography.badge,
-        ),
-        onDeleted: onClear,
-        deleteButtonTooltipMessage: 'Quitar filtro',
       ),
     );
   }

@@ -55,7 +55,8 @@ String? computeAuthRedirect({
   final isGoingToLogin = location == '/login';
   final isGoingToAdmin = location == '/admin';
   final isGoingToMatches = location == '/matches';
-  final isGoingToSummary = location == '/summary';
+  final isGoingToSummary =
+      location == '/summary' || location == '/summary/detail';
   final isGoingToReview = location == '/review';
 
   if (!isLoggedIn) return isGoingToLogin ? null : '/login';

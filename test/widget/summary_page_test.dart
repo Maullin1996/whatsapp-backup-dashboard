@@ -8,13 +8,15 @@ import 'package:go_router/go_router.dart';
 import 'package:whatsapp_monitor_viewer/core/errors/failure.dart';
 import 'package:whatsapp_monitor_viewer/core/time/fecha_jornada.dart';
 import 'package:whatsapp_monitor_viewer/core/time/shifts.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/domain/entities/jornada_summary.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/domain/entities/role_summary.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/domain/repositories/summary_repository.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/presentation/pages/summary_page.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/presentation/providers/summary_providers.dart';
-import 'package:whatsapp_monitor_viewer/features/summary/presentation/widgets/jornada_summary_card.dart';
-import 'package:whatsapp_monitor_viewer/features/summary/presentation/widgets/summary_group_section.dart';
+import 'package:whatsapp_monitor_viewer/features/summary/presentation/pages/summary_role_detail_page.dart';
+import 'package:whatsapp_monitor_viewer/features/summary/presentation/widgets/summary_group_tile.dart';
+import 'package:whatsapp_monitor_viewer/features/summary/presentation/widgets/summary_role_card.dart';
 import 'package:whatsapp_monitor_viewer/features/summary/presentation/widgets/summary_skeleton.dart';
 import 'package:whatsapp_monitor_viewer/helpers/format_long_date.dart';
 
@@ -123,7 +125,7 @@ void main() {
       await _pumpPage(tester, repo: repo, settle: false);
 
       expect(find.byType(SummarySkeleton), findsOneWidget);
-      expect(find.byType(JornadaSummaryCard), findsNothing);
+      expect(find.byType(SummaryGroupTile), findsNothing);
 
       repo.gate!.complete();
       await tester.pumpAndSettle();
@@ -139,7 +141,7 @@ void main() {
         find.text('No hay reportes registrados para esta fecha'),
         findsOneWidget,
       );
-      expect(find.byType(JornadaSummaryCard), findsNothing);
+      expect(find.byType(SummaryGroupTile), findsNothing);
     });
 
     testWidgets('error: muestra el mensaje del Failure y Reintentar vuelve a '
@@ -199,47 +201,25 @@ void main() {
       },
     );
 
-    testWidgets('una tarjeta por grupo con sus jornadas adentro', (
+    testWidgets('una fila por grupo con las tarjetas de Revisor y Sumador', (
       tester,
     ) async {
       await _pumpPage(tester, repo: repo);
 
-      expect(find.byType(SummaryGroupSection), findsNWidgets(2));
-      expect(find.byType(JornadaSummaryCard), findsNWidgets(4));
-
-      Finder group(String name) => find.ancestor(
-        of: find.text(name),
-        matching: find.byType(SummaryGroupSection),
-      );
-      for (final name in ['Grupo Norte', 'Grupo Sur']) {
-        expect(
-          find.descendant(
-            of: group(name),
-            matching: find.byType(JornadaSummaryCard),
-          ),
-          findsNWidgets(2),
-        );
-      }
+      expect(find.byType(SummaryGroupTile), findsNWidgets(2));
+      expect(find.byType(SummaryRoleCard), findsNWidgets(4));
+      expect(find.text('Revisor'), findsNWidgets(2));
+      expect(find.text('Sumador'), findsNWidgets(2));
     });
 
-    testWidgets('en escritorio los grupos van lado a lado; en celular, uno '
-        'debajo del otro', (tester) async {
+    testWidgets('los grupos van uno debajo del otro también en escritorio', (
+      tester,
+    ) async {
       await _pumpPage(tester, repo: repo);
-      var groups = find.byType(SummaryGroupSection);
+      final tiles = find.byType(SummaryGroupTile);
       expect(
-        tester.getTopLeft(groups.at(0)).dy,
-        tester.getTopLeft(groups.at(1)).dy,
-      );
-      expect(
-        tester.getTopLeft(groups.at(1)).dx,
-        greaterThan(tester.getTopLeft(groups.at(0)).dx),
-      );
-
-      await _pumpPage(tester, repo: repo, size: const Size(360, 2400));
-      groups = find.byType(SummaryGroupSection);
-      expect(
-        tester.getTopLeft(groups.at(1)).dy,
-        greaterThan(tester.getBottomLeft(groups.at(0)).dy),
+        tester.getTopLeft(tiles.at(1)).dy,
+        greaterThan(tester.getBottomLeft(tiles.at(0)).dy),
       );
     });
 
@@ -276,90 +256,29 @@ void main() {
       );
     });
 
-    testWidgets('cada tarjeta muestra la jornada corta y lo de cada rol', (
+    testWidgets('cada tarjeta muestra el total sumado y las jornadas', (
       tester,
     ) async {
       await _pumpPage(tester, repo: repo);
 
-      expect(find.text('Mañana'), findsNWidgets(2));
-      expect(find.text('Tarde 1'), findsNWidgets(2));
-      // Revisor y Sumador en columnas, con el total de cada uno.
-      expect(find.text('\$135.000'), findsNWidgets(2));
-      expect(find.text('\$90.000'), findsOneWidget);
-      expect(find.text('\$81.000'), findsOneWidget);
+      // Norte: Revisor 135.000 + 90.000, Sumador 135.000 + 81.000.
+      expect(find.text('\$225.000'), findsOneWidget);
+      expect(find.text('\$216.000'), findsOneWidget);
+      // Sur: el Revisor solo sumó la mañana; el Sumador no registró nada.
       expect(find.text('\$5.000'), findsOneWidget);
-      expect(find.text('Imágenes'), findsNWidgets(4));
-      // Sur mañana: falta el Sumador; Sur tarde: faltan los dos.
-      expect(find.text('Sin registrar'), findsNWidgets(3));
-      expect(find.text('—'), findsNWidgets(9));
-      // Quién registró de más en el descuadre.
-      expect(
-        find.text('El Revisor registró \$9.000 más que el Sumador'),
-        findsOneWidget,
-      );
+      expect(find.text('Sin registrar'), findsOneWidget);
+      expect(find.text('Mañana'), findsNWidgets(4));
+      expect(find.text('Tarde 1'), findsNWidgets(4));
     });
 
-    testWidgets('badge de estado: cuadra, descuadre y falta', (tester) async {
+    testWidgets('la pastilla del grupo muestra lo más grave', (tester) async {
       await _pumpPage(tester, repo: repo);
 
-      expect(find.text('Cuadra'), findsOneWidget);
-      expect(find.text('Descuadre de \$9.000'), findsOneWidget);
-      expect(find.text('Falta Sumador'), findsOneWidget);
-      expect(find.text('Faltan Revisor y Sumador'), findsOneWidget);
+      expect(find.text('1 descuadre'), findsOneWidget);
+      expect(find.text('2 pendientes'), findsOneWidget);
     });
 
-    testWidgets('el badge de descuadre va en rojo, el que cuadra en verde y '
-        'el pendiente en ámbar', (tester) async {
-      await _pumpPage(tester, repo: repo);
-
-      Color? colorOf(String label) =>
-          tester.widget<Text>(find.text(label)).style?.color;
-
-      expect(colorOf('Descuadre de \$9.000'), Colors.red);
-      expect(colorOf('Cuadra'), Colors.green);
-      expect(colorOf('Falta Sumador'), const Color(0xFFB7791F));
-    });
-  });
-
-  group('panel informativo', () {
-    final repo = _FakeRepo(
-      byDate: {
-        _key(today): [
-          _js(
-            fecha: _key(today),
-            revisor: _role(12, 34, 135000),
-            sumador: _role(12, 34, 135000),
-          ),
-          _js(
-            fecha: _key(today),
-            shift: _afternoon,
-            revisor: _role(3, 8, 90000),
-            sumador: _role(3, 8, 81000),
-          ),
-          _js(
-            jid: 'g2',
-            group: 'Grupo Sur',
-            fecha: _key(today),
-            revisor: _role(1, 1, 5000),
-            sumador: RoleSummary.sinRegistrar,
-          ),
-        ],
-      },
-    );
-
-    testWidgets('titular y cifras del día', (tester) async {
-      await _pumpPage(tester, repo: repo);
-
-      expect(find.text('Hay 1 jornada con descuadre'), findsOneWidget);
-      expect(find.text('3 jornadas · 2 grupos'), findsOneWidget);
-      expect(find.text('Descuadres'), findsOneWidget);
-      expect(find.text('\$9.000 en diferencias'), findsOneWidget);
-      expect(find.text('Pendientes'), findsOneWidget);
-      expect(find.text('Cuadran'), findsOneWidget);
-      expect(find.text('De 3 jornadas'), findsOneWidget);
-    });
-
-    testWidgets('sin problemas: "Todas las jornadas cuadran"', (tester) async {
+    testWidgets('sin problemas: "Todo cuadra"', (tester) async {
       await _pumpPage(
         tester,
         repo: _FakeRepo(
@@ -375,59 +294,12 @@ void main() {
         ),
       );
 
-      expect(find.text('Todas las jornadas cuadran'), findsOneWidget);
-      expect(find.text('Sin diferencias de dinero'), findsOneWidget);
-    });
-
-    testWidgets('tocar una cifra filtra; tocarla otra vez quita el filtro', (
-      tester,
-    ) async {
-      await _pumpPage(tester, repo: repo);
-      expect(find.byType(JornadaSummaryCard), findsNWidgets(3));
-
-      await tester.tap(find.text('Descuadres'));
-      await tester.pumpAndSettle();
-      expect(find.byType(JornadaSummaryCard), findsOneWidget);
-      expect(find.text('Descuadre de \$9.000'), findsOneWidget);
-      expect(find.text('Mostrando: Descuadres (1)'), findsOneWidget);
-      expect(find.text('Grupo Sur'), findsNothing);
-
-      await tester.tap(find.text('Descuadres'));
-      await tester.pumpAndSettle();
-      expect(find.byType(JornadaSummaryCard), findsNWidgets(3));
-      expect(find.textContaining('Mostrando:'), findsNothing);
-    });
-
-    testWidgets('filtro sin jornadas: mensaje y "Ver todas"', (tester) async {
-      await _pumpPage(tester, repo: repo);
-
-      await tester.tap(find.text('Imágenes sin registrar'));
-      await tester.pumpAndSettle();
-      expect(find.byType(JornadaSummaryCard), findsNothing);
-      expect(
-        find.text('Ninguna jornada en «Imágenes sin registrar»'),
-        findsOneWidget,
-      );
-
-      await tester.tap(find.text('Ver todas'));
-      await tester.pumpAndSettle();
-      expect(find.byType(JornadaSummaryCard), findsNWidgets(3));
-    });
-
-    testWidgets('la "x" del filtro activo lo quita', (tester) async {
-      await _pumpPage(tester, repo: repo);
-
-      await tester.tap(find.text('Pendientes'));
-      await tester.pumpAndSettle();
-      expect(find.byType(JornadaSummaryCard), findsOneWidget);
-
-      await tester.tap(find.byTooltip('Quitar filtro'));
-      await tester.pumpAndSettle();
-      expect(find.byType(JornadaSummaryCard), findsNWidgets(3));
+      expect(find.text('Todo cuadra'), findsOneWidget);
     });
   });
 
-  group('aviso de imágenes sin registrar', () {
+  group('detalle por rol', () {
+    final day = DateTime(2026, 9, 28);
     final repo = _FakeRepo(
       byDate: {
         '2026-09-28': [
@@ -440,33 +312,106 @@ void main() {
             sumador: _role(10, 20, 90000),
             imagenesEnJornada: 10,
           ),
+          JornadaSummary(
+            chatJid: 'g1',
+            groupName: 'Grupo Norte',
+            fechaJornada: '2026-09-28',
+            shift: _afternoon,
+            revisor: _role(2, 3, 30000),
+            sumador: RoleSummary.sinRegistrar,
+            imagenesEnJornada: 2,
+          ),
         ],
       },
     );
-    final day = DateTime(2026, 9, 28);
+    // Después del fin de la mañana (15:51 UTC), antes de la tarde 1.
+    final now = DateTime.utc(2026, 9, 28, 15, 52);
 
-    Future<void> pumpAt(WidgetTester tester, DateTime now) async {
-      final container = await _pumpPage(tester, repo: repo, now: now);
+    GoRouter detailRouter(String chat, ReviewRole rol) => GoRouter(
+      initialLocation: summaryRoleDetailLocation(chat, rol),
+      routes: [
+        GoRoute(
+          path: '/summary/detail',
+          builder: (_, state) => SummaryRoleDetailPage(
+            chatJid: state.uri.queryParameters['chat']!,
+            rol: ReviewRole.values.byName(state.uri.queryParameters['role']!),
+          ),
+        ),
+      ],
+    );
+
+    Future<void> pumpDetail(
+      WidgetTester tester,
+      String chat,
+      ReviewRole rol,
+    ) async {
+      final container = await _pumpPage(
+        tester,
+        repo: repo,
+        router: detailRouter(chat, rol),
+        now: now,
+      );
       await _selectDate(tester, container, day);
     }
 
-    testWidgets('con el reloj después del fin de la jornada aparece', (
-      tester,
-    ) async {
-      await pumpAt(tester, DateTime.utc(2026, 9, 28, 15, 52));
+    testWidgets('tocar la tarjeta del Revisor abre su detalle', (tester) async {
+      final router = GoRouter(
+        routes: [
+          GoRoute(path: '/', builder: (_, _) => const SummaryPage()),
+          GoRoute(
+            path: '/summary/detail',
+            builder: (_, state) => SummaryRoleDetailPage(
+              chatJid: state.uri.queryParameters['chat']!,
+              rol: ReviewRole.values.byName(state.uri.queryParameters['role']!),
+            ),
+          ),
+        ],
+      );
+      final container = await _pumpPage(
+        tester,
+        repo: repo,
+        router: router,
+        now: now,
+      );
+      await _selectDate(tester, container, day);
 
-      expect(find.text('Faltan 3 imágenes por registrar'), findsOneWidget);
-      // El estado de dinero (cuadra) no cambia.
-      expect(find.text('Cuadra'), findsOneWidget);
+      await tester.tap(find.text('Revisor'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(SummaryRoleDetailPage), findsOneWidget);
+      // Total de las dos jornadas.
+      expect(find.text('\$120.000'), findsOneWidget);
+      expect(find.text('Por jornada'), findsOneWidget);
+      expect(find.text('Registrada'), findsNWidgets(2));
+      expect(find.text('Falta por llenar'), findsNothing);
     });
 
-    testWidgets('con el reloj antes del fin de la jornada no aparece', (
+    testWidgets('el Sumador ve qué jornada le falta por llenar', (
       tester,
     ) async {
-      await pumpAt(tester, DateTime.utc(2026, 9, 28, 15, 51, 59));
+      await pumpDetail(tester, 'g1', ReviewRole.sumador);
 
-      expect(find.textContaining('por registrar'), findsNothing);
-      expect(find.byType(JornadaSummaryCard), findsOneWidget);
+      expect(find.text('Le falta llenar la jornada Tarde 1'), findsOneWidget);
+      expect(find.text('Falta por llenar'), findsOneWidget);
+      expect(find.text('Registrada'), findsOneWidget);
+    });
+
+    testWidgets('aviso de imágenes sin registrar con la jornada terminada', (
+      tester,
+    ) async {
+      await pumpDetail(tester, 'g1', ReviewRole.revisor);
+
+      // Mañana: el contador dice 10 y el Revisor registró 7.
+      expect(find.text('Faltan 3 imágenes por registrar'), findsOneWidget);
+    });
+
+    testWidgets('un grupo sin datos ese día muestra el vacío', (tester) async {
+      await pumpDetail(tester, 'otro', ReviewRole.revisor);
+
+      expect(
+        find.text('No hay reportes de este grupo en esta fecha'),
+        findsOneWidget,
+      );
     });
   });
 
@@ -510,7 +455,7 @@ void main() {
       expect(find.text(formatLongDate(today)), findsOneWidget);
       expect(find.text('Hoy'), findsNothing);
       expect(repo.requested.map(DateUtils.dateOnly), [today]);
-      expect(find.byType(JornadaSummaryCard), findsOneWidget);
+      expect(find.byType(SummaryGroupTile), findsOneWidget);
     });
 
     testWidgets('cambiar la fecha recarga las tarjetas y muestra el acceso '
@@ -521,8 +466,8 @@ void main() {
 
       expect(find.text('15 de marzo de 2026'), findsOneWidget);
       expect(find.text('Grupo Marzo'), findsOneWidget);
-      expect(find.byType(JornadaSummaryCard), findsNWidgets(2));
-      expect(find.text('Descuadre de \$9.000'), findsOneWidget);
+      expect(find.byType(SummaryGroupTile), findsOneWidget);
+      expect(find.text('1 descuadre'), findsOneWidget);
       expect(repo.requested.map(DateUtils.dateOnly), [today, march15]);
       expect(find.text('Hoy'), findsOneWidget);
     });
@@ -539,7 +484,7 @@ void main() {
       expect(find.text(formatLongDate(today)), findsOneWidget);
       expect(find.text('Hoy'), findsNothing);
       expect(find.text('Grupo Marzo'), findsNothing);
-      expect(find.byType(JornadaSummaryCard), findsOneWidget);
+      expect(find.byType(SummaryGroupTile), findsOneWidget);
       // Hoy ya se había leído hace menos de 5 minutos: no se vuelve a pedir.
       expect(repo.requested.map(DateUtils.dateOnly), [today, march15]);
     });
@@ -557,7 +502,7 @@ void main() {
       repo.gate!.complete();
       await tester.pumpAndSettle();
       expect(find.byType(SummarySkeleton), findsNothing);
-      expect(find.byType(JornadaSummaryCard), findsNWidgets(2));
+      expect(find.byType(SummaryGroupTile), findsOneWidget);
     });
 
     testWidgets('el botón de calendario abre el selector y elegir un día '
@@ -599,7 +544,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(repo.requested.map(DateUtils.dateOnly), [today, march15, march15]);
-      expect(find.byType(JornadaSummaryCard), findsNWidgets(2));
+      expect(find.byType(SummaryGroupTile), findsOneWidget);
       expect(find.byIcon(Icons.refresh_rounded), findsOneWidget);
     });
 
@@ -620,7 +565,7 @@ void main() {
 
       expect(repo.requested, hasLength(3));
       expect(find.text('No se pudo leer'), findsNothing);
-      expect(find.byType(JornadaSummaryCard), findsOneWidget);
+      expect(find.byType(SummaryGroupTile), findsOneWidget);
     });
 
     testWidgets('cancelar el selector no cambia la fecha', (tester) async {
@@ -665,7 +610,7 @@ void main() {
 
         expect(tester.takeException(), isNull);
         expect(find.text('Resumen'), findsOneWidget);
-        expect(find.byType(JornadaSummaryCard), findsNWidgets(2));
+        expect(find.byType(SummaryGroupTile), findsOneWidget);
         expect(find.byTooltip('Volver'), findsOneWidget);
         expect(find.byTooltip('Elegir fecha'), findsOneWidget);
       });

@@ -120,6 +120,25 @@ void main() {
         '/home',
       );
     });
+
+    test('el detalle por rol tiene el mismo guard', () {
+      expect(
+        computeAuthRedirect(
+          authState: AuthSessionState.authenticated(_user(isAdmin: true)),
+          location: '/summary/detail',
+        ),
+        isNull,
+      );
+      for (final user in [_user(), _user(reviewRole: ReviewRole.revisor)]) {
+        expect(
+          computeAuthRedirect(
+            authState: AuthSessionState.authenticated(user),
+            location: '/summary/detail',
+          ),
+          '/home',
+        );
+      }
+    });
   });
 
   test('en loading no redirige, sin importar el destino', () {
