@@ -8,6 +8,7 @@ import 'package:whatsapp_monitor_viewer/features/auth/presentation/providers/aut
 import 'package:whatsapp_monitor_viewer/features/home/presentation/pages/home_page.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/pages/review_session_page.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/review_session_provider.dart';
+import 'package:whatsapp_monitor_viewer/features/matches/presentation/pages/group_winners_page.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/presentation/pages/matches_page.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/viewer/image_detail_page.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/review_role.dart';
@@ -44,6 +45,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(path: '/matches', builder: (_, _) => const MatchesPage()),
+      GoRoute(
+        path: '/matches/group',
+        redirect: (_, state) =>
+            (state.uri.queryParameters['chat'] ?? '').isEmpty
+            ? '/matches'
+            : null,
+        builder: (_, state) =>
+            GroupWinnersPage(chatJid: state.uri.queryParameters['chat']!),
+      ),
       GoRoute(path: '/review', builder: (_, _) => const ReviewSessionPage()),
     ],
     redirect: (context, state) => computeAuthRedirect(

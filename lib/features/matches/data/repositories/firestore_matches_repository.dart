@@ -108,6 +108,8 @@ class FirestoreMatchesRepository implements MatchesRepository {
           storagePath: r.storagePath,
           shift: label(r.shift),
           fechaJornada: r.fechaJornada,
+          revisorEmail: r.registradoPor,
+          codigo: r.codigo,
         );
         provisional.add(entry);
         shiftOf[entry] = r.shift;

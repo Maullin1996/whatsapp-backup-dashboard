@@ -43,6 +43,23 @@ void main() {
   });
 
   group('/matches', () {
+    test('el detalle de un grupo tiene el mismo guard', () {
+      expect(
+        computeAuthRedirect(
+          authState: AuthSessionState.authenticated(_user(isAdmin: true)),
+          location: '/matches/group',
+        ),
+        isNull,
+      );
+      expect(
+        computeAuthRedirect(
+          authState: AuthSessionState.authenticated(_user()),
+          location: '/matches/group',
+        ),
+        '/home',
+      );
+    });
+
     test('usuario normal (ni admin ni superAdmin) termina en /home', () {
       final authState = AuthSessionState.authenticated(_user());
       expect(

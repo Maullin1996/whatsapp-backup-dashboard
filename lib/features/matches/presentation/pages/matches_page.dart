@@ -4,15 +4,17 @@ import 'package:go_router/go_router.dart';
 import 'package:whatsapp_monitor_viewer/core/responsive/responsive_layout.dart';
 import 'package:whatsapp_monitor_viewer/core/shared/widget/pick_single_date.dart';
 import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
-import 'package:whatsapp_monitor_viewer/features/matches/domain/entities/jornada_matches.dart';
+import 'package:whatsapp_monitor_viewer/features/matches/domain/helpers/group_matches.dart';
+import 'package:whatsapp_monitor_viewer/features/matches/presentation/pages/group_winners_page.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/presentation/providers/matches_providers.dart';
-import 'package:whatsapp_monitor_viewer/features/matches/presentation/widgets/jornada_matches_section.dart';
+import 'package:whatsapp_monitor_viewer/features/matches/presentation/widgets/group_matches_tile.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/presentation/widgets/matches_skeleton.dart';
 import 'package:whatsapp_monitor_viewer/helpers/format_long_date.dart';
 import 'package:whatsapp_monitor_viewer/helpers/map_failure_to_message.dart';
 
 /// Coincidencias de números ganadores contra lo que registró el Revisor, por
-/// fecha y jornada (`image-review-domain`, regla 7).
+/// fecha (`image-review-domain`, regla 7): una tarjeta por grupo con su
+/// cantidad de ganadores; tocarla abre sus ganadores (`GroupWinnersPage`).
 ///
 /// Lee datos reales (`FirestoreMatchesRepository`); solo admin y superAdmin
 /// (`/matches`, desde el menú "Coincidencias").
@@ -69,11 +71,11 @@ class _MatchesScaffold extends ConsumerWidget {
           ),
         ],
       ),
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.screenBackground,
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(
-            maxWidth: AppSizes.adminPanelMaxWidth,
+            maxWidth: AppSizes.summaryListMaxWidth,
           ),
           child: const Column(
             children: [
@@ -151,43 +153,49 @@ class _MatchesContent extends ConsumerWidget {
             onAction: () => ref.invalidate(dayMatchesProvider),
           ),
         ),
-        // Siempre una lista por jornada (cada una dice "Todavía no hay
-        // ganadores" si no tiene coincidencias); el vacío de página queda
-        // solo para un día sin ninguna jornada.
-        data: (day) => day.jornadas.isEmpty
-            ? const KeyedSubtree(
-                key: ValueKey('empty'),
-                child: _MessageState(
-                  icon: Icons.emoji_events_outlined,
-                  message: 'Aún no hay números ganadores para esta fecha',
-                ),
-              )
-            : KeyedSubtree(
-                key: const ValueKey('data'),
-                child: _MatchesList(jornadas: day.jornadas),
+        data: (day) {
+          final groups = groupMatchesOf(day);
+          // Los ganadores del día son los mismos en todas las jornadas.
+          final hasWinningNumbers = day.jornadas.any(
+            (j) => j.winningNumbers.isNotEmpty,
+          );
+          if (groups.isEmpty) {
+            return KeyedSubtree(
+              key: const ValueKey('empty'),
+              child: _MessageState(
+                icon: Icons.emoji_events_outlined,
+                message: hasWinningNumbers
+                    ? 'Ningún grupo tuvo ganadores en esta fecha'
+                    : 'Aún no hay números ganadores para esta fecha',
               ),
+            );
+          }
+          return KeyedSubtree(
+            key: const ValueKey('data'),
+            child: _GroupsList(groups: groups),
+          );
+        },
       ),
     );
   }
 }
 
-/// Una sección por jornada, en el orden en que llega (nunca combinadas en un
-/// total del día — `image-review-domain`, reglas 4 y 5).
-class _MatchesList extends StatelessWidget {
-  final List<JornadaMatches> jornadas;
+/// Una tarjeta por grupo con ganadores (los que más tienen primero).
+class _GroupsList extends StatelessWidget {
+  final List<GroupMatches> groups;
 
-  const _MatchesList({required this.jornadas});
+  const _GroupsList({required this.groups});
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
+    return ListView.separated(
       padding: const EdgeInsets.all(AppSpacing.md),
-      children: [
-        for (final jornada in jornadas) ...[
-          JornadaMatchesSection(jornada: jornada),
-          const SizedBox(height: AppSpacing.sm),
-        ],
-      ],
+      itemCount: groups.length,
+      separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
+      itemBuilder: (context, i) => GroupMatchesTile(
+        group: groups[i],
+        onTap: () => context.push(groupWinnersLocation(groups[i].chatJid)),
+      ),
     );
   }
 }

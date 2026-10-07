@@ -103,5 +103,13 @@ RevisorRecord parseRevisorRecord(RawDocument doc) {
     storagePath: requireField<String>(doc, 'storagePath', what),
     fechaJornada: requireField<String>(doc, 'fechaJornada', what),
     numeros: numeros,
+    registradoPor: switch (doc.data['registradoPor']) {
+      final String email => email,
+      _ => '',
+    },
+    codigo: switch (doc.data['codigo']) {
+      final String codigo => codigo,
+      _ => null,
+    },
   );
 }

@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:whatsapp_monitor_viewer/core/errors/failure_log.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/domain/entities/day_matches.dart';
+import 'package:whatsapp_monitor_viewer/features/matches/domain/helpers/group_matches.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/domain/repositories/matches_repository.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/presentation/providers/real_matches_providers.dart';
+import 'package:whatsapp_monitor_viewer/features/messages/domain/entities/image_view_item.dart';
 
 /// Día de las Coincidencias (solo la fecha, sin hora). Arranca en hoy.
 class MatchesDateNotifier extends Notifier<DateTime> {
@@ -39,3 +41,34 @@ final dayMatchesProvider = FutureProvider<DayMatches>((ref) async {
     throw failure;
   }, (day) => day);
 }, retry: (retryCount, error) => null);
+
+/// Imágenes de los ganadores de un grupo, para el visor de imágenes (una por
+/// mensaje, aunque tenga varios números ganadores), en el orden de la lista
+/// del detalle. Vacía mientras el día no está cargado.
+final groupImageItemsProvider = Provider.family<List<ImageViewItem>, String>((
+  ref,
+  chatJid,
+) {
+  final day = ref.watch(dayMatchesProvider).value;
+  if (day == null) return const [];
+  final group = groupMatchesOf(
+    day,
+  ).where((g) => g.chatJid == chatJid).firstOrNull;
+  if (group == null) return const [];
+  final seen = <String>{};
+  return [
+    for (final m in group.matches)
+      if (seen.add(m.messageId))
+        ImageViewItem(
+          messageId: m.messageId,
+          chatJid: m.chatJid,
+          storagePath: m.storagePath,
+          senderName: m.senderName,
+          // El visor no usa la marca de tiempo para mostrar nada aquí.
+          messageTimestamp: 0,
+          localTime: m.localTime,
+          shift: m.shift,
+          fechaJornada: m.fechaJornada,
+        ),
+  ];
+});

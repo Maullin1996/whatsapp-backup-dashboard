@@ -30,6 +30,13 @@ class RevisorRecord {
   /// el orden en que se anotaron, cada uno con la lotería de su comprobante.
   final List<RecordedNumber> numeros;
 
+  /// Correo de quien registró (`registradoPor`); vacío si el documento no lo
+  /// trae.
+  final String registradoPor;
+
+  /// Código de la imagen que anotó el Revisor; null en un registro viejo.
+  final String? codigo;
+
   const RevisorRecord({
     required this.chatJid,
     required this.shift,
@@ -37,6 +44,8 @@ class RevisorRecord {
     required this.storagePath,
     required this.fechaJornada,
     required this.numeros,
+    this.registradoPor = '',
+    this.codigo,
   });
 }
 

@@ -31,5 +31,11 @@ abstract class MatchEntry with _$MatchEntry {
 
     /// Día de la jornada (`yyyy-MM-dd`), igual que `Message.fechaJornada`.
     required String fechaJornada,
+
+    /// Correo del Revisor que registró la imagen; vacío si no se conoce.
+    @Default('') String revisorEmail,
+
+    /// Código que el Revisor anotó para la imagen; null en un registro viejo.
+    String? codigo,
   }) = _MatchEntry;
 }

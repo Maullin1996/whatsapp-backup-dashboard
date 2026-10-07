@@ -12,7 +12,7 @@ import 'package:whatsapp_monitor_viewer/features/matches/domain/entities/winning
 import 'package:whatsapp_monitor_viewer/features/matches/domain/repositories/matches_repository.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/presentation/pages/matches_page.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/presentation/providers/matches_providers.dart';
-import 'package:whatsapp_monitor_viewer/features/matches/presentation/widgets/jornada_matches_section.dart';
+import 'package:whatsapp_monitor_viewer/features/matches/presentation/widgets/group_matches_tile.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/presentation/widgets/matches_skeleton.dart';
 
 /// Repositorio falso: datos por día (`yyyy-MM-dd`), con la opción de
@@ -121,33 +121,29 @@ void main() {
       await _pumpPage(tester, repo: repo, settle: false);
 
       expect(find.byType(MatchesSkeleton), findsOneWidget);
-      expect(find.byType(JornadaMatchesSection), findsNothing);
+      expect(find.byType(GroupMatchesTile), findsNothing);
 
       repo.gate!.complete();
       await tester.pumpAndSettle();
       expect(find.byType(MatchesSkeleton), findsNothing);
     });
 
-    testWidgets(
-      'un día sin ningún número ganador (todas las jornadas con lista '
-      'vacía) muestra igual la lista por jornada, cada una con "Todavía no '
-      'hay ganadores"',
-      (tester) async {
-        final today = DateUtils.dateOnly(DateTime.now());
-        final key =
-            '${today.year}-${today.month.toString().padLeft(2, '0')}-'
-            '${today.day.toString().padLeft(2, '0')}';
-        final repo = _FakeRepo(byDate: {key: _sinGanadores(key)});
-        await _pumpPage(tester, repo: repo);
+    testWidgets('un día sin ningún número ganador muestra el vacío de página', (
+      tester,
+    ) async {
+      final today = DateUtils.dateOnly(DateTime.now());
+      final key =
+          '${today.year}-${today.month.toString().padLeft(2, '0')}-'
+          '${today.day.toString().padLeft(2, '0')}';
+      final repo = _FakeRepo(byDate: {key: _sinGanadores(key)});
+      await _pumpPage(tester, repo: repo);
 
-        expect(
-          find.text('Aún no hay números ganadores para esta fecha'),
-          findsNothing,
-        );
-        expect(find.byType(JornadaMatchesSection), findsNWidgets(2));
-        expect(find.text('Todavía no hay ganadores'), findsNWidgets(2));
-      },
-    );
+      expect(
+        find.text('Aún no hay números ganadores para esta fecha'),
+        findsOneWidget,
+      );
+      expect(find.byType(GroupMatchesTile), findsNothing);
+    });
 
     testWidgets('un día SIN jornadas muestra el vacío de página', (
       tester,
@@ -159,28 +155,98 @@ void main() {
         find.text('Aún no hay números ganadores para esta fecha'),
         findsOneWidget,
       );
-      expect(find.byType(JornadaMatchesSection), findsNothing);
     });
 
-    testWidgets(
-      'con ganadores en alguna jornada (aunque otra no tenga coincidencias) '
-      'NO se muestra el vacío de página',
-      (tester) async {
-        final today = DateUtils.dateOnly(DateTime.now());
-        final key =
-            '${today.year}-${today.month.toString().padLeft(2, '0')}-'
-            '${today.day.toString().padLeft(2, '0')}';
-        final repo = _FakeRepo(byDate: {key: _conGanadores(key)});
-        await _pumpPage(tester, repo: repo);
+    testWidgets('con ganadores del día pero ninguna coincidencia: ningún grupo '
+        'tuvo ganadores', (tester) async {
+      final today = DateUtils.dateOnly(DateTime.now());
+      final key =
+          '${today.year}-${today.month.toString().padLeft(2, '0')}-'
+          '${today.day.toString().padLeft(2, '0')}';
+      final repo = _FakeRepo(
+        byDate: {
+          key: DayMatches(
+            fechaJornada: key,
+            jornadas: const [
+              JornadaMatches(
+                shift: 'Jornada Mañana (06:00 – 10:54)',
+                winningNumbers: [
+                  WinningEntry(loteria: 'medellin', numero: '9999'),
+                ],
+                matches: [],
+              ),
+            ],
+          ),
+        },
+      );
+      await _pumpPage(tester, repo: repo);
 
-        expect(
-          find.text('Aún no hay números ganadores para esta fecha'),
-          findsNothing,
-        );
-        expect(find.byType(JornadaMatchesSection), findsNWidgets(2));
-        expect(find.text('Todavía no hay ganadores'), findsOneWidget);
-      },
-    );
+      expect(
+        find.text('Ningún grupo tuvo ganadores en esta fecha'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('una tarjeta por grupo con su cantidad de ganadores, sin '
+        'jornadas', (tester) async {
+      final today = DateUtils.dateOnly(DateTime.now());
+      final key =
+          '${today.year}-${today.month.toString().padLeft(2, '0')}-'
+          '${today.day.toString().padLeft(2, '0')}';
+      final repo = _FakeRepo(byDate: {key: _conGanadores(key)});
+      await _pumpPage(tester, repo: repo);
+
+      expect(find.byType(GroupMatchesTile), findsOneWidget);
+      expect(find.text('Grupo Norte (demo)'), findsOneWidget);
+      expect(find.text('1 ganador'), findsOneWidget);
+      expect(find.textContaining('Jornada'), findsNothing);
+    });
+
+    testWidgets('los grupos con más ganadores van primero', (tester) async {
+      final today = DateUtils.dateOnly(DateTime.now());
+      final key =
+          '${today.year}-${today.month.toString().padLeft(2, '0')}-'
+          '${today.day.toString().padLeft(2, '0')}';
+      MatchEntry m(String id, String jid, String group) => MatchEntry(
+        numero: '4521',
+        loteria: 'dorado_manana',
+        messageId: id,
+        chatJid: jid,
+        groupName: group,
+        senderName: 'Ana',
+        localTime: '08:15',
+        storagePath: 'x/$id.jpg',
+        shift: 'Jornada Mañana (06:00 – 10:54)',
+        fechaJornada: key,
+      );
+      final repo = _FakeRepo(
+        byDate: {
+          key: DayMatches(
+            fechaJornada: key,
+            jornadas: [
+              JornadaMatches(
+                shift: 'Jornada Mañana (06:00 – 10:54)',
+                winningNumbers: const [
+                  WinningEntry(loteria: 'dorado_manana', numero: '4521'),
+                ],
+                matches: [
+                  m('a', 'a@g.us', 'Alfa'),
+                  m('b1', 'b@g.us', 'Beta'),
+                  m('b2', 'b@g.us', 'Beta'),
+                ],
+              ),
+            ],
+          ),
+        },
+      );
+      await _pumpPage(tester, repo: repo);
+
+      expect(find.text('2 ganadores'), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.text('Beta')).dy,
+        lessThan(tester.getTopLeft(find.text('Alfa')).dy),
+      );
+    });
 
     testWidgets(
       'error: se muestra con mapFailureToMessage, nunca con toString()',
@@ -215,7 +281,7 @@ void main() {
     container.read(matchesDateProvider.notifier).select(march15);
     await tester.pumpAndSettle();
 
-    expect(find.byType(JornadaMatchesSection), findsNWidgets(2));
+    expect(find.byType(GroupMatchesTile), findsOneWidget);
     expect(find.text('Hoy'), findsOneWidget);
 
     await tester.tap(find.text('Hoy'));

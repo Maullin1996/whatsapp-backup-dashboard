@@ -44,6 +44,21 @@ Map<String, dynamic> _registro() => {
 };
 
 void main() {
+  test('parseRevisorRecord lee el correo y el código del registro', () {
+    final record = parseRevisorRecord((id: 'm1_revisor', data: _registro()));
+    expect(record.registradoPor, 'a@x.com');
+    expect(record.codigo, 'A1');
+
+    final viejo = parseRevisorRecord((
+      id: 'm1_revisor',
+      data: {..._registro()}
+        ..remove('registradoPor')
+        ..remove('codigo'),
+    ));
+    expect(viejo.registradoPor, '');
+    expect(viejo.codigo, isNull);
+  });
+
   group('FirestoreRevisorRecordsDatasource', () {
     late Future<List<RawDocument>> Function() behavior;
     late List<String> requested;
