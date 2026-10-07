@@ -405,7 +405,7 @@ lectura de `whats-apuestas` del 2026-10-03:
 - Caché de Coincidencias y costo en lecturas.
 - Probar "Ver imagen" con una imagen real.
 
-### Pieza b3 — cada ganador con su lotería (`entries`) — HECHA (2026-10-05) y DESPLEGADA (fecha: la confirma el usuario)
+### Pieza b3 — cada ganador con su lotería (`entries`) — HECHA (2026-10-05) y DESPLEGADA (entre el 2026-10-05 y el 2026-10-06, deducido de la conversación, sin confirmar)
 
 **DECIDIDO por el usuario**: cada número registrado lleva su lotería y un
 ganador solo coincide con un número de la MISMA lotería (con la regla ya
@@ -419,7 +419,7 @@ del 2026-10-05), `doradotarde` → `dorado_tarde`, `doradonoche` →
 `dorado_noche` y `pija0`, `pijao` y `pijo` → `pijao_de_oro` (estos últimos
 SIN prueba por número). Ningún otro alias.
 
-**Deploys de la función (dato del usuario; la salida del CLI no está en el repo)**: la copia de `jornadas` y los alias (`doramaña`, `doradotarde`, `doradonoche`, `pija0`, `pijao`, `pijo`) se desplegaron entre el 2026-10-03 y la madrugada del 2026-10-04; respaldo: la colección ya existía y el log de la función del 2026-10-04 11:03 UTC ya traía `[JORNADAS] resumen`. **HECHO (historial de git)**: esos cambios son posteriores al primer deploy (2026-10-03, hacia las 00:39 de Bogotá, según su log): la copia de `jornadas` (`6067f2c`) es de las 13:12 y el alias (`64b5700`) de las 18:01 de ese día. La pieza b3 (`entries`, `64a96ac`, 2026-10-05 21:14) también se desplegó, fecha: la confirma el usuario; su primer intento falló en un paso previo (`Error generating the service identity for pubsub.googleapis.com`) sin subir nada, y el segundo terminó en `Successful update operation`. **Que `winning_numbers/{fecha}` ya traiga `entries` NO está verificado**: PENDIENTE (forzar una corrida desde Cloud Scheduler y abrir un documento de hoy). Corrida programada cada hora; el resumen se registra como `[GANADORES] resumen` y `[JORNADAS] resumen`.
+**Deploys de la función (dato del usuario; la salida del CLI no está en el repo)**: la copia de `jornadas` y los alias (`doramaña`, `doradotarde`, `doradonoche`, `pija0`, `pijao`, `pijo`) se desplegaron entre el 2026-10-03 y la madrugada del 2026-10-04; respaldo: la colección ya existía y el log de la función del 2026-10-04 11:03 UTC ya traía `[JORNADAS] resumen`. **HECHO (historial de git)**: esos cambios son posteriores al primer deploy (2026-10-03, hacia las 00:39 de Bogotá, según su log): la copia de `jornadas` (`6067f2c`) es de las 13:12 y el alias (`64b5700`) de las 18:01 de ese día. La pieza b3 (`entries`, `64a96ac`, 2026-10-05 21:14) también se desplegó entre el 2026-10-05 y el 2026-10-06, deducido de la conversación, sin confirmar; su primer intento falló en un paso previo (`Error generating the service identity for pubsub.googleapis.com`) sin subir nada, y el segundo terminó en `Successful update operation`. **Que `winning_numbers/{fecha}` ya traiga `entries` NO está verificado**: PENDIENTE (forzar una corrida desde Cloud Scheduler y abrir un documento de hoy). Corrida programada cada hora; el resumen se registra como `[GANADORES] resumen` y `[JORNADAS] resumen`.
 
 **Lista cerrada: 43 identificadores y sus nombres para mostrar (sin guion
 bajo)**:
@@ -513,7 +513,7 @@ bajo)**:
 **Forma elegida para el cambio más chico (NO es una decisión del usuario)**:
 `winning_numbers/{fecha}` **conserva `numbers`** (lista de textos, como
 siempre) y **suma `entries`** (lista de `{loteria, numero}`). La app ya lee
-`entries` y dejó de leer `numbers` (ver abajo): la función se desplegó (fecha: la confirma el usuario), pero que los documentos ya traigan `entries` NO está verificado. Los documentos de fechas anteriores a este cambio
+`entries` y dejó de leer `numbers` (ver abajo): la función se desplegó (entre el 2026-10-05 y el 2026-10-06, deducido de la conversación, sin confirmar), pero que los documentos ya traigan `entries` NO está verificado. Los documentos de fechas anteriores a este cambio
 no se reescriben (la función solo procesa hoy y ayer, sin historial) y no
 tendrán `entries` (Coincidencias los trata como "todavía no hay ganadores").
 
@@ -636,14 +636,14 @@ horario (mientras `pendingApproval` sea `true` rigen `startTime`/`endTime`).
   su propio repo.
 
 **PENDIENTE** (no decidido):
-- **Bot (otro repo) — dato del usuario (fecha: la confirma el usuario; no se puede comprobar desde este repo)**: el worker se reconstruyó en el servidor con la tabla de jornadas nueva (sin night2) y la lectura de `jornadas` y `festivos_colombia`, y arrancó con `Shift config loader iniciado` y la tabla actualizada; siguen llegando imágenes; los 17 tests del repo del bot dieron verde en un contenedor Node 20 el 2026-10-03. Los contadores `night2` de `shift_image_counters` no se migran y el día del
+- **Bot (otro repo) — dato del usuario (2026-10-04; no se puede comprobar desde este repo)**: el worker se reconstruyó en el servidor con la tabla de jornadas nueva (sin night2) y la lectura de `jornadas` y `festivos_colombia`, y arrancó con `Shift config loader iniciado` y la tabla actualizada; siguen llegando imágenes; los 17 tests del repo del bot dieron verde en un contenedor Node 20 el 2026-10-03. Los contadores `night2` de `shift_image_counters` no se migran y el día del
   deploy una jornada pudo mezclar límites viejos y nuevos (aceptado).
 - **PENDIENTE de limpiar**: retirar night2 de `ASSIGNABLE_SHIFTS` en
   `functions/` y de la regla `shiftKeyValido` (el cliente ya no la ofrece, el
   servidor y las reglas todavía la aceptan).
 - (Fuente de festivos y "el horario del ERP puede cambiar sin aviso", para
   la APP: resueltos por la pieza 2, ver "Lectura en la app". El bot (pieza
-  3) ya lee las colecciones: dato del usuario, fecha: la confirma el usuario.)
+  3) ya lee las colecciones: dato del usuario, 2026-10-04.)
 - Caché de la PWA tras desplegar (versiones viejas con la tabla vieja).
 - Consecuencia a tener presente: los mensajes ya guardados se reclasifican
   con la tabla única (su etiqueta del visor se calcula al cargarlos).
@@ -743,7 +743,7 @@ comparar los horarios de cada documento con la tabla fija de
 
 **PENDIENTE (no decidido)**:
 - ~~Pieza 2: la app lee la colección~~ — HECHA (ver "Lectura en la app").
-- ~~Pieza 3: el bot la lee~~ — HECHA (dato del usuario, otro repo, fecha: la confirma el usuario).
+- ~~Pieza 3: el bot la lee~~ — HECHA (dato del usuario, otro repo, 2026-10-04).
 - ~~La lista de festivos~~ — HECHA: `festivos_colombia` (ver abajo).
 - ~~Desplegar la función con este cambio~~ — HECHO (dato del usuario: entre el 2026-10-03 y la madrugada del 2026-10-04).
 - Qué significan `pendingApproval` y `proposed*` en el ERP.
@@ -829,7 +829,7 @@ clasificar. **La tabla fija actual es el respaldo.**
 **PENDIENTE (no decidido)**:
 - ~~Publicar a mano las reglas de `jornadas` y de `festivos_colombia`~~ —
   HECHO (confirmado por el usuario el 2026-10-04).
-- Pieza 3 (el bot lee las colecciones) — HECHA (dato del usuario, fecha: la confirma el usuario):
+- Pieza 3 (el bot lee las colecciones) — HECHA (dato del usuario, 2026-10-04):
   el riesgo del lunes 2026-10-12 y de cada festivo entre semana (la app
   trataba el día como domingo y el bot con su tabla vieja no) queda cerrado
   si el bot clasifica con `jornadas` y `festivos_colombia`; no se puede

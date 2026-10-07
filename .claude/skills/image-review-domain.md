@@ -513,7 +513,7 @@ fijo. Detalle en `image-review-firebase-integration` ("Lectura en la app").
   deploy puede quedar con etiquetas desfasadas.
 
 **PENDIENTE** (no decidido):
-- **Bot (otro repo) — dato del usuario (fecha: la confirma el usuario; no se puede comprobar desde este repo)**: el worker se reconstruyó en el servidor con la tabla de jornadas nueva (sin night2) y la lectura de `jornadas` y `festivos_colombia`, y arrancó con `Shift config loader iniciado` y la tabla actualizada; siguen llegando imágenes; los 17 tests del repo del bot dieron verde en un contenedor Node 20 el 2026-10-03. Los contadores `night2` que ya existían en `shift_image_counters` no
+- **Bot (otro repo) — dato del usuario (2026-10-04; no se puede comprobar desde este repo)**: el worker se reconstruyó en el servidor con la tabla de jornadas nueva (sin night2) y la lectura de `jornadas` y `festivos_colombia`, y arrancó con `Shift config loader iniciado` y la tabla actualizada; siguen llegando imágenes; los 17 tests del repo del bot dieron verde en un contenedor Node 20 el 2026-10-03. Los contadores `night2` que ya existían en `shift_image_counters` no
   se migran, y el día del deploy una jornada pudo mezclar límites viejos y
   nuevos (aceptado).
 - **PENDIENTE de limpiar**: retirar night2 de `ASSIGNABLE_SHIFTS` en
