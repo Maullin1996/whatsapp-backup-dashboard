@@ -22,10 +22,15 @@ class GroupMatches {
 }
 
 /// Agrupa las coincidencias de [day] por grupo (`chatJid`): primero los
-/// grupos con más ganadores y, a igual cantidad, por nombre. Solo aparecen
-/// los grupos con al menos un ganador. Dentro de un grupo se conserva el
-/// orden en que llegan las coincidencias.
-List<GroupMatches> groupMatchesOf(DayMatches day) {
+/// grupos con más ganadores y, a igual cantidad, por nombre. Dentro de un
+/// grupo se conserva el orden en que llegan las coincidencias.
+///
+/// [knownGroups] (chatJid -> nombre) agrega los grupos que no tuvieron
+/// ganadores, con 0; sin él solo aparecen los grupos con al menos un ganador.
+List<GroupMatches> groupMatchesOf(
+  DayMatches day, {
+  Map<String, String> knownGroups = const {},
+}) {
   final byGroup = <String, List<MatchEntry>>{};
   for (final jornada in day.jornadas) {
     for (final match in jornada.matches) {
@@ -39,6 +44,13 @@ List<GroupMatches> groupMatchesOf(DayMatches day) {
         groupName: entry.value.first.groupName,
         matches: entry.value,
       ),
+    for (final known in knownGroups.entries)
+      if (!byGroup.containsKey(known.key))
+        GroupMatches(
+          chatJid: known.key,
+          groupName: known.value,
+          matches: const [],
+        ),
   ]..sort((a, b) {
     final byCount = b.winners.compareTo(a.winners);
     if (byCount != 0) return byCount;

@@ -91,6 +91,9 @@ Future<void> _pump(
     ProviderScope(
       overrides: [
         matchesRepositoryProvider.overrideWithValue(_FakeRepo(matches)),
+        allGroupsProvider.overrideWith(
+          (ref) async => [(chatJid: 'vacio@g.us', groupName: 'Grupo Vacío')],
+        ),
         imageUrlProvider.overrideWith((ref, path) => 'http://localhost/$path'),
       ],
       child: MaterialApp.router(routerConfig: router),

@@ -14,6 +14,7 @@ class GroupMatchesTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final winners = group.winners;
+    final color = winners == 0 ? Colors.grey.shade600 : AppColors.success;
 
     return Material(
       color: Colors.white,
@@ -48,7 +49,7 @@ class GroupMatchesTile extends StatelessWidget {
               const SizedBox(width: AppSpacing.sm),
               DecoratedBox(
                 decoration: BoxDecoration(
-                  color: AppColors.success.withValues(alpha: 0.12),
+                  color: color.withValues(alpha: 0.12),
                   borderRadius: AppRadius.pillAll,
                 ),
                 child: Padding(
@@ -59,17 +60,15 @@ class GroupMatchesTile extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.emoji_events_rounded,
                         size: AppSpacing.lg,
-                        color: AppColors.success,
+                        color: color,
                       ),
                       const SizedBox(width: AppSpacing.xs),
                       Text(
                         winners == 1 ? '1 ganador' : '$winners ganadores',
-                        style: AppTypography.badge.copyWith(
-                          color: AppColors.success,
-                        ),
+                        style: AppTypography.badge.copyWith(color: color),
                       ),
                     ],
                   ),

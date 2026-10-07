@@ -6,7 +6,6 @@ import 'package:whatsapp_monitor_viewer/core/loading/app_shimmer.dart';
 import 'package:whatsapp_monitor_viewer/core/lotteries/lotteries.dart';
 import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/domain/entities/match_entry.dart';
-import 'package:whatsapp_monitor_viewer/features/matches/domain/helpers/group_matches.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/presentation/providers/matches_providers.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/providers/image_url_provider.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/presentation/viewer/image_detail_page.dart';
@@ -45,13 +44,9 @@ class GroupWinnersPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final day = ref.watch(dayMatchesProvider);
+    final groups = ref.watch(groupMatchesListProvider);
     final date = ref.watch(matchesDateProvider);
-    final group = day.value == null
-        ? null
-        : groupMatchesOf(
-            day.value!,
-          ).where((g) => g.chatJid == chatJid).firstOrNull;
+    final group = groups.value?.where((g) => g.chatJid == chatJid).firstOrNull;
 
     return Scaffold(
       appBar: AppBar(
@@ -77,7 +72,7 @@ class GroupWinnersPage extends ConsumerWidget {
           constraints: const BoxConstraints(
             maxWidth: AppSizes.summaryListMaxWidth,
           ),
-          child: day.when(
+          child: groups.when(
             loading: () => const _Skeleton(),
             error: (error, _) => _Message(
               icon: Icons.error_outline_rounded,
@@ -85,7 +80,7 @@ class GroupWinnersPage extends ConsumerWidget {
               actionLabel: 'Reintentar',
               onAction: () => ref.invalidate(dayMatchesProvider),
             ),
-            data: (_) => group == null
+            data: (_) => group == null || group.winners == 0
                 ? const _Message(
                     icon: Icons.emoji_events_outlined,
                     message: 'Este grupo no tiene ganadores en esta fecha',

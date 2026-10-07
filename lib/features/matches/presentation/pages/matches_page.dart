@@ -13,8 +13,8 @@ import 'package:whatsapp_monitor_viewer/helpers/format_long_date.dart';
 import 'package:whatsapp_monitor_viewer/helpers/map_failure_to_message.dart';
 
 /// Coincidencias de números ganadores contra lo que registró el Revisor, por
-/// fecha (`image-review-domain`, regla 7): una tarjeta por grupo con su
-/// cantidad de ganadores; tocarla abre sus ganadores (`GroupWinnersPage`).
+/// fecha (`image-review-domain`, regla 7): una tarjeta por grupo (con o sin
+/// ganadores) con su cantidad de ganadores; tocarla abre sus ganadores (`GroupWinnersPage`).
 ///
 /// Lee datos reales (`FirestoreMatchesRepository`); solo admin y superAdmin
 /// (`/matches`, desde el menú "Coincidencias").
@@ -131,7 +131,7 @@ class _MatchesContent extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final matches = ref.watch(dayMatchesProvider);
+    final matches = ref.watch(groupMatchesListProvider);
 
     return AnimatedSwitcher(
       duration: AppDurations.stateSwitch,
@@ -153,34 +153,25 @@ class _MatchesContent extends ConsumerWidget {
             onAction: () => ref.invalidate(dayMatchesProvider),
           ),
         ),
-        data: (day) {
-          final groups = groupMatchesOf(day);
-          // Los ganadores del día son los mismos en todas las jornadas.
-          final hasWinningNumbers = day.jornadas.any(
-            (j) => j.winningNumbers.isNotEmpty,
-          );
-          if (groups.isEmpty) {
-            return KeyedSubtree(
-              key: const ValueKey('empty'),
-              child: _MessageState(
-                icon: Icons.emoji_events_outlined,
-                message: hasWinningNumbers
-                    ? 'Ningún grupo tuvo ganadores en esta fecha'
-                    : 'Aún no hay números ganadores para esta fecha',
+        data: (groups) => groups.isEmpty
+            ? const KeyedSubtree(
+                key: ValueKey('empty'),
+                child: _MessageState(
+                  icon: Icons.groups_outlined,
+                  message: 'Todavía no hay grupos registrados',
+                ),
+              )
+            : KeyedSubtree(
+                key: const ValueKey('data'),
+                child: _GroupsList(groups: groups),
               ),
-            );
-          }
-          return KeyedSubtree(
-            key: const ValueKey('data'),
-            child: _GroupsList(groups: groups),
-          );
-        },
       ),
     );
   }
 }
 
-/// Una tarjeta por grupo con ganadores (los que más tienen primero).
+/// Una tarjeta por grupo, también los de 0 ganadores (los que más tienen
+/// primero).
 class _GroupsList extends StatelessWidget {
   final List<GroupMatches> groups;
 

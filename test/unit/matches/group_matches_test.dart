@@ -66,4 +66,22 @@ void main() {
       isEmpty,
     );
   });
+
+  test('knownGroups agrega los grupos sin ganadores con 0, al final', () {
+    final groups = groupMatchesOf(
+      DayMatches(
+        fechaJornada: '2026-10-05',
+        jornadas: [
+          _j([_m('1', 'b@g.us', 'Beta')]),
+        ],
+      ),
+      knownGroups: {'a@g.us': 'Alfa', 'b@g.us': 'Beta', 'c@g.us': 'Charlie'},
+    );
+
+    expect(groups.map((g) => (g.groupName, g.winners)), [
+      ('Beta', 1),
+      ('Alfa', 0),
+      ('Charlie', 0),
+    ]);
+  });
 }

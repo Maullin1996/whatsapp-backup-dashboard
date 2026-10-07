@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:whatsapp_monitor_viewer/core/errors/failure.dart';
+import 'package:whatsapp_monitor_viewer/features/matches/data/datasources/all_groups_datasource.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/domain/entities/day_matches.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/domain/entities/jornada_matches.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/domain/entities/match_entry.dart';
@@ -45,6 +46,7 @@ Future<void> _pumpPage(
   WidgetTester tester, {
   required _FakeRepo repo,
   bool settle = true,
+  List<KnownGroup> groups = const [],
 }) async {
   tester.view.physicalSize = const Size(1280, 900);
   tester.view.devicePixelRatio = 1;
@@ -52,7 +54,10 @@ Future<void> _pumpPage(
 
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [matchesRepositoryProvider.overrideWithValue(repo)],
+      overrides: [
+        matchesRepositoryProvider.overrideWithValue(repo),
+        allGroupsProvider.overrideWith((ref) async => groups),
+      ],
       child: const MaterialApp(home: MatchesPage()),
     ),
   );
@@ -128,62 +133,54 @@ void main() {
       expect(find.byType(MatchesSkeleton), findsNothing);
     });
 
-    testWidgets('un día sin ningún número ganador muestra el vacío de página', (
-      tester,
-    ) async {
+    const norte = (chatJid: 'demo-grupo-norte@g.us', groupName: 'Grupo Norte');
+    const sur = (chatJid: 'sur@g.us', groupName: 'Grupo Sur');
+
+    testWidgets('un día sin números ganadores muestra igual las tarjetas de '
+        'los grupos, con 0 ganadores', (tester) async {
       final today = DateUtils.dateOnly(DateTime.now());
       final key =
           '${today.year}-${today.month.toString().padLeft(2, '0')}-'
           '${today.day.toString().padLeft(2, '0')}';
       final repo = _FakeRepo(byDate: {key: _sinGanadores(key)});
-      await _pumpPage(tester, repo: repo);
+      await _pumpPage(tester, repo: repo, groups: [norte, sur]);
 
-      expect(
-        find.text('Aún no hay números ganadores para esta fecha'),
-        findsOneWidget,
-      );
-      expect(find.byType(GroupMatchesTile), findsNothing);
+      expect(find.byType(GroupMatchesTile), findsNWidgets(2));
+      expect(find.text('0 ganadores'), findsNWidgets(2));
     });
 
-    testWidgets('un día SIN jornadas muestra el vacío de página', (
+    testWidgets('un día sin datos también lista los grupos con 0', (
       tester,
     ) async {
-      // _FakeRepo devuelve un DayMatches sin jornadas para fechas sin datos.
-      await _pumpPage(tester, repo: _FakeRepo());
+      await _pumpPage(tester, repo: _FakeRepo(), groups: [norte]);
 
-      expect(
-        find.text('Aún no hay números ganadores para esta fecha'),
-        findsOneWidget,
-      );
+      expect(find.text('Grupo Norte'), findsOneWidget);
+      expect(find.text('0 ganadores'), findsOneWidget);
     });
 
-    testWidgets('con ganadores del día pero ninguna coincidencia: ningún grupo '
-        'tuvo ganadores', (tester) async {
+    testWidgets('sin ningún grupo registrado muestra el vacío de página', (
+      tester,
+    ) async {
+      await _pumpPage(tester, repo: _FakeRepo());
+
+      expect(find.text('Todavía no hay grupos registrados'), findsOneWidget);
+    });
+
+    testWidgets('los grupos sin ganadores van después de los que tienen', (
+      tester,
+    ) async {
       final today = DateUtils.dateOnly(DateTime.now());
       final key =
           '${today.year}-${today.month.toString().padLeft(2, '0')}-'
           '${today.day.toString().padLeft(2, '0')}';
-      final repo = _FakeRepo(
-        byDate: {
-          key: DayMatches(
-            fechaJornada: key,
-            jornadas: const [
-              JornadaMatches(
-                shift: 'Jornada Mañana (06:00 – 10:54)',
-                winningNumbers: [
-                  WinningEntry(loteria: 'medellin', numero: '9999'),
-                ],
-                matches: [],
-              ),
-            ],
-          ),
-        },
-      );
-      await _pumpPage(tester, repo: repo);
+      final repo = _FakeRepo(byDate: {key: _conGanadores(key)});
+      await _pumpPage(tester, repo: repo, groups: [sur, norte]);
 
+      expect(find.text('1 ganador'), findsOneWidget);
+      expect(find.text('0 ganadores'), findsOneWidget);
       expect(
-        find.text('Ningún grupo tuvo ganadores en esta fecha'),
-        findsOneWidget,
+        tester.getTopLeft(find.text('Grupo Norte (demo)')).dy,
+        lessThan(tester.getTopLeft(find.text('Grupo Sur')).dy),
       );
     });
 
@@ -299,7 +296,10 @@ void main() {
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [matchesRepositoryProvider.overrideWithValue(repo)],
+          overrides: [
+            matchesRepositoryProvider.overrideWithValue(repo),
+            allGroupsProvider.overrideWith((ref) async => const []),
+          ],
           child: const MaterialApp(home: MatchesPage()),
         ),
       );

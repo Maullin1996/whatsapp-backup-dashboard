@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:whatsapp_monitor_viewer/core/errors/failure_log.dart';
+import 'package:whatsapp_monitor_viewer/features/matches/data/datasources/all_groups_datasource.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/domain/entities/day_matches.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/domain/helpers/group_matches.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/domain/repositories/matches_repository.dart';
@@ -40,6 +41,30 @@ final dayMatchesProvider = FutureProvider<DayMatches>((ref) async {
     debugPrint(failureLogLine('COINCIDENCIAS', failure));
     throw failure;
   }, (day) => day);
+}, retry: (retryCount, error) => null);
+
+/// Todos los grupos conocidos (`group_stats`), para listar también los que
+/// tienen 0 ganadores. Si la lectura falla la lista queda vacía: la pantalla
+/// muestra al menos los grupos con ganadores.
+final allGroupsProvider = FutureProvider<List<KnownGroup>>((ref) async {
+  final result = await ref.watch(allGroupsDatasourceProvider).fetchAll();
+  return result.fold((failure) {
+    debugPrint(failureLogLine('COINCIDENCIAS', failure));
+    return const <KnownGroup>[];
+  }, (groups) => groups);
+});
+
+/// Un [GroupMatches] por grupo del día elegido: los que tuvieron ganadores y
+/// los que no (con 0). Espera a las coincidencias y a la lista de grupos.
+final groupMatchesListProvider = FutureProvider<List<GroupMatches>>((
+  ref,
+) async {
+  final day = await ref.watch(dayMatchesProvider.future);
+  final groups = await ref.watch(allGroupsProvider.future);
+  return groupMatchesOf(
+    day,
+    knownGroups: {for (final g in groups) g.chatJid: g.groupName},
+  );
 }, retry: (retryCount, error) => null);
 
 /// Imágenes de los ganadores de un grupo, para el visor de imágenes (una por

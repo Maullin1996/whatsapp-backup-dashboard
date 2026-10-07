@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:whatsapp_monitor_viewer/app/providers.dart';
+import 'package:whatsapp_monitor_viewer/features/matches/data/datasources/all_groups_datasource.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/data/datasources/firestore_message_context_datasource.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/data/datasources/firestore_revisor_records_datasource.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/data/datasources/firestore_winning_numbers_datasource.dart';
@@ -14,6 +15,10 @@ import 'package:whatsapp_monitor_viewer/features/summary/presentation/providers/
 // `matchesRepositoryProvider` devuelve `realMatchesRepositoryProvider`. El
 // nombre del grupo usa el mismo `groupNameDatasourceProvider` del Resumen
 // (con caché de sesión).
+
+final allGroupsDatasourceProvider = Provider<AllGroupsDatasource>(
+  (ref) => FirestoreAllGroupsDatasource(ref.watch(firestoreProvider)),
+);
 
 final winningNumbersDatasourceProvider = Provider<WinningNumbersDatasource>(
   (ref) => FirestoreWinningNumbersDatasource(ref.watch(firestoreProvider)),
