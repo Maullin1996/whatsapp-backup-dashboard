@@ -5,6 +5,7 @@ import 'package:whatsapp_monitor_viewer/core/responsive/breakpoints.dart';
 import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
 import 'package:whatsapp_monitor_viewer/core/time/jornada_labels.dart';
 import 'package:whatsapp_monitor_viewer/core/time/shifts.dart';
+import 'package:whatsapp_monitor_viewer/features/image_review/domain/entities/pending_jornada.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/jornada_images_provider.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/pending_uploads_provider.dart';
 import 'package:whatsapp_monitor_viewer/features/image_review/presentation/providers/review_session_provider.dart';
@@ -43,10 +44,13 @@ const String _unauthorizedMessage =
 ///
 /// Sin botón de volver ni gesto ([PopScope]); el guard del router devuelve
 /// aquí cualquier otra ruta mientras haya sesión ([reviewSessionProvider]).
-/// Se sale con "Cerrar" (en el lugar del botón de cerrar la imagen, solo
-/// cuando TODAS las imágenes tienen formulario, [reviewSessionCompleteProvider])
-/// o recargando la página. "Subir" (en la cabecera) aparece con el primer
-/// registro pendiente de la jornada y sube con `ReviewUploadNotifier`.
+/// Se sale con "Cerrar" (en el lugar del botón de cerrar la imagen, o en la
+/// cabecera si no hay visor) o recargando la página. "Cerrar" se ve SIEMPRE,
+/// pero deshabilitado mientras se sube la jornada o la mezcla de lo ya subido
+/// no terminó. Si hay registros sin subir de la jornada, pregunta antes
+/// ([_onClose]): subir y salir, o salir sin subir. "Subir" (en la cabecera)
+/// aparece con el primer registro pendiente de la jornada y sube con
+/// `ReviewUploadNotifier`.
 ///
 /// Con ancho < [AppBreakpoints.reviewForm] el visor oculta el panel (como en
 /// el chat) y la navegación queda libre; un aviso arriba pide más ancho. La
@@ -62,8 +66,7 @@ class ReviewSessionPage extends ConsumerWidget {
 
     final key = session.jornada;
     final images = ref.watch(jornadaImagesProvider(key));
-    final complete = ref.watch(reviewSessionCompleteProvider(key));
-    void close() => ref.read(reviewSessionProvider.notifier).end();
+    void close() => _onClose(context, ref, key);
 
     final hasImages = images.hasValue && images.value!.isNotEmpty;
     final narrow = MediaQuery.sizeOf(context).width < AppBreakpoints.reviewForm;
@@ -72,8 +75,9 @@ class ReviewSessionPage extends ConsumerWidget {
     // borraría o pisaría en local lo que la subida acaba de marcar):
     // - "Subir" solo aparece con la mezcla terminada sin error (con la lista
     //   vacía no hay mezcla);
-    // - "Cerrar" (y Esc) no aparece mientras se sube esta jornada: salir y
-    //   volver a entrar arrancaría otra mezcla con la subida en curso.
+    // - "Cerrar" (y Esc) queda deshabilitado mientras se sube esta jornada y
+    //   mientras la mezcla no termina: salir y volver a entrar arrancaría otra
+    //   mezcla con la subida en curso.
     final fecha = fechaJornadaOf(key);
     final uploading = ref.watch(
       reviewUploadProvider.select(
@@ -85,9 +89,9 @@ class ReviewSessionPage extends ConsumerWidget {
         ),
       ),
     );
-    final canClose = complete && !uploading;
     final sync = hasImages ? ref.watch(reviewSessionSyncProvider(key)) : null;
     final canUpload = images.hasValue && (sync == null || sync is AsyncData);
+    final closeEnabled = canUpload && !uploading;
 
     final Widget content;
     if (sync != null) {
@@ -98,7 +102,8 @@ class ReviewSessionPage extends ConsumerWidget {
           items: _jornadaItemsProvider(key),
           reverse: false,
           paginate: false,
-          showClose: canClose,
+          showClose: true,
+          closeEnabled: closeEnabled,
           closeLabel: 'Cerrar',
           onClose: close,
           reviewForm: true,
@@ -144,10 +149,11 @@ class ReviewSessionPage extends ConsumerWidget {
                 session: session,
                 actions: [
                   if (canUpload) _UploadButton(jornada: key),
-                  // Sin imágenes no hay visor: "Cerrar" va en la cabecera.
-                  if (images.hasValue && !hasImages && canClose)
+                  // Sin visor (sin imágenes, cargando o con error): "Cerrar" va en
+                  // la cabecera.
+                  if (sync is! AsyncData)
                     ElevatedButton(
-                      onPressed: close,
+                      onPressed: closeEnabled ? close : null,
                       child: const Text('Cerrar'),
                     ),
                 ],
@@ -160,6 +166,75 @@ class ReviewSessionPage extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// "Cerrar": sin registros sin subir de la jornada sale directo; con ellos
+/// pregunta ("Subir a Firebase y salir" / "Salir sin subir"; tocar fuera lo
+/// cierra y deja en la pantalla). "Subir a Firebase y salir" sube con
+/// `ReviewUploadNotifier` (sin el diálogo de confirmación de la píldora) y
+/// sale solo si no quedó ningún registro pendiente; si no, se queda y muestra
+/// el mismo aviso de la píldora.
+Future<void> _onClose(
+  BuildContext context,
+  WidgetRef ref,
+  JornadaImagesKey key,
+) async {
+  final session = ref.read(reviewSessionProvider.notifier);
+  final upload = ref.read(reviewUploadProvider.notifier);
+  final messenger = ScaffoldMessenger.of(context);
+  final fecha = fechaJornadaOf(key);
+
+  // Si no se pueden leer los pendientes se pregunta igual (lo seguro).
+  PendingJornada? pending;
+  try {
+    final all = await ref.read(pendingUploadsProvider.future);
+    for (final p in all) {
+      if (p.fechaJornada == fecha && shiftFromLabel(p.shift) == key.shift) {
+        pending = p;
+        break;
+      }
+    }
+    if (pending == null) return session.end();
+  } catch (_) {
+    pending = null;
+  }
+  if (!context.mounted) return;
+
+  final uploadFirst = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('¿Salir de la revisión?'),
+      content: const Text(
+        'Lo que no se haya subido a la nube se puede perder.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(false),
+          child: const Text('Salir sin subir'),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.of(dialogContext).pop(true),
+          child: const Text('Subir a Firebase y salir'),
+        ),
+      ],
+    ),
+  );
+  if (uploadFirst == null) return; // tocó fuera: se queda
+  if (!uploadFirst) return session.end();
+
+  // Sin la lista no hay jornada que subir: se queda (no se inventa una).
+  final p = pending;
+  if (p == null) return;
+  final outcome = await upload.upload((
+    chatJid: key.chatJid,
+    fechaJornada: p.fechaJornada,
+    shift: p.shift,
+  ));
+  if (outcome == null) return; // ya se estaba subiendo o no hay rol
+  messenger
+    ..hideCurrentSnackBar()
+    ..showSnackBar(PendingUploadPill.resultSnackBar(outcome));
+  if (outcome.todoSubido) session.end();
 }
 
 /// Qué se está llenando (grupo, jornada y fecha) y sus acciones.
