@@ -147,7 +147,7 @@ no dé esa autorización explícita en la conversación:
    `image-review-roles` para el detalle de dónde vive ese botón en
    `image_detail_page`.
 
-## Lo subido es la fuente de verdad de `/review` — CAMBIO DELIBERADO (2026-10-04, HECHO; sin desplegar)
+## Lo subido es la fuente de verdad de `/review` — CAMBIO DELIBERADO (2026-10-04, HECHO; hosting sin desplegar)
 
 Contradice a propósito la idea anterior de que "tiene formulario" dependía
 solo de Hive. Decidido por el usuario:

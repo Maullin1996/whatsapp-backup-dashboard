@@ -124,8 +124,8 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    inventados (`MockSummaryRepository`, ya borrado); **desde el paso
    7, pieza d, lee datos reales** (ver "Pieza (d)" más abajo). **El Resumen mockeado ya incluye el aviso de imágenes sin
    registrar** (línea bajo cada rol, con `imagenesEnJornada` inventado en el
-   mock con el formato real de `shift_image_counts`); falta cambiar solo la
-   fuente por un `get` por id a esa colección.
+   mock con el formato real de `shift_image_counts`); esa fuente ya se
+   cambió por un `get` por id a esa colección (ver "Pieza (d)").
 6. **Integración Firebase con mocks** (`image-review-firebase-integration`):
    Cloud Function puente simulada, jornadas y números ganadores locales
    — para poder construir y probar la pantalla nueva de coincidencias
@@ -442,7 +442,7 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    lectura anterior y como 9252 después, sin explicación. **SUPOSICIÓN**
    (no verificada): que quien escribe `resultados_loterias` arma el id con
    la fecha en UTC. Detalle en `image-review-firebase-integration`.
-   **Pieza b3 — HECHA (2026-10-05, NO desplegada)**: **DECIDIDO por el
+   **Pieza b3 — HECHA (2026-10-05) y DESPLEGADA (fecha: la confirma el usuario)**: **DECIDIDO por el
    usuario**: cada número registrado lleva su lotería y un ganador solo
    coincide con la misma lotería; la lista cerrada de 43 identificadores
    (clave de `lotteryKey`, con sus nombres para mostrar) y los alias
@@ -452,19 +452,12 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    numero}`; forma elegida para el cambio más chico, no decisión del
    usuario); solo `functions/` y sus tests (152). La lista completa y el
    detalle están en `image-review-firebase-integration` ("Pieza b3").
-   **La app — HECHA (2026-10-05, sin desplegar)**: cada comprobante lleva su lotería, elegida de una lista cerrada de 43 identificadores (`lib/core/lotteries/lotteries.dart`: constante en un solo archivo, con `loteriaDisplayName(id)`, que devuelve el nombre o el mismo texto si no está en la lista) y obligatoria para los dos roles; lo que se guarda en `loteria` es el identificador; un ganador solo coincide con un número de la misma lotería; la app lee `entries` de `winning_numbers/{fecha}` y dejó de leer `numbers`. Detalle en `image-review-firebase-integration` ("Lotería por comprobante y
+   **Deploys de la función (dato del usuario; la salida del CLI no está en el repo)**: la copia de `jornadas` y los alias (`doramaña`, `doradotarde`, `doradonoche`, `pija0`, `pijao`, `pijo`) se desplegaron entre el 2026-10-03 y la madrugada del 2026-10-04; respaldo: la colección ya existía y el log de la función del 2026-10-04 11:03 UTC ya traía `[JORNADAS] resumen`. **HECHO (historial de git)**: esos cambios son posteriores al primer deploy (2026-10-03, hacia las 00:39 de Bogotá, según su log): la copia de `jornadas` (`6067f2c`) es de las 13:12 y el alias (`64b5700`) de las 18:01 de ese día. La pieza b3 (`entries`, `64a96ac`, 2026-10-05 21:14) también se desplegó, fecha: la confirma el usuario; su primer intento falló en un paso previo (`Error generating the service identity for pubsub.googleapis.com`) sin subir nada, y el segundo terminó en `Successful update operation`. **Que `winning_numbers/{fecha}` ya traiga `entries` NO está verificado**: PENDIENTE (forzar una corrida desde Cloud Scheduler y abrir un documento de hoy). Corrida programada cada hora; el resumen se registra como `[GANADORES] resumen` y `[JORNADAS] resumen`.
+   **La app — HECHA (2026-10-05); el hosting NO está desplegado**: cada comprobante lleva su lotería, elegida de una lista cerrada de 43 identificadores (`lib/core/lotteries/lotteries.dart`: constante en un solo archivo, con `loteriaDisplayName(id)`, que devuelve el nombre o el mismo texto si no está en la lista) y obligatoria para los dos roles; lo que se guarda en `loteria` es el identificador; un ganador solo coincide con un número de la misma lotería; la app lee `entries` de `winning_numbers/{fecha}` y dejó de leer `numbers`. Detalle en `image-review-firebase-integration` ("Lotería por comprobante y
    comparación por lotería (la app)").
-   **PENDIENTES (no decididos)**: desplegar la función y el hosting (la función primero: hasta entonces los documentos de `winning_numbers` no traen `entries` y Coincidencias dice "Todavía no hay ganadores"); los boletos viejos de texto libre (o sin lotería) no coinciden con nada; un ganador de una lotería fuera de la lista no coincide con nada; si el Revisor necesita una lotería que no está en la lista, hoy no puede guardar.
-   **PENDIENTES de la función puente (no decididos)**: hasta las 13:30 de
-   su fecha, el documento de la API trae datos de otra jornada, y por eso
-   `winning_numbers` de ese día puede mostrar números que no son de ese día
-   hasta esa hora (el usuario dijo que los ganadores se revisan al día
-   siguiente); qué hacer con `discarded` (hoy solo se registra en el log).
-   **PENDIENTES (no decididos)**: el índice de grupo de colecciones sobre
-   `fechaJornada` y `rol` (el enlace sale del error de la primera consulta
-   con ganadores, en el log `[COINCIDENCIAS] falló (firestore): ...`);
-   caché; costo en lecturas; que "Ver imagen" no se probó con una imagen
-   real (las reglas de Storage no están en el repo); y lo ya pendiente.
+   **PENDIENTES**: ver "Pendientes consolidados" (más abajo).
+   **PENDIENTES de la función puente**: ver "Pendientes consolidados" (más abajo).
+   **PENDIENTES**: ver "Pendientes consolidados" (más abajo).
    **Pieza (e), tabla de jornadas ÚNICA — HECHA** (decisión del usuario):
    el horario de `jornadas` de `whats-apuestas` (leído el 2026-09-30) rige
    en toda la app, para todas las fechas y todos los mensajes; la tabla
@@ -481,16 +474,8 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    `winning_numbers` está publicada; Coincidencias abre sin error con la
    cuenta admin y muestra "Todavía no hay ganadores"; el Resumen real
    funciona con la cuenta admin (ver "Pieza (d)").
-   **PENDIENTES (no decididos)**: actualizar el BOT con los mismos rangos y
-   sin night2 (en su repo; hasta entonces `shift_image_counts` sigue la
-   tabla vieja y el "imágenes en la jornada" del Resumen puede estar
-   desfasado en los bordes); retirar night2 de `ASSIGNABLE_SHIFTS` en
-   `functions/`; caché de la PWA tras desplegar (fuente de festivos y
-   horario del ERP que cambia sin aviso, para la app: resueltos por la pieza
-   2 de horarios dinámicos, más abajo); los mensajes ya guardados se
-   reclasifican con la tabla única; que Coincidencias, cuando haya
-   ganadores, probablemente pida un índice sobre `rol`; y lo ya pendiente.
-   **Horarios dinámicos, pieza 1 — HECHA y DESPLEGADA (2026-10-03, dato del usuario: la colección `jornadas` existe con los 5 documentos y el log trae `[JORNADAS]`)**
+   **Bot (otro repo) — dato del usuario (fecha: la confirma el usuario)**: el worker se reconstruyó en el servidor con la tabla nueva (sin night2) y la lectura de `jornadas` y `festivos_colombia`, y arrancó con `Shift config loader iniciado` y la tabla actualizada; siguen llegando imágenes; los 17 tests del repo del bot dieron verde en un contenedor Node 20 el 2026-10-03. **PENDIENTES**: ver "Pendientes consolidados" (más abajo).
+   **Horarios dinámicos, pieza 1 — HECHA y DESPLEGADA (entre el 2026-10-03 y la madrugada del 2026-10-04, dato del usuario; respaldo: la colección ya existía y el log de la función del 2026-10-04 11:03 UTC ya traía `[JORNADAS] resumen`)**
    (decisión del usuario, 2026-10-03): el mismo disparador programado de los
    ganadores, después de ellos y con la misma conexión y el mismo secreto,
    copia `jornadas` del ERP a una colección `jornadas` de nuestro proyecto
@@ -510,7 +495,7 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    documentos (`"2026"` a `"2035"`, campo `fechas`, lista `yyyy-MM-dd`; 18
    por año, 2030 con 17), cargados con el Admin SDK desde una lista generada
    con reglas y revisada por el usuario, y verificados releyéndolos.
-   **Horarios dinámicos, pieza 2 — HECHA (código y tests; sin desplegar)**
+   **Horarios dinámicos, pieza 2 — HECHA (código y tests; hosting sin desplegar)**
    (DECIDIDO por el usuario e IMPLEMENTADO, opción A, versión simple): la app
    lee `jornadas` y `festivos_colombia` y clasifica con ellos; **la tabla
    fija actual es el respaldo**. `shifts.dart` guarda una sola tabla activa
@@ -529,11 +514,7 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    filtro, y lo guardado antes del deploy puede quedar con etiquetas
    desfasadas. Detalle en `image-review-firebase-integration` ("Lectura en
    la app").
-   **PENDIENTES (no decididos)**: pieza 3 (el bot sigue con su tabla vieja;
-   **RIESGO CONOCIDO (hasta actualizar el bot)**: en cada festivo entre semana, empezando por el **lunes 2026-10-12**, la app (con la pieza 2) trata el día como domingo (solo la jornada `holiday`, 06:00–19:15; lo de fuera queda "fuera de jornada") y el bot lo clasifica como un día normal con su tabla vieja: `shift_image_counts` de ese día no coincide con lo que ve la app, y el Resumen mostrará diferencias en "imágenes en la jornada".); el texto de las etiquetas no se
-   actualiza si el ERP cambia un horario (cosmético); la zona horaria del
-   dispositivo para los festivos; qué hacer con `pendingApproval: true` o
-   `proposed*` (hoy se ignoran); desplegar.
+   **Pieza 3 (el bot la lee) — HECHA (dato del usuario, otro repo, fecha: la confirma el usuario)**: el riesgo de los festivos entre semana (desde el lunes 2026-10-12) por la diferencia entre la app y el bot queda cerrado si el bot ya clasifica con `jornadas` y `festivos_colombia`; no se puede comprobar desde este repo. **PENDIENTES**: ver "Pendientes consolidados" (más abajo).
    **Limpieza — HECHA**: se borraron `MockSummaryRepository`,
    `MockMatchesRepository` y `SimulatedReviewUploader`, con sus tests
    propios; el test del menú (`custom_popup_menu_logout_button_test.dart`)
@@ -564,14 +545,14 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    `image-review-domain` ("Cierre de jornada") e `image-review-offline-sync`.
    El `debugPrint` temporal de lecturas se quitó tras medir (32 mensajes
    en `holiday` del 2026-10-04). `CACHE_NAME` subió a `whatsapp-monitor-v5`.
-   **PENDIENTE**: desplegar el hosting (primero se muestra al cliente en un
+   **PENDIENTE**: desplegar el hosting (esperando el visto bueno del cliente; primero se muestra en un
    canal de vista previa).
 9. **Lo subido es la fuente de verdad de `/review` — HECHO (2026-10-04,
    CAMBIO DELIBERADO; sin desplegar)**: contradice a propósito que "tiene
    formulario" dependía solo de Hive y que Revisor/Sumador no leían
    `image_reviews`. Capas, todas con tests:
    1. Documentación: reglas de `jornadas` y `festivos_colombia` publicadas;
-      riesgo de los festivos entre semana hasta actualizar el bot.
+      riesgo de los festivos entre semana hasta actualizar el bot (ya actualizado, dato del usuario: ver "Pendientes consolidados").
    2. Regla de lectura del Revisor/Sumador asignado (solo su rol) en
       `firestore.rules.draft`, probada en el emulador
       (`firestore-rules-test/`, 33 casos y una prueba de mutación);
@@ -585,7 +566,7 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    Detalle en `image-review-offline-sync` ("Lo subido es la fuente de verdad
    de `/review`"). **Prueba a mano de `/review` con la regla publicada —
    HECHA (verificada por el usuario el 2026-10-04)**: funciona. Solo cubre
-   `/review`; no da por probado nada más. **PENDIENTE**: desplegar.
+   `/review`; no da por probado nada más. **PENDIENTE**: desplegar el hosting (ver "Pendientes consolidados").
 
 ## Checklist antes de pasar a la siguiente pieza
 
@@ -620,6 +601,34 @@ de este feature**. No repiten lo que ya cubren los plugins instalados:
   este feature (tablet/PC, ubicación del botón de subida, etc.) sí
   viven en las skills de este feature.
 
+## Pendientes consolidados (sin decidir) — lista única y vigente
+
+Estado de despliegue en la revisión del 2026-10-06. **HECHO** = verificado con el repo (historial de git, `web/sw.js`, el borrador de reglas); **dato del usuario** = no se puede comprobar desde este repo.
+
+- **Función `syncWinningNumbers`** (`whatsapp-pro-3d483`): DESPLEGADA (dato del usuario): la copia de `jornadas` y los alias entre el 2026-10-03 y la madrugada del 2026-10-04; la pieza b3 (`entries`), fecha: la confirma el usuario (primer intento fallido sin subir nada, segundo con `Successful update operation`). Que `winning_numbers/{fecha}` ya traiga `entries` NO está verificado (pendiente 2).
+- **Bot (otro repo)**: reconstruido en el servidor con la tabla nueva (sin `night2`) y la lectura de `jornadas` y `festivos_colombia`; arrancó con `Shift config loader iniciado` y la tabla actualizada (fecha: la confirma el usuario); siguen llegando imágenes; 17 tests verdes en un contenedor Node 20 el 2026-10-03 (dato del usuario).
+- **Hosting de la app: NO desplegado**, esperando el visto bueno del cliente. Con ese deploy saldrá, ya commiteado: la caché de la PWA (`CACHE_NAME` = `whatsapp-monitor-v5`, HECHO: `web/sw.js`, commit `0f1a2d1`), la clasificación con horarios y festivos desde Firestore (con la tabla fija de respaldo), la regla de comparación de 2, 3 y 4 cifras y la lotería obligatoria por comprobante comparada por lotería leyendo `entries`. **Orden obligatorio: la función antes que el hosting**, porque la app nueva lee solo `entries`.
+- **Reglas de Firestore**: las de `jornadas` y `festivos_colombia` se publicaron el 2026-10-04 (confirmado por el usuario); no hay reglas nuevas para esta entrega.
+- **Colecciones**: `jornadas` (5 documentos, copiada del ERP cada hora), `festivos_colombia` (10 documentos, 2026 a 2035, campo `fechas`, cargada el 2026-10-03 con reglas revisadas por el usuario) y `winning_numbers` (campos `numbers` y `entries`). Los documentos de prueba de `image_reviews` se borraron el 2026-10-04.
+
+**Pendientes (ninguno decidido):**
+1. Visto bueno del cliente y despliegue del hosting (la función antes que el hosting).
+2. Verificar `entries` en un documento de `winning_numbers` de hoy (forzar una corrida desde Cloud Scheduler).
+3. Qué hacer con `discarded` (hoy solo se registra en el log).
+4. Hasta las 13:30 de su fecha, el documento de la API trae datos de otra jornada, así que `winning_numbers` de ese día puede mostrar números que no son de ese día. El usuario dijo que los ganadores se revisan al día siguiente.
+5. Un ganador cuya lotería no está en la lista no coincide con nada. Los boletos viejos de texto libre no coinciden con nada. Si el Revisor necesita una lotería que no está en la lista, hoy no puede guardar.
+6. Alias sin prueba por número: `doradotarde`, `doradonoche`, `pija0`, `pijao` y `pijo` (confirmados por el usuario); `doramaña` tiene 119 fechas de coincidencia por número.
+7. Retirar `night2` de `ASSIGNABLE_SHIFTS` (`functions/index.js`) y de `shiftKeyValido` (`firestore.rules.draft`; publicar la regla es a mano). `night2` ya no existe como jornada.
+8. Validar `codigo` y `loteria` en las reglas de Firestore, y las reglas de Storage (no están en el repo), que permiten escribir a cualquier usuario autenticado (dato del usuario).
+9. Probable índice de grupo de colecciones sobre `rol` para Coincidencias (el enlace sale del error de la primera consulta con ganadores, en el log `[COINCIDENCIAS] falló (firestore): ...`).
+10. Probar "Ver imagen" con una imagen real.
+11. Contadores `night2` existentes en `shift_image_counters` del bot (no se migran), y que el día del deploy una jornada pudo mezclar límites viejos y nuevos (aceptado).
+12. Las etiquetas de jornada llevan las horas escritas y no se actualizan si el ERP cambia un horario. Los mensajes ya cargados mantienen su etiqueta hasta cambiar de chat o de filtro. Un festivo depende de la fecha local del dispositivo.
+13. `pendingApproval` y `proposed*` del ERP se ignoran.
+14. Revisar la lista de festivos cada año: cubre solo 2026 a 2035.
+15. Actualizar `~/BOT_DOCUMENTATION.md` (servidor) y `~/check_shift_counts.js`, fuera de los repos: describen la tabla vieja con `night2` y siguen sin actualizar (no se tocaron).
+16. No hay emuladores de Firebase para la app ni para las funciones (solo `firestore-rules-test/` usa un emulador local de Firestore para probar el borrador de reglas).
+
 ## Pendientes globales que bloquean partes de la implementación
 
 Lista consolidada de las "Zona gris" que quedan en las cuatro skills,
@@ -633,28 +642,7 @@ de aquí y de la skill correspondiente cuando el usuario confirme):
 - **`sqflite`/`drift` vs. `Hive`** (`image-review-offline-sync`) —
   decisión libre, a tomar en Claude Code; no hay nada existente que
   condicione la elección.
-- **Función puente de ganadores** (`image-review-firebase-integration`):
-  el mecanismo ya está decidido (polling programado cada hora, hoy y ayer
-  en hora de Bogotá, sin historial) y la mezcla está hecha (piezas b1 y
-  b1.1: 3 o 4 cifras, `sin-loteria`; decididos la escritura solo si
-  cambió y no escribir nada si el resultado sale vacío) y el handler
-  programado está **desplegado y corriendo cada hora** desde el 2026-10-03
-  (pieza b2); alias `doramaña` → `dorado_mañana` decidido e implementado
-  (118 fechas). Falta: qué hacer con `discarded` y con los números de otra
-  jornada que trae el documento de la API hasta las 13:30 de su fecha. (El
-  formato de las jornadas ya se vio y se decidió una tabla fija en código,
-  2026-09-30.)
-- **Tabla única de jornadas** (`image-review-domain`): actualizar el bot
-  con los mismos rangos y sin night2 (en su repo), retirar night2 de
-  `ASSIGNABLE_SHIFTS` en `functions/` y caché de la PWA tras desplegar.
-- **Horarios dinámicos** (`image-review-firebase-integration`, "Réplica de
-  jornadas" y "Lectura en la app"): pieza 1 hecha y desplegada (2026-10-03), pieza 2 hecha y sin desplegar,
-  festivos cargados en `festivos_colombia`, reglas de las dos colecciones
-  publicadas (confirmado el 2026-10-04); faltan la pieza 3 (bot; mientras
-  tanto, riesgo del lunes 2026-10-12 y de cada festivo entre semana, ver
-  `image-review-firebase-integration`), desplegar la pieza 2, el texto de
-  las etiquetas con horas fijas, la zona horaria del dispositivo para los
-  festivos y el significado de `pendingApproval`/`proposed*`.
+- **Función puente de ganadores, tabla de jornadas, horarios dinámicos y despliegue**: ver "Pendientes consolidados" (arriba); no se repiten aquí.
 - **Calidad de conexión en la subida real** (`image-review-offline-sync`,
   paso 7) — el timeout por registro ya existe (15 s, capa 3); falta decidir
   si además se verifica la conexión antes de subir, y qué pasa si una

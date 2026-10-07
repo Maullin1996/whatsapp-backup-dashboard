@@ -306,7 +306,9 @@ limpio (sin migración de datos).
     `ASSIGNABLE_SHIFTS` (`functions/index.js`) y debe mantenerse
     sincronizada con `lib/core/time/shifts.dart`. Con la tabla única
     (paso 7, pieza e) el cliente ya no ofrece `night2`, pero
-    `ASSIGNABLE_SHIFTS` todavía la acepta (PENDIENTE retirarla).
+    `ASSIGNABLE_SHIFTS` todavía la acepta, igual que la regla `shiftKeyValido`
+    de `firestore.rules.draft` (night2 ya no existe como jornada; PENDIENTE
+    retirarla de las dos).
     Ojo: los registros de `image_review` guardan `shift` como la
     **etiqueta** (`shiftNames`, las actuales; los registros viejos pueden
     traer una de `legacyShiftNames`), así que al comparar una asignación

@@ -49,7 +49,7 @@ cada vez. Antes de tocar código de este feature, lee esta skill completa.
   el ticket, no al ticket en sí** — por eso se repite entre imágenes.
   **Nunca se suman entre sí comprobantes por compartir código** — cada
   ticket es una unidad independiente.
-- **Lotería** (de un comprobante) — **DECIDIDO por el usuario e IMPLEMENTADO en la app (2026-10-05, sin desplegar)**: cada comprobante lleva su lotería, elegida de una lista cerrada de 43 identificadores (`lib/core/lotteries/lotteries.dart`: constante en un solo archivo, con `loteriaDisplayName(id)`, que devuelve el nombre o el mismo texto si no está en la lista) y obligatoria para los dos roles; lo que se guarda en `loteria` es el identificador; un ganador solo coincide con un número de la misma lotería; la app lee `entries` de `winning_numbers/{fecha}` y dejó de leer `numbers`. La lotería es **de la
+- **Lotería** (de un comprobante) — **DECIDIDO por el usuario e IMPLEMENTADO en la app (2026-10-05; el hosting no está desplegado)**: cada comprobante lleva su lotería, elegida de una lista cerrada de 43 identificadores (`lib/core/lotteries/lotteries.dart`: constante en un solo archivo, con `loteriaDisplayName(id)`, que devuelve el nombre o el mismo texto si no está en la lista) y obligatoria para los dos roles; lo que se guarda en `loteria` es el identificador; un ganador solo coincide con un número de la misma lotería; la app lee `entries` de `winning_numbers/{fecha}` y dejó de leer `numbers`. La lotería es **de la
   lista cerrada de 43** (identificador y nombre para mostrar en
   `image-review-firebase-integration`, "Pieza b3"), **por comprobante**
   (puede variar entre los boletos de una misma foto; todos los números de un
@@ -309,9 +309,10 @@ recomendación de diseño es:
   - El bot solo publica hoy y ayer (fecha UTC-5) y no borra nada. Antes
     del 2026-09-26 no hay documentos.
   - App y bot deben usar los mismos rangos horarios. La app ya usa la
-    tabla única; el bot todavía usa la VIEJA hasta actualizarlo en su repo
-    (PENDIENTE: mientras tanto el contador puede estar desfasado en los
-    bordes; ver "Jornadas: una sola tabla"). Los dos truncan a minutos con
+    tabla única; el bot (otro repo) se reconstruyó con la misma tabla (fecha: la
+    confirma el usuario; dato del usuario: sin night2, lee `jornadas` y
+    `festivos_colombia`; no se puede comprobar desde este repo; ver "Jornadas:
+    una sola tabla"). Los dos truncan a minutos con
     límites inclusivos; el bot detecta solo domingos (la app, desde la
     pieza 2 de horarios dinámicos, también los festivos de
     `festivos_colombia`, ver "Jornadas" más abajo). Diferencia: la app
@@ -458,8 +459,11 @@ fijo. Detalle en `image-review-firebase-integration` ("Lectura en la app").
   legacyShiftNames[s]` en el Resumen y Coincidencias). También cambiaron
   `newShiftGapLabels` → `shiftGapLabels` y `newShiftLastMinute` →
   `shiftLastMinute` (sin night2).
-- **night2**: el valor se queda en el enum (lo usan el bot, `reviewShifts`
-  y etiquetas guardadas), pero `getCurrentShift` nunca lo devuelve,
+- **night2**: el valor se queda en el enum (lo usan `reviewShifts`, las
+  etiquetas guardadas y los contadores viejos del bot; ya no existe como
+  jornada, pero `ASSIGNABLE_SHIFTS` en `functions/index.js` y la regla
+  `shiftKeyValido` de `firestore.rules.draft` todavía la aceptan: PENDIENTE de
+  limpiar), pero `getCurrentShift` nunca lo devuelve,
   `jornadaTerminada(night2)` es `false`, el diálogo de horarios no lo
   ofrece y el panel de control no tiene fila de night2.
 - **Claves sin cambios**: el enum `Shift` sigue igual (valores y orden; ids
@@ -487,7 +491,8 @@ fijo. Detalle en `image-review-firebase-integration` ("Lectura en la app").
 - **DECIDIDO por el usuario (2026-10-03)**: "Mañana" vale para las mañanas
   de todos los días excepto domingos y festivos, que usan `festivos` del
   ERP.
-- **Horarios dinámicos, pieza 1 — HECHA y DESPLEGADA (2026-10-03)**: la
+- **Horarios dinámicos, pieza 1 — HECHA y DESPLEGADA (entre el
+  2026-10-03 y la madrugada del 2026-10-04, dato del usuario)**: la
   función programada copia `jornadas` del ERP a una colección `jornadas` de
   nuestro proyecto (réplica exacta, nombre PROVISIONAL; existe con los 5
   documentos, dato del usuario). La app la lee desde la pieza 2; su regla de
@@ -506,23 +511,25 @@ fijo. Detalle en `image-review-firebase-integration` ("Lectura en la app").
   deploy puede quedar con etiquetas desfasadas.
 
 **PENDIENTE** (no decidido):
-- Actualizar el BOT con los mismos rangos y sin night2 (en su repo). Hasta
-  entonces los contadores de `shift_image_counts` siguen la tabla vieja y
-  el "imágenes en la jornada" del Resumen puede estar desfasado en los
-  bordes.
-- Retirar night2 de `ASSIGNABLE_SHIFTS` en `functions/` (el cliente ya no
-  la ofrece, el servidor todavía la acepta).
-- Caché de la PWA tras desplegar (versiones viejas con la tabla vieja).
+- **Bot (otro repo) — dato del usuario (fecha: la confirma el usuario; no se puede comprobar desde este repo)**: el worker se reconstruyó en el servidor con la tabla de jornadas nueva (sin night2) y la lectura de `jornadas` y `festivos_colombia`, y arrancó con `Shift config loader iniciado` y la tabla actualizada; siguen llegando imágenes; los 17 tests del repo del bot dieron verde en un contenedor Node 20 el 2026-10-03. Los contadores `night2` que ya existían en `shift_image_counters` no
+  se migran, y el día del deploy una jornada pudo mezclar límites viejos y
+  nuevos (aceptado).
+- **PENDIENTE de limpiar**: retirar night2 de `ASSIGNABLE_SHIFTS` en
+  `functions/` y de la regla `shiftKeyValido` (el cliente ya no la ofrece, el
+  servidor y las reglas todavía la aceptan).
+- Caché de la PWA: `CACHE_NAME` es `whatsapp-monitor-v5` (HECHO: `web/sw.js`);
+  sale con el deploy del hosting, que NO está desplegado (espera el visto
+  bueno del cliente).
 - Consecuencia a tener presente: los mensajes ya guardados se reclasifican
   con la tabla única (su etiqueta del visor se calcula al cargarlos).
-- Horarios dinámicos (las reglas de `jornadas` y `festivos_colombia` ya
-  están PUBLICADAS, confirmado el 2026-10-04): pieza 3 (el bot sigue con su
-  tabla vieja y no lee las colecciones; **RIESGO CONOCIDO (hasta actualizar el bot)**: en cada festivo entre semana, empezando por el **lunes 2026-10-12**, la app (con la pieza 2) trata el día como domingo (solo la jornada `holiday`, 06:00–19:15; lo de fuera queda "fuera de jornada") y el bot lo clasifica como un día normal con su tabla vieja: `shift_image_counts` de ese día no coincide con lo que ve la app, y el Resumen mostrará diferencias en "imágenes en la jornada".); el texto de las etiquetas lleva las horas escritas
-  y no se actualiza si el ERP cambia un horario (defecto cosmético); la
-  zona horaria del dispositivo (un festivo depende de la fecha local: fuera
-  de UTC-5 se podría ver otro día); qué hacer si el ERP trae
-  `pendingApproval: true` o valores en `proposed*` (hoy se ignoran);
-  desplegar. **SUPOSICIÓN**: los horarios que se usan son siempre
+- Horarios dinámicos (reglas de `jornadas` y `festivos_colombia` PUBLICADAS,
+  confirmado el 2026-10-04; el bot ya lee las colecciones): el texto de las
+  etiquetas lleva las horas escritas y no se actualiza si el ERP cambia un
+  horario (defecto cosmético); la zona horaria del dispositivo (un festivo
+  depende de la fecha local: fuera de UTC-5 se podría ver otro día); qué hacer
+  si el ERP trae `pendingApproval: true` o valores en `proposed*` (hoy se
+  ignoran); desplegar el hosting. Pendientes: lista única en `image-review-workflow` ("Pendientes consolidados").
+  **SUPOSICIÓN**: los horarios que se usan son siempre
   `startTime` y `endTime`.
 
 ## Reglas de negocio (no negociables sin confirmación explícita del usuario)
