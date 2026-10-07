@@ -534,8 +534,11 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    3. Pantalla `/review` (`ReviewSessionPage`) con sesión de llenado en
       memoria (`reviewSessionProvider`) y guard en `computeAuthRedirect` (no
       se sale salvo con "Cerrar" o recargando); "Subir" (`PendingUploadPill` +
-      `ReviewUploadNotifier`), "Cerrar" (solo con TODAS las imágenes con
-      registro guardado; con la lista vacía también) y aviso con ancho < 840.
+      `ReviewUploadNotifier`), "Cerrar" (siempre visible, con el diálogo "¿Salir
+      de la revisión?" si hay registros sin subir: "Subir a Firebase y
+      salir" / "Salir sin subir"; DECIDIDO e IMPLEMENTADO después, hosting sin
+      desplegar; antes solo con TODAS las imágenes con registro guardado) y
+      aviso con ancho < 840.
    4. Botón "Llenar formularios" (`FillFormsButton`) en `MessageList` y su
       diálogo (fecha con flechas, jornadas asignadas que aplican al día).
    5. Limpieza: sin cápsula; el visor del chat volvió a ser solo visor
@@ -561,8 +564,9 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    3. Lectura (`FirestoreReviewRemoteRecordsDatasource`).
    4. Mezcla con Hive (`syncJornadaFromRemote`, `deleteSynced`).
    5. `/review` espera la mezcla y abre en la primera imagen sin formulario;
-      "Subir" solo con la mezcla terminada y "Cerrar" oculto mientras se
-      sube esa jornada (para que no se crucen).
+      "Subir" solo con la mezcla terminada y "Cerrar" deshabilitado (se ve,
+      ya no oculto) mientras se sube esa jornada y mientras la mezcla no
+      termina (para que no se crucen).
    Detalle en `image-review-offline-sync` ("Lo subido es la fuente de verdad
    de `/review`"). **Prueba a mano de `/review` con la regla publicada —
    HECHA (verificada por el usuario el 2026-10-04)**: funciona. Solo cubre

@@ -224,13 +224,15 @@ Consecuencias para el feature de revisión:
 > **CAMBIO DELIBERADO (2026-10-04, pedido por los usuarios; pantalla
 > `/review`, capa 3b — HECHO)**: en la pantalla de llenado `/review` (una
 > jornada de un chat en un día, ver `image-review-roles`), **"terminar" la
-> jornada SÍ depende de las imágenes**: el botón "Cerrar" solo aparece cuando
-> TODAS las imágenes de la lista tienen registro guardado del rol activo
-> (`reviewSessionCompleteProvider`; el mismo criterio que el bloqueo de
-> navegación: registro en local, pendiente o ya subido). Con la lista vacía
-> también aparece (decisión del usuario). Si llega una imagen nueva (la
-> lista es en vivo cuando la fecha es hoy), "Cerrar" se oculta hasta que
-> también tenga registro. Lo que sigue abajo **sigue valiendo** en lo demás:
+> jornada SÍ depende de las imágenes**: **cambio posterior (DECIDIDO e
+> IMPLEMENTADO, hosting sin desplegar)**: el botón "Cerrar" ya NO se oculta
+> hasta terminar los formularios: se ve siempre, y al tocarlo, si hay
+> registros sin subir, abre el diálogo "¿Salir de la revisión?" con "Subir a
+> Firebase y salir" y "Salir sin subir" (ver `image-review-roles`).
+> `reviewSessionCompleteProvider` (todas las imágenes con registro guardado
+> del rol activo; el mismo criterio que el bloqueo de navegación: registro
+> en local, pendiente o ya subido) ya no condiciona el botón. Lo que sigue
+> abajo **sigue valiendo** en lo demás:
 > la subida NO depende de contar imágenes ("Subir" aparece con el primer
 > pendiente de esa jornada y se puede repetir), la validación de que todo
 > cuadra sigue siendo la reconciliación del Resumen, y el contador del bot
@@ -239,8 +241,8 @@ Consecuencias para el feature de revisión:
 > no un total esperado. "Cerrar" no exige haber subido. Desde el
 > 2026-10-04 (cambio deliberado) "tener registro" incluye lo ya subido que
 > `/review` trae de Firebase al entrar (ver `image-review-offline-sync`), y
-> "Cerrar" se oculta mientras se sube esa jornada (para que una subida y la
-> mezcla de lo subido no se crucen).
+> "Cerrar" se ve deshabilitado (ya no oculto) mientras se sube esa jornada
+> (para que una subida y la mezcla de lo subido no se crucen).
 
 Dado que no existe un conteo confiable de "cuántas imágenes va a tener
 esta jornada en total" (ver arriba), y dado que **cada jornada+grupo

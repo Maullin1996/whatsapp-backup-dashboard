@@ -189,8 +189,9 @@ solo de Hive. Decidido por el usuario:
 - **Subida y mezcla nunca se cruzan** (si se cruzaran, la mezcla podría
   borrar en local un registro recién subido, o pisarlo con la versión
   vieja leída antes): "Subir" solo aparece cuando la mezcla terminó sin
-  error (con la lista vacía no hay mezcla), y "Cerrar" (y Esc) no aparece
-  mientras se sube esa jornada, para que no se pueda salir y volver a
+  error (con la lista vacía no hay mezcla), y "Cerrar" (y Esc) queda
+  deshabilitado (se ve, ya no oculto) mientras se sube esa jornada y
+  mientras la mezcla no termina, para que no se pueda salir y volver a
   entrar con la subida en curso. Recargar a mitad de una subida la corta:
   lo no marcado sigue pendiente en Hive y gana en la próxima mezcla (si ya
   estaba escrito en Firestore, volver a subirlo pisa el mismo documento).
