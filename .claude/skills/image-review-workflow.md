@@ -422,8 +422,8 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    2026-10-03 y 2026-10-02, sin errores; la llave lee el ERP, la función
    escribe `winning_numbers` con el formato esperado ("606" incluido, ceros
    a la izquierda, orden de texto) y la entrada manual vacía del 2026-10-02
-   se descartó con `sin-loteria`. El cron corre solo (02:44, 03:44 y 04:44,
-   `sin-cambios`): queda CONFIRMADO que Cloud Scheduler acepta `"every 60
+   se descartó con `sin-loteria`. El cron corre solo (02:44, 03:44 y 04:44 del 2026-10-03,
+   `sin-cambios`; HECHO, logs del 2026-10-09/10: ahora al minuto :55): queda CONFIRMADO que Cloud Scheduler acepta `"every 60
    minutes"`. El aviso `sin-loteria` se repite en cada corrida mientras
    exista esa entrada manual vacía (esperado).
    **DECIDIDO por el usuario**: los resultados del día D valen hasta las
@@ -441,7 +441,19 @@ orden final sin confirmarlo cuando se vaya a empezar a implementar**:
    otra jornada y `winning_numbers/2026-10-02` tiene solo los 9 de las 13:30. "Play four día" figuraba como 5362 en una
    lectura anterior y como 9252 después, sin explicación. **SUPOSICIÓN**
    (no verificada): que quien escribe `resultados_loterias` arma el id con
-   la fecha en UTC. Detalle en `image-review-firebase-integration`.
+   la fecha en UTC (la fecha UTC de `createTime` coincide con el id: HECHO).
+   Detalle en `image-review-firebase-integration`.
+   **Pieza b4 — HECHA en `functions/` (2026-10-10), PENDIENTE DE DESPLIEGUE**:
+   HECHO (lecturas a un punto en el tiempo de `whats-apuestas`):
+   `resultados_loterias/D` trae los resultados de D-1 mientras su `updatedAt`
+   sea anterior a las 13:30 de D y a esa hora se reemplaza por las 9 de día de
+   D; el resultado completo de T vive en el documento T+1 (de las 20:30 de T a
+   las 13:30 de T+1). Regla en `syncWinningNumbers` (umbral 13:00, constante
+   `AUTOMATIC_DOC_SWITCH_TIME`): si T+1 existe con `updatedAt` anterior al
+   umbral de T+1, es la fuente de T; si no existe, la fuente es T solo si su
+   `updatedAt` es posterior al umbral de T; si T+1 existe con `updatedAt`
+   posterior, T no se escribe (`omitida-reemplazada`). Manuales sin cambios.
+   Detalle y consecuencias en `image-review-firebase-integration` ("Pieza b4").
    **Pieza b3 — HECHA (2026-10-05) y DESPLEGADA (entre el 2026-10-05 y el 2026-10-06, deducido de la conversación, sin confirmar)**: **DECIDIDO por el
    usuario**: cada número registrado lleva su lotería y un ganador solo
    coincide con la misma lotería; la lista cerrada de 43 identificadores
@@ -618,7 +630,7 @@ Estado de despliegue en la revisión del 2026-10-06. **HECHO** = verificado con 
 **Pendientes (ninguno decidido):**
 1. Visto bueno del cliente y despliegue del hosting (la función antes que el hosting).
 2. Qué hacer con `discarded` (hoy solo se registra en el log).
-3. Hasta las 13:30 de su fecha, el documento de la API trae datos de otra jornada, así que `winning_numbers` de ese día puede mostrar números que no son de ese día. El usuario dijo que los ganadores se revisan al día siguiente.
+3. ~~Hasta las 13:30 de su fecha, el documento de la API trae datos de otra jornada.~~ **CERRADO por la pieza b4 (2026-10-10)**: el resultado de T se toma de `resultados_loterias/(T+1)`. Pendiente solo su despliegue; lo ya escrito mal (p. ej. `winning_numbers/2026-10-09` sin los 22 de tarde/noche) no se corrige solo.
 4. Un ganador cuya lotería no está en la lista no coincide con nada. Los boletos viejos de texto libre no coinciden con nada. Si el Revisor necesita una lotería que no está en la lista, hoy no puede guardar.
 5. Alias sin prueba por número: `doradotarde`, `doradonoche`, `pija0`, `pijao` y `pijo` (confirmados por el usuario); `doramaña` tiene 119 fechas de coincidencia por número.
 6. Retirar `night2` de `ASSIGNABLE_SHIFTS` (`functions/index.js`) y de `shiftKeyValido` (`firestore.rules.draft`; publicar la regla es a mano). `night2` ya no existe como jornada.

@@ -287,8 +287,9 @@ falsos; desplegado después, el 2026-10-03, ver "Pieza b2 — DESPLEGADA"):
   - `syncWinningNumbers({readAutomatic, readManual, readStored,
     writeNumbers, logger, now})`. Para cada fecha de `[hoy, ayer]`
     (`bogotaDateIds(now())`, **UTC-5 fijo**, ids `yyyy-MM-dd`): lee
-    `resultados_loterias/{id}` y `manual_lotteries/{id}` (un documento
-    ausente = vacío), llama a `mergeWinningNumbers` (sin cambios) con el
+    `resultados_loterias/{id}` (**desde la pieza b4 la fuente automática
+    de `{id}` es otra: ver "Pieza b4" más abajo**) y
+    `manual_lotteries/{id}` (un documento ausente = vacío), llama a `mergeWinningNumbers` (sin cambios) con el
     documento automático y `list` de la manual, registra cada `discarded`
     en el log (fecha, lotería, fuente y motivo), y entonces:
     - si `numbers` sale vacío → no escribe (`omitida-vacia`, con una línea
@@ -361,7 +362,10 @@ falsos; desplegado después, el 2026-10-03, ver "Pieza b2 — DESPLEGADA"):
   "606" (3 cifras) incluido, en orden de texto. La entrada manual vacía del
   2026-10-02 se descartó con `sin-loteria` y no se publicó.
 - **El cron corre solo**: corridas sin forzar a las 02:44, 03:44 y 04:44 de
-  Bogotá, todas `sin-cambios` en las dos fechas. Queda **CONFIRMADO** que
+  Bogotá (del 2026-10-03), todas `sin-cambios` en las dos fechas. **HECHO
+  (logs del 2026-10-09 18:55 al 2026-10-10 13:55)**: las corridas son al
+  minuto **:55** de Bogotá, no al :44; la fase del `every 60 minutes` la fija
+  el momento del último deploy (SUPOSICIÓN: cada deploy la reinicia). Queda **CONFIRMADO** que
   Cloud Scheduler acepta `"every 60 minutes"` (antes era SUPOSICIÓN). El
   aviso `[GANADORES] descartado ... sin-loteria` se repite en cada corrida
   mientras exista esa entrada manual vacía: es esperado y no afecta nada.
@@ -390,20 +394,94 @@ lectura de `whats-apuestas` del 2026-10-03:
 - "Play four día" figuraba como 5362 en una lectura anterior y como 9252
   después, sin explicación (según el usuario la API "a veces se equivoca";
   no verificado).
-- **SUPOSICIÓN** (nadie la verificó): que quien escribe
-  `resultados_loterias` arma el id con la fecha en UTC.
+- La fecha UTC de `createTime` coincide con el id (HECHO, ver "Pieza b4");
+  que quien escribe `resultados_loterias` arme el id con la fecha en UTC es
+  una SUPOSICIÓN: el código del escritor no se ha visto.
 
 **PENDIENTE (no decidido)**:
-- Hasta las 13:30 de su fecha, el documento de la API trae datos de otra
-  jornada, y por eso `winning_numbers` de ese día puede mostrar números que
-  no son de ese día hasta esa hora. El usuario dijo que los ganadores se
-  revisan al día siguiente.
+- ~~Hasta las 13:30 de su fecha, el documento de la API trae datos de otra
+  jornada~~ **CERRADO por la pieza b4 (2026-10-10)**: el resultado de T se
+  toma de `resultados_loterias/(T+1)`; ver "Pieza b4" (en vigor cuando se
+  despliegue).
 - Qué hacer con `discarded` (hoy solo se registra en el log).
 - El índice de grupo de colecciones sobre `fechaJornada` y `rol` (el enlace
   sale del error de la primera consulta con ganadores, en el log
   `[COINCIDENCIAS] falló (firestore): ...`).
 - Caché de Coincidencias y costo en lecturas.
 - Probar "Ver imagen" con una imagen real.
+
+### Pieza b4 — a qué día pertenece el resultado automático — HECHA en `functions/` (2026-10-10), PENDIENTE DE DESPLIEGUE
+
+**HECHO (lecturas a un punto en el tiempo de `whats-apuestas`, PITR habilitado,
+2026-10-10; cuenta de solo lectura)**:
+- `resultados_loterias/D` trae los resultados **de D-1** (día, tarde y noche)
+  mientras su `updatedAt` sea anterior a las 13:30 de Bogotá de D (se escribe
+  a las 20:30 de D-1 y a las 06:30 de D). A las 13:30 de D su contenido se
+  **reemplaza** por las 9 loterías de día de D.
+- Medido: `2026-10-10` tuvo 20 entradas a las 20:30:10 del 10-09, 32 a las
+  06:30:33 y 9 a las 13:30:31; `2026-10-09` tuvo 31 a las 06:30:38 (iguales al
+  documento final del 10-08) y 9 a las 13:30:53, sin cambios después.
+- Las 9 de día del documento 10-10 antes de las 13:30 son idénticas, número y
+  serie, al documento final del 10-09; las manuales con `date` 2026-10-09
+  (dorado_tarde, risaralda, santander, medellín, doramaña) coinciden en
+  lotería y número con entradas del documento 10-10.
+- Ningún campo del documento (`resultados`, `updatedAt`) ni de las entradas
+  (`nombreLoteria`, `slug`, `numero`, `serie`) dice a qué día pertenece el
+  resultado. La fecha UTC de `createTime` coincide con el id en los tres
+  documentos leídos (la escritura de las 20:30 de Bogotá es 01:30 UTC del día
+  siguiente); quién escribe y con qué fuente sigue sin verse (SUPOSICIÓN).
+- Efecto del comportamiento anterior (leer `resultados_loterias/T` para T):
+  los resultados de D-1 se etiquetaban como D y se perdían a las 13:30
+  (22 números de tarde/noche del 2026-10-09 nunca llegaron a
+  `winning_numbers/2026-10-09`; el documento del 10-10 los tuvo de la
+  madrugada hasta el `set` de las 13:55 del 10-10).
+- La recuperación a un punto en el tiempo está habilitada en `whats-apuestas`
+  (7 días) y NO en `whatsapp-pro-3d483` (retención de 3600 s).
+
+**Regla implementada** (`automaticSourceFor` en `functions/winningNumbersSync.js`,
+constante `AUTOMATIC_DOC_SWITCH_TIME` = 13:00 de Bogotá, UTC-5 fijo). Para
+cada día T que ya procesa la función (hoy y ayer):
+1. Si `resultados_loterias/(T+1)` existe y su `updatedAt` es anterior a las
+   13:00 de T+1, ese documento es el resultado completo de T y es la fuente
+   automática de T.
+2. Si `resultados_loterias/(T+1)` no existe, la fuente automática de T es
+   `resultados_loterias/T` solo si su `updatedAt` es posterior a las 13:00 de
+   T; si es anterior, T no tiene fuente automática todavía (queda solo la
+   manual; si sale vacío no se escribe).
+3. Si `resultados_loterias/(T+1)` existe con `updatedAt` posterior a las 13:00
+   de T+1, T no se escribe (estado `omitida-reemplazada`, con una línea de
+   log): se conserva lo ya guardado.
+4. Las manuales no cambian: `manual_lotteries/T` y su campo `date`.
+5. Lo demás no cambia: la manual reemplaza a la automática de la misma
+   lotería, solo se escribe si cambió, vacío no se escribe, `discarded` solo
+   se registra.
+
+**`updatedAt`**: es un campo `updatedAt` DENTRO de los datos del documento, de
+tipo `Timestamp` de Firestore (el Admin SDK entrega una instancia con
+`toMillis()`); el metadato `updateTime` difiere en cerca de 1 s (06:30:38 contra
+06:30:39). El código lee el campo; `firestoreSources.readAutomatic` ya devolvía
+`snap.data()` y no cambió. Un documento con `updatedAt` ausente o ilegible no
+cumple "anterior" ni "posterior": T+1 así se trata como reemplazado (T no se
+escribe) y T así no tiene fuente.
+
+**Consecuencias, tal como se especificó (no son un fallo)**:
+- Cuando T+1 se reemplaza (13:30 de T+1), T no se vuelve a escribir, ni
+  siquiera si la lista manual de T cambia después de esa hora.
+- El plazo "los resultados del día D valen hasta las 5:30 a.m. de D+1" de la
+  decisión anterior no interviene en esta regla.
+- No hay corrección de lo ya escrito mal (por ejemplo `winning_numbers/2026-10-10`
+  con los 9 de día, o `2026-10-09` sin los 22): la función no reescribe
+  historia. Es una decisión pendiente.
+- `winning_numbers` no tiene historial: lo que se sobrescribe no se recupera
+  desde ese proyecto.
+- **Tests** (`functions/test/winningNumbersSync.test.js`, `npm test` 159): casos
+  reales del 2026-10-10 — a las 06:55, 10-09 produce 32 y 10-10 nada; a las
+  13:55, 10-09 no se escribe y 10-10 produce 9; a las 15:00 con T+1
+  inexistente, T produce las 9 de día —, T anterior a las 13:00 con solo la
+  manual, el documento T+1 recién creado a las 20:30 y la manual de T sobre la
+  automática tomada de T+1.
+- **Despliegue**: pendiente (`firebase deploy --only functions:syncWinningNumbers`
+  tras el visto bueno del usuario); este párrafo se actualiza con el resultado.
 
 ### Pieza b3 — cada ganador con su lotería (`entries`) — HECHA (2026-10-05) y DESPLEGADA (entre el 2026-10-05 y el 2026-10-06, deducido de la conversación, sin confirmar)
 
