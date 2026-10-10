@@ -148,6 +148,44 @@ void main() {
       expect(find.byTooltip('Día siguiente'), findsNothing);
     });
 
+    testWidgets('tocar la fecha abre el calendario y elegir un día lo '
+        'cambia', (tester) async {
+      await _pump(tester);
+      await _openDialog(tester);
+
+      await tester.tap(find.byTooltip('Elegir fecha'));
+      await tester.pumpAndSettle();
+      expect(find.text('Seleccionar fecha'), findsOneWidget);
+
+      // El día 1 del mes en curso nunca es posterior a hoy.
+      await tester.tap(
+        find.descendant(
+          of: find.byType(CalendarDatePicker),
+          matching: find.text('1'),
+        ),
+      );
+      await tester.pump();
+      await tester.tap(find.text('Seleccionar'));
+      await tester.pumpAndSettle();
+
+      final firstOfMonth = DateTime(today.year, today.month, 1);
+      expect(find.text(formatLongDate(firstOfMonth)), findsOneWidget);
+      expect(find.byType(FillFormsDialog), findsOneWidget);
+    });
+
+    testWidgets('cancelar el calendario no cambia la fecha', (tester) async {
+      await _pump(tester);
+      await _openDialog(tester);
+
+      await tester.tap(find.byTooltip('Elegir fecha'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancelar').last);
+      await tester.pumpAndSettle();
+
+      expect(find.text(formatLongDate(today)), findsOneWidget);
+      expect(find.byType(FillFormsDialog), findsOneWidget);
+    });
+
     testWidgets('domingo: solo Domingo / Festivo; día normal: las demás', (
       tester,
     ) async {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:whatsapp_monitor_viewer/core/responsive/breakpoints.dart';
+import 'package:whatsapp_monitor_viewer/core/shared/widget/pick_single_date.dart';
 import 'package:whatsapp_monitor_viewer/core/theme/theme.dart';
 import 'package:whatsapp_monitor_viewer/core/time/jornada_labels.dart';
 import 'package:whatsapp_monitor_viewer/core/time/shifts.dart';
@@ -49,8 +50,9 @@ class FillFormsButton extends ConsumerWidget {
   }
 }
 
-/// Elige fecha (flechas; sin flecha derecha en el día de hoy, sin límite
-/// hacia atrás) y una de las jornadas asignadas en el chat abierto que
+/// Elige fecha (flechas, sin flecha derecha en el día de hoy; o tocando la
+/// fecha, que abre un calendario para ir a un día lejano, hasta hoy) y una de
+/// las jornadas asignadas en el chat abierto que
 /// aplican a esa fecha ([jornadasParaFecha]). Tocar una jornada cierra el
 /// diálogo y empieza la sesión de llenado: el guard del router lleva a
 /// `/review`. No cuenta imágenes: todas las jornadas se pueden tocar.
@@ -71,6 +73,14 @@ class _FillFormsDialogState extends ConsumerState<FillFormsDialog> {
       DateTime(_date.year, _date.month, _date.day + days),
     ),
   );
+
+  Future<void> _pickDate() async {
+    final picked = await pickSingleDate(context, initialDate: _date);
+    if (picked == null || !mounted) return;
+    final day = DateUtils.dateOnly(picked);
+    // Nunca después de hoy (el calendario ya lo limita).
+    setState(() => _date = day.isAfter(_today) ? _today : day);
+  }
 
   void _open(String chatJid, String groupName, Shift shift) {
     // Se toma antes de cerrar: el diálogo se desmonta al cerrarse.
@@ -111,10 +121,35 @@ class _FillFormsDialogState extends ConsumerState<FillFormsDialog> {
                   icon: const Icon(Icons.chevron_left_rounded),
                 ),
                 Expanded(
-                  child: Text(
-                    formatLongDate(_date),
-                    textAlign: TextAlign.center,
-                    style: AppTypography.headerTitle(context),
+                  child: Tooltip(
+                    message: 'Elegir fecha',
+                    child: InkWell(
+                      borderRadius: AppRadius.buttonAll,
+                      onTap: _pickDate,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: AppSpacing.sm,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                formatLongDate(_date),
+                                textAlign: TextAlign.center,
+                                style: AppTypography.headerTitle(context),
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.xs),
+                            const Icon(
+                              Icons.calendar_month_rounded,
+                              size: 20,
+                              color: AppColors.accentTeal,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ),
                 if (isToday)
