@@ -4,6 +4,7 @@ import 'package:whatsapp_monitor_viewer/core/errors/failure_log.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/data/datasources/all_groups_datasource.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/domain/entities/day_matches.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/domain/helpers/group_matches.dart';
+import 'package:whatsapp_monitor_viewer/features/matches/domain/helpers/lottery_results.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/domain/repositories/matches_repository.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/presentation/providers/real_matches_providers.dart';
 import 'package:whatsapp_monitor_viewer/features/messages/domain/entities/image_view_item.dart';
@@ -66,6 +67,13 @@ final groupMatchesListProvider = FutureProvider<List<GroupMatches>>((
     knownGroups: {for (final g in groups) g.chatJid: g.groupName},
   );
 }, retry: (retryCount, error) => null);
+
+/// Resumen de loterías y números ganadores del día elegido; vacío mientras
+/// carga o si el día no tiene ganadores.
+final dayLotteryResultsProvider = Provider<List<LotteryResult>>((ref) {
+  final day = ref.watch(dayMatchesProvider).value;
+  return day == null ? const [] : lotteryResultsOf(day);
+});
 
 /// Imágenes de los ganadores de un grupo, para el visor de imágenes (una por
 /// mensaje, aunque tenga varios números ganadores), en el orden de la lista

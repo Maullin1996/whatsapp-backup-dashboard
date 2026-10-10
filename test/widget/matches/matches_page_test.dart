@@ -14,6 +14,7 @@ import 'package:whatsapp_monitor_viewer/features/matches/domain/repositories/mat
 import 'package:whatsapp_monitor_viewer/features/matches/presentation/pages/matches_page.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/presentation/providers/matches_providers.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/presentation/widgets/group_matches_tile.dart';
+import 'package:whatsapp_monitor_viewer/features/matches/presentation/widgets/lottery_results_card.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/presentation/widgets/matches_skeleton.dart';
 
 /// Repositorio falso: datos por día (`yyyy-MM-dd`), con la opción de
@@ -197,6 +198,56 @@ void main() {
       expect(find.text('Grupo Norte (demo)'), findsOneWidget);
       expect(find.text('1 ganador'), findsOneWidget);
       expect(find.textContaining('Jornada'), findsNothing);
+    });
+
+    testWidgets('arriba muestra el resumen de loterías del día con sus '
+        'números', (tester) async {
+      final today = DateUtils.dateOnly(DateTime.now());
+      final key =
+          '${today.year}-${today.month.toString().padLeft(2, '0')}-'
+          '${today.day.toString().padLeft(2, '0')}';
+      final repo = _FakeRepo(byDate: {key: _conGanadores(key)});
+      await _pumpPage(tester, repo: repo, groups: [norte]);
+
+      expect(find.byType(LotteryResultsCard), findsOneWidget);
+      expect(find.text('Resultados del día'), findsOneWidget);
+      expect(find.text('1 lotería'), findsOneWidget);
+      expect(find.text('Dorado mañana'), findsOneWidget);
+      expect(find.text('4521'), findsOneWidget);
+      // El resumen va antes que las tarjetas de grupo.
+      expect(
+        tester.getTopLeft(find.text('Resultados del día')).dy,
+        lessThan(tester.getTopLeft(find.text('Grupo Norte (demo)')).dy),
+      );
+    });
+
+    testWidgets('el resumen se puede ocultar y volver a mostrar', (
+      tester,
+    ) async {
+      final today = DateUtils.dateOnly(DateTime.now());
+      final key =
+          '${today.year}-${today.month.toString().padLeft(2, '0')}-'
+          '${today.day.toString().padLeft(2, '0')}';
+      final repo = _FakeRepo(byDate: {key: _conGanadores(key)});
+      await _pumpPage(tester, repo: repo, groups: [norte]);
+
+      await tester.tap(find.text('Resultados del día'));
+      await tester.pumpAndSettle();
+      expect(find.text('4521'), findsNothing);
+      expect(find.text('Grupo Norte (demo)'), findsOneWidget);
+
+      await tester.tap(find.text('Resultados del día'));
+      await tester.pumpAndSettle();
+      expect(find.text('4521'), findsOneWidget);
+    });
+
+    testWidgets('sin números ganadores el resumen lo dice', (tester) async {
+      await _pumpPage(tester, repo: _FakeRepo(), groups: [norte]);
+
+      expect(
+        find.text('Todavía no hay números ganadores para esta fecha'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('los grupos con más ganadores van primero', (tester) async {

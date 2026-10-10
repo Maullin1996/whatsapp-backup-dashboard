@@ -8,6 +8,7 @@ import 'package:whatsapp_monitor_viewer/features/matches/domain/helpers/group_ma
 import 'package:whatsapp_monitor_viewer/features/matches/presentation/pages/group_winners_page.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/presentation/providers/matches_providers.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/presentation/widgets/group_matches_tile.dart';
+import 'package:whatsapp_monitor_viewer/features/matches/presentation/widgets/lottery_results_card.dart';
 import 'package:whatsapp_monitor_viewer/features/matches/presentation/widgets/matches_skeleton.dart';
 import 'package:whatsapp_monitor_viewer/helpers/format_long_date.dart';
 import 'package:whatsapp_monitor_viewer/helpers/map_failure_to_message.dart';
@@ -170,23 +171,29 @@ class _MatchesContent extends ConsumerWidget {
   }
 }
 
-/// Una tarjeta por grupo, también los de 0 ganadores (los que más tienen
-/// primero).
-class _GroupsList extends StatelessWidget {
+/// Arriba el resumen de loterías del día y, debajo, una tarjeta por grupo,
+/// también los de 0 ganadores (los que más tienen primero).
+class _GroupsList extends ConsumerWidget {
   final List<GroupMatches> groups;
 
   const _GroupsList({required this.groups});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final results = ref.watch(dayLotteryResultsProvider);
+
     return ListView.separated(
       padding: const EdgeInsets.all(AppSpacing.md),
-      itemCount: groups.length,
+      itemCount: groups.length + 1,
       separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
-      itemBuilder: (context, i) => GroupMatchesTile(
-        group: groups[i],
-        onTap: () => context.push(groupWinnersLocation(groups[i].chatJid)),
-      ),
+      itemBuilder: (context, i) {
+        if (i == 0) return LotteryResultsCard(results: results);
+        final group = groups[i - 1];
+        return GroupMatchesTile(
+          group: group,
+          onTap: () => context.push(groupWinnersLocation(group.chatJid)),
+        );
+      },
     );
   }
 }
