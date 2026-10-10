@@ -130,23 +130,10 @@ class _FillFormsDialogState extends ConsumerState<FillFormsDialog> {
                         padding: const EdgeInsets.symmetric(
                           vertical: AppSpacing.sm,
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Flexible(
-                              child: Text(
-                                formatLongDate(_date),
-                                textAlign: TextAlign.center,
-                                style: AppTypography.headerTitle(context),
-                              ),
-                            ),
-                            const SizedBox(width: AppSpacing.xs),
-                            const Icon(
-                              Icons.calendar_month_rounded,
-                              size: 20,
-                              color: AppColors.accentTeal,
-                            ),
-                          ],
+                        child: Text(
+                          formatLongDate(_date),
+                          textAlign: TextAlign.center,
+                          style: AppTypography.headerTitle(context),
                         ),
                       ),
                     ),
