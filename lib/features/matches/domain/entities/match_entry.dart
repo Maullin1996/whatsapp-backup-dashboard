@@ -37,5 +37,10 @@ abstract class MatchEntry with _$MatchEntry {
 
     /// Código que el Revisor anotó para la imagen; null en un registro viejo.
     String? codigo,
+
+    /// Número(s) completo(s) de la lotería con los que coincidió [numero]
+    /// (p. ej. "4606" cuando el Revisor anotó "606"); ver
+    /// `winningNumbersFor`. Vacío si no se calculó.
+    @Default(<String>[]) List<String> winningNumbers,
   }) = _MatchEntry;
 }

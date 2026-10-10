@@ -177,8 +177,23 @@ void main() {
         storagePath: 'img/m1.jpg',
         shift: _label(Shift.morning),
         fechaJornada: _fecha,
+        winningNumbers: const ['4521'],
       ),
     ]);
+  });
+
+  test('un registro de 3 cifras trae el número completo de la lotería que '
+      'ganó', () async {
+    winners.numbers = ['4606'];
+    records.records = [
+      _rec('m1', ['606']),
+    ];
+
+    final matches = allMatches(await day());
+
+    expect(matches, hasLength(1));
+    expect(matches.single.numero, '606');
+    expect(matches.single.winningNumbers, ['4606']);
   });
 
   // Ajuste (regla de 3 y 4 cifras): antes el ganador "0123" no coincidía con

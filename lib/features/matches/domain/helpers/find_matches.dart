@@ -70,3 +70,30 @@ class _Winners {
   final threeDigit = <String>{};
   final twoDigit = <String>{};
 }
+
+/// Los números COMPLETOS de la lotería con los que coincidió [entry] (el
+/// número que anotó el Revisor puede ser de 2 o 3 cifras y el ganador de 4:
+/// aquí sale el de 4, para no tener que buscarlo aparte).
+///
+/// Misma regla que [findMatches] (misma lotería, `trim`, sin normalizar): un
+/// ganador de 3 o 4 cifras coincide si termina igual que el número registrado
+/// de 2, 3 o 4 cifras y no es más corto que él. Primero los de más cifras y
+/// sin repetir; vacío si [entry] no coincide con ninguno.
+List<String> winningNumbersFor(List<WinningEntry> winners, MatchEntry entry) {
+  final loteria = entry.loteria;
+  if (!isKnownLoteria(loteria)) return const [];
+  final numero = entry.numero.trim();
+  if (numero.length < 2 || numero.length > 4) return const [];
+
+  final found = <String>{};
+  for (final winner in winners) {
+    if (winner.loteria != loteria) continue;
+    final full = winner.numero.trim();
+    if (full.length != 3 && full.length != 4) continue;
+    if (full.length >= numero.length && full.endsWith(numero)) found.add(full);
+  }
+  return found.toList()..sort((a, b) {
+    final byLength = b.length.compareTo(a.length);
+    return byLength != 0 ? byLength : a.compareTo(b);
+  });
+}

@@ -22,6 +22,7 @@ MatchEntry _match(
   String numero = '4521',
   String? codigo = 'AB-12',
   String email = 'revisor@correo.com',
+  List<String> winningNumbers = const [],
 }) => MatchEntry(
   numero: numero,
   loteria: 'dorado_manana',
@@ -35,6 +36,7 @@ MatchEntry _match(
   fechaJornada: '2026-10-05',
   revisorEmail: email,
   codigo: codigo,
+  winningNumbers: winningNumbers,
 );
 
 class _FakeRepo implements MatchesRepository {
@@ -126,6 +128,29 @@ void main() {
     expect(find.text('4521'), findsOneWidget);
     expect(find.text('AB-12'), findsOneWidget);
     expect(find.byTooltip('Ver imagen'), findsOneWidget);
+  });
+
+  testWidgets('muestra el número completo de la lotería que ganó', (
+    tester,
+  ) async {
+    await _pump(tester, [
+      _match('m1', numero: '606', winningNumbers: ['4606']),
+    ], initial: groupWinnersLocation('g1@g.us'));
+
+    expect(find.text('Número de la lotería'), findsNothing);
+    expect(find.textContaining('Número de la lotería'), findsOneWidget);
+    expect(find.text('4606'), findsOneWidget);
+    expect(find.text('606'), findsOneWidget);
+  });
+
+  testWidgets('sin número de lotería calculado no muestra esa fila', (
+    tester,
+  ) async {
+    await _pump(tester, [
+      _match('m1'),
+    ], initial: groupWinnersLocation('g1@g.us'));
+
+    expect(find.textContaining('Número de la lotería'), findsNothing);
   });
 
   testWidgets('sin código ni correo muestra un guion', (tester) async {

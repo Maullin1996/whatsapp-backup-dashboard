@@ -24,7 +24,10 @@ mixin _$MatchEntry {
  String get shift;/// Día de la jornada (`yyyy-MM-dd`), igual que `Message.fechaJornada`.
  String get fechaJornada;/// Correo del Revisor que registró la imagen; vacío si no se conoce.
  String get revisorEmail;/// Código que el Revisor anotó para la imagen; null en un registro viejo.
- String? get codigo;
+ String? get codigo;/// Número(s) completo(s) de la lotería con los que coincidió [numero]
+/// (p. ej. "4606" cuando el Revisor anotó "606"); ver
+/// `winningNumbersFor`. Vacío si no se calculó.
+ List<String> get winningNumbers;
 /// Create a copy of MatchEntry
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -35,16 +38,16 @@ $MatchEntryCopyWith<MatchEntry> get copyWith => _$MatchEntryCopyWithImpl<MatchEn
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is MatchEntry&&(identical(other.numero, numero) || other.numero == numero)&&(identical(other.loteria, loteria) || other.loteria == loteria)&&(identical(other.messageId, messageId) || other.messageId == messageId)&&(identical(other.chatJid, chatJid) || other.chatJid == chatJid)&&(identical(other.groupName, groupName) || other.groupName == groupName)&&(identical(other.senderName, senderName) || other.senderName == senderName)&&(identical(other.localTime, localTime) || other.localTime == localTime)&&(identical(other.storagePath, storagePath) || other.storagePath == storagePath)&&(identical(other.shift, shift) || other.shift == shift)&&(identical(other.fechaJornada, fechaJornada) || other.fechaJornada == fechaJornada)&&(identical(other.revisorEmail, revisorEmail) || other.revisorEmail == revisorEmail)&&(identical(other.codigo, codigo) || other.codigo == codigo));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is MatchEntry&&(identical(other.numero, numero) || other.numero == numero)&&(identical(other.loteria, loteria) || other.loteria == loteria)&&(identical(other.messageId, messageId) || other.messageId == messageId)&&(identical(other.chatJid, chatJid) || other.chatJid == chatJid)&&(identical(other.groupName, groupName) || other.groupName == groupName)&&(identical(other.senderName, senderName) || other.senderName == senderName)&&(identical(other.localTime, localTime) || other.localTime == localTime)&&(identical(other.storagePath, storagePath) || other.storagePath == storagePath)&&(identical(other.shift, shift) || other.shift == shift)&&(identical(other.fechaJornada, fechaJornada) || other.fechaJornada == fechaJornada)&&(identical(other.revisorEmail, revisorEmail) || other.revisorEmail == revisorEmail)&&(identical(other.codigo, codigo) || other.codigo == codigo)&&const DeepCollectionEquality().equals(other.winningNumbers, winningNumbers));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,numero,loteria,messageId,chatJid,groupName,senderName,localTime,storagePath,shift,fechaJornada,revisorEmail,codigo);
+int get hashCode => Object.hash(runtimeType,numero,loteria,messageId,chatJid,groupName,senderName,localTime,storagePath,shift,fechaJornada,revisorEmail,codigo,const DeepCollectionEquality().hash(winningNumbers));
 
 @override
 String toString() {
-  return 'MatchEntry(numero: $numero, loteria: $loteria, messageId: $messageId, chatJid: $chatJid, groupName: $groupName, senderName: $senderName, localTime: $localTime, storagePath: $storagePath, shift: $shift, fechaJornada: $fechaJornada, revisorEmail: $revisorEmail, codigo: $codigo)';
+  return 'MatchEntry(numero: $numero, loteria: $loteria, messageId: $messageId, chatJid: $chatJid, groupName: $groupName, senderName: $senderName, localTime: $localTime, storagePath: $storagePath, shift: $shift, fechaJornada: $fechaJornada, revisorEmail: $revisorEmail, codigo: $codigo, winningNumbers: $winningNumbers)';
 }
 
 
@@ -55,7 +58,7 @@ abstract mixin class $MatchEntryCopyWith<$Res>  {
   factory $MatchEntryCopyWith(MatchEntry value, $Res Function(MatchEntry) _then) = _$MatchEntryCopyWithImpl;
 @useResult
 $Res call({
- String numero, String? loteria, String messageId, String chatJid, String groupName, String senderName, String localTime, String storagePath, String shift, String fechaJornada, String revisorEmail, String? codigo
+ String numero, String? loteria, String messageId, String chatJid, String groupName, String senderName, String localTime, String storagePath, String shift, String fechaJornada, String revisorEmail, String? codigo, List<String> winningNumbers
 });
 
 
@@ -72,7 +75,7 @@ class _$MatchEntryCopyWithImpl<$Res>
 
 /// Create a copy of MatchEntry
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? numero = null,Object? loteria = freezed,Object? messageId = null,Object? chatJid = null,Object? groupName = null,Object? senderName = null,Object? localTime = null,Object? storagePath = null,Object? shift = null,Object? fechaJornada = null,Object? revisorEmail = null,Object? codigo = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? numero = null,Object? loteria = freezed,Object? messageId = null,Object? chatJid = null,Object? groupName = null,Object? senderName = null,Object? localTime = null,Object? storagePath = null,Object? shift = null,Object? fechaJornada = null,Object? revisorEmail = null,Object? codigo = freezed,Object? winningNumbers = null,}) {
   return _then(_self.copyWith(
 numero: null == numero ? _self.numero : numero // ignore: cast_nullable_to_non_nullable
 as String,loteria: freezed == loteria ? _self.loteria : loteria // ignore: cast_nullable_to_non_nullable
@@ -86,7 +89,8 @@ as String,shift: null == shift ? _self.shift : shift // ignore: cast_nullable_to
 as String,fechaJornada: null == fechaJornada ? _self.fechaJornada : fechaJornada // ignore: cast_nullable_to_non_nullable
 as String,revisorEmail: null == revisorEmail ? _self.revisorEmail : revisorEmail // ignore: cast_nullable_to_non_nullable
 as String,codigo: freezed == codigo ? _self.codigo : codigo // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,winningNumbers: null == winningNumbers ? _self.winningNumbers : winningNumbers // ignore: cast_nullable_to_non_nullable
+as List<String>,
   ));
 }
 
@@ -171,10 +175,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String numero,  String? loteria,  String messageId,  String chatJid,  String groupName,  String senderName,  String localTime,  String storagePath,  String shift,  String fechaJornada,  String revisorEmail,  String? codigo)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String numero,  String? loteria,  String messageId,  String chatJid,  String groupName,  String senderName,  String localTime,  String storagePath,  String shift,  String fechaJornada,  String revisorEmail,  String? codigo,  List<String> winningNumbers)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _MatchEntry() when $default != null:
-return $default(_that.numero,_that.loteria,_that.messageId,_that.chatJid,_that.groupName,_that.senderName,_that.localTime,_that.storagePath,_that.shift,_that.fechaJornada,_that.revisorEmail,_that.codigo);case _:
+return $default(_that.numero,_that.loteria,_that.messageId,_that.chatJid,_that.groupName,_that.senderName,_that.localTime,_that.storagePath,_that.shift,_that.fechaJornada,_that.revisorEmail,_that.codigo,_that.winningNumbers);case _:
   return orElse();
 
 }
@@ -192,10 +196,10 @@ return $default(_that.numero,_that.loteria,_that.messageId,_that.chatJid,_that.g
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String numero,  String? loteria,  String messageId,  String chatJid,  String groupName,  String senderName,  String localTime,  String storagePath,  String shift,  String fechaJornada,  String revisorEmail,  String? codigo)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String numero,  String? loteria,  String messageId,  String chatJid,  String groupName,  String senderName,  String localTime,  String storagePath,  String shift,  String fechaJornada,  String revisorEmail,  String? codigo,  List<String> winningNumbers)  $default,) {final _that = this;
 switch (_that) {
 case _MatchEntry():
-return $default(_that.numero,_that.loteria,_that.messageId,_that.chatJid,_that.groupName,_that.senderName,_that.localTime,_that.storagePath,_that.shift,_that.fechaJornada,_that.revisorEmail,_that.codigo);case _:
+return $default(_that.numero,_that.loteria,_that.messageId,_that.chatJid,_that.groupName,_that.senderName,_that.localTime,_that.storagePath,_that.shift,_that.fechaJornada,_that.revisorEmail,_that.codigo,_that.winningNumbers);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -212,10 +216,10 @@ return $default(_that.numero,_that.loteria,_that.messageId,_that.chatJid,_that.g
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String numero,  String? loteria,  String messageId,  String chatJid,  String groupName,  String senderName,  String localTime,  String storagePath,  String shift,  String fechaJornada,  String revisorEmail,  String? codigo)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String numero,  String? loteria,  String messageId,  String chatJid,  String groupName,  String senderName,  String localTime,  String storagePath,  String shift,  String fechaJornada,  String revisorEmail,  String? codigo,  List<String> winningNumbers)?  $default,) {final _that = this;
 switch (_that) {
 case _MatchEntry() when $default != null:
-return $default(_that.numero,_that.loteria,_that.messageId,_that.chatJid,_that.groupName,_that.senderName,_that.localTime,_that.storagePath,_that.shift,_that.fechaJornada,_that.revisorEmail,_that.codigo);case _:
+return $default(_that.numero,_that.loteria,_that.messageId,_that.chatJid,_that.groupName,_that.senderName,_that.localTime,_that.storagePath,_that.shift,_that.fechaJornada,_that.revisorEmail,_that.codigo,_that.winningNumbers);case _:
   return null;
 
 }
@@ -227,7 +231,7 @@ return $default(_that.numero,_that.loteria,_that.messageId,_that.chatJid,_that.g
 
 
 class _MatchEntry implements MatchEntry {
-  const _MatchEntry({required this.numero, required this.loteria, required this.messageId, required this.chatJid, required this.groupName, required this.senderName, required this.localTime, required this.storagePath, required this.shift, required this.fechaJornada, this.revisorEmail = '', this.codigo});
+  const _MatchEntry({required this.numero, required this.loteria, required this.messageId, required this.chatJid, required this.groupName, required this.senderName, required this.localTime, required this.storagePath, required this.shift, required this.fechaJornada, this.revisorEmail = '', this.codigo, final  List<String> winningNumbers = const <String>[]}): _winningNumbers = winningNumbers;
   
 
 /// El número tal cual lo anotó el Revisor (conserva ceros a la
@@ -252,6 +256,19 @@ class _MatchEntry implements MatchEntry {
 @override@JsonKey() final  String revisorEmail;
 /// Código que el Revisor anotó para la imagen; null en un registro viejo.
 @override final  String? codigo;
+/// Número(s) completo(s) de la lotería con los que coincidió [numero]
+/// (p. ej. "4606" cuando el Revisor anotó "606"); ver
+/// `winningNumbersFor`. Vacío si no se calculó.
+ final  List<String> _winningNumbers;
+/// Número(s) completo(s) de la lotería con los que coincidió [numero]
+/// (p. ej. "4606" cuando el Revisor anotó "606"); ver
+/// `winningNumbersFor`. Vacío si no se calculó.
+@override@JsonKey() List<String> get winningNumbers {
+  if (_winningNumbers is EqualUnmodifiableListView) return _winningNumbers;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_winningNumbers);
+}
+
 
 /// Create a copy of MatchEntry
 /// with the given fields replaced by the non-null parameter values.
@@ -263,16 +280,16 @@ _$MatchEntryCopyWith<_MatchEntry> get copyWith => __$MatchEntryCopyWithImpl<_Mat
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _MatchEntry&&(identical(other.numero, numero) || other.numero == numero)&&(identical(other.loteria, loteria) || other.loteria == loteria)&&(identical(other.messageId, messageId) || other.messageId == messageId)&&(identical(other.chatJid, chatJid) || other.chatJid == chatJid)&&(identical(other.groupName, groupName) || other.groupName == groupName)&&(identical(other.senderName, senderName) || other.senderName == senderName)&&(identical(other.localTime, localTime) || other.localTime == localTime)&&(identical(other.storagePath, storagePath) || other.storagePath == storagePath)&&(identical(other.shift, shift) || other.shift == shift)&&(identical(other.fechaJornada, fechaJornada) || other.fechaJornada == fechaJornada)&&(identical(other.revisorEmail, revisorEmail) || other.revisorEmail == revisorEmail)&&(identical(other.codigo, codigo) || other.codigo == codigo));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _MatchEntry&&(identical(other.numero, numero) || other.numero == numero)&&(identical(other.loteria, loteria) || other.loteria == loteria)&&(identical(other.messageId, messageId) || other.messageId == messageId)&&(identical(other.chatJid, chatJid) || other.chatJid == chatJid)&&(identical(other.groupName, groupName) || other.groupName == groupName)&&(identical(other.senderName, senderName) || other.senderName == senderName)&&(identical(other.localTime, localTime) || other.localTime == localTime)&&(identical(other.storagePath, storagePath) || other.storagePath == storagePath)&&(identical(other.shift, shift) || other.shift == shift)&&(identical(other.fechaJornada, fechaJornada) || other.fechaJornada == fechaJornada)&&(identical(other.revisorEmail, revisorEmail) || other.revisorEmail == revisorEmail)&&(identical(other.codigo, codigo) || other.codigo == codigo)&&const DeepCollectionEquality().equals(other._winningNumbers, _winningNumbers));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,numero,loteria,messageId,chatJid,groupName,senderName,localTime,storagePath,shift,fechaJornada,revisorEmail,codigo);
+int get hashCode => Object.hash(runtimeType,numero,loteria,messageId,chatJid,groupName,senderName,localTime,storagePath,shift,fechaJornada,revisorEmail,codigo,const DeepCollectionEquality().hash(_winningNumbers));
 
 @override
 String toString() {
-  return 'MatchEntry(numero: $numero, loteria: $loteria, messageId: $messageId, chatJid: $chatJid, groupName: $groupName, senderName: $senderName, localTime: $localTime, storagePath: $storagePath, shift: $shift, fechaJornada: $fechaJornada, revisorEmail: $revisorEmail, codigo: $codigo)';
+  return 'MatchEntry(numero: $numero, loteria: $loteria, messageId: $messageId, chatJid: $chatJid, groupName: $groupName, senderName: $senderName, localTime: $localTime, storagePath: $storagePath, shift: $shift, fechaJornada: $fechaJornada, revisorEmail: $revisorEmail, codigo: $codigo, winningNumbers: $winningNumbers)';
 }
 
 
@@ -283,7 +300,7 @@ abstract mixin class _$MatchEntryCopyWith<$Res> implements $MatchEntryCopyWith<$
   factory _$MatchEntryCopyWith(_MatchEntry value, $Res Function(_MatchEntry) _then) = __$MatchEntryCopyWithImpl;
 @override @useResult
 $Res call({
- String numero, String? loteria, String messageId, String chatJid, String groupName, String senderName, String localTime, String storagePath, String shift, String fechaJornada, String revisorEmail, String? codigo
+ String numero, String? loteria, String messageId, String chatJid, String groupName, String senderName, String localTime, String storagePath, String shift, String fechaJornada, String revisorEmail, String? codigo, List<String> winningNumbers
 });
 
 
@@ -300,7 +317,7 @@ class __$MatchEntryCopyWithImpl<$Res>
 
 /// Create a copy of MatchEntry
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? numero = null,Object? loteria = freezed,Object? messageId = null,Object? chatJid = null,Object? groupName = null,Object? senderName = null,Object? localTime = null,Object? storagePath = null,Object? shift = null,Object? fechaJornada = null,Object? revisorEmail = null,Object? codigo = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? numero = null,Object? loteria = freezed,Object? messageId = null,Object? chatJid = null,Object? groupName = null,Object? senderName = null,Object? localTime = null,Object? storagePath = null,Object? shift = null,Object? fechaJornada = null,Object? revisorEmail = null,Object? codigo = freezed,Object? winningNumbers = null,}) {
   return _then(_MatchEntry(
 numero: null == numero ? _self.numero : numero // ignore: cast_nullable_to_non_nullable
 as String,loteria: freezed == loteria ? _self.loteria : loteria // ignore: cast_nullable_to_non_nullable
@@ -314,7 +331,8 @@ as String,shift: null == shift ? _self.shift : shift // ignore: cast_nullable_to
 as String,fechaJornada: null == fechaJornada ? _self.fechaJornada : fechaJornada // ignore: cast_nullable_to_non_nullable
 as String,revisorEmail: null == revisorEmail ? _self.revisorEmail : revisorEmail // ignore: cast_nullable_to_non_nullable
 as String,codigo: freezed == codigo ? _self.codigo : codigo // ignore: cast_nullable_to_non_nullable
-as String?,
+as String?,winningNumbers: null == winningNumbers ? _self._winningNumbers : winningNumbers // ignore: cast_nullable_to_non_nullable
+as List<String>,
   ));
 }
 

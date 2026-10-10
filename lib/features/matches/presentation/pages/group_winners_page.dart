@@ -154,6 +154,14 @@ class _WinnerCard extends StatelessWidget {
           style: textTheme.bodySmall?.copyWith(color: Colors.grey.shade700),
         ),
         const SizedBox(height: AppSpacing.md),
+        if (match.winningNumbers.isNotEmpty)
+          _Field(
+            icon: Icons.emoji_events_outlined,
+            label: 'Número de la lotería',
+            value: match.winningNumbers.join(' · '),
+            tabular: true,
+            bold: true,
+          ),
         _Field(
           icon: Icons.mail_outline_rounded,
           label: 'Revisor',
@@ -215,12 +223,14 @@ class _Field extends StatelessWidget {
   final String label;
   final String value;
   final bool tabular;
+  final bool bold;
 
   const _Field({
     required this.icon,
     required this.label,
     required this.value,
     this.tabular = false,
+    this.bold = false,
   });
 
   @override
@@ -240,9 +250,11 @@ class _Field extends StatelessWidget {
           Expanded(
             child: Text(
               value,
-              style: tabular
-                  ? textTheme.bodyMedium?.merge(AppTypography.tabular)
-                  : textTheme.bodyMedium,
+              style:
+                  (tabular
+                          ? textTheme.bodyMedium?.merge(AppTypography.tabular)
+                          : textTheme.bodyMedium)
+                      ?.copyWith(fontWeight: bold ? FontWeight.w700 : null),
             ),
           ),
         ],

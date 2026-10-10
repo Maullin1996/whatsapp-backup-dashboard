@@ -141,6 +141,7 @@ class FirestoreMatchesRepository implements MatchesRepository {
             senderName: messages[m.messageId]!.senderName,
             localTime: messages[m.messageId]!.localTime,
             groupName: groupNames[m.chatJid]!,
+            winningNumbers: winningNumbersFor(winners, m),
           ),
         ),
     ]..sort((a, b) => _compare(a.entry, b.entry));

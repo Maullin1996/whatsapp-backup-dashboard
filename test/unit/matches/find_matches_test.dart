@@ -376,4 +376,61 @@ void main() {
       expect(findMatches(winners, [entry]), [entry]);
     });
   });
+
+  group('winningNumbersFor', () {
+    test('un registro de 3 cifras trae el ganador completo de 4', () {
+      expect(winningNumbersFor(_w(['4606']), _entry('606')), ['4606']);
+    });
+
+    test('un registro de 2 cifras trae el ganador de 4 o de 3', () {
+      expect(winningNumbersFor(_w(['5241']), _entry('41')), ['5241']);
+      expect(winningNumbersFor(_w(['606']), _entry('06')), ['606']);
+    });
+
+    test('un registro igual al ganador lo trae tal cual', () {
+      expect(winningNumbersFor(_w(['0123']), _entry('0123')), ['0123']);
+      expect(winningNumbersFor(_w(['606']), _entry('606')), ['606']);
+    });
+
+    test('si coincide con varios, primero el de más cifras y sin repetir', () {
+      expect(winningNumbersFor(_w(['606', '4606', '606']), _entry('606')), [
+        '4606',
+        '606',
+      ]);
+    });
+
+    test('un registro de 4 nunca trae un ganador de 3', () {
+      expect(winningNumbersFor(_w(['606']), _entry('0606')), isEmpty);
+    });
+
+    test('solo ganadores de la misma lotería', () {
+      expect(
+        winningNumbersFor(_w(['4606'], loteria: 'medellin'), _entry('606')),
+        isEmpty,
+      );
+    });
+
+    test('lotería nula o fuera de la lista no trae nada', () {
+      expect(
+        winningNumbersFor(_w(['4606']), _entry('606', loteria: null)),
+        isEmpty,
+      );
+      expect(
+        winningNumbersFor(_w(['4606']), _entry('606', loteria: 'inventada')),
+        isEmpty,
+      );
+    });
+
+    test('coincide exactamente cuando findMatches lo dice', () {
+      final winners = _w(['4606', '9014']);
+      for (final numero in ['606', '06', '4606', '014', '9014', '0606', '5']) {
+        final entry = _entry(numero);
+        expect(
+          winningNumbersFor(winners, entry).isNotEmpty,
+          findMatches(winners, [entry]).isNotEmpty,
+          reason: numero,
+        );
+      }
+    });
+  });
 }
