@@ -302,8 +302,8 @@ describe("jornadasFirestoreSources", () => {
 });
 
 describe("runWinningNumbersSync: ganadores y jornadas aislados", () => {
-  // 2026-10-02 12:00 en Bogotá → hoy 2026-10-02.
-  const NOW = Date.parse("2026-10-02T17:00:00Z");
+  // 2026-10-02 15:00 en Bogotá → hoy 2026-10-02.
+  const NOW = Date.parse("2026-10-02T20:00:00Z");
   const TODAY = "2026-10-02";
 
   function winnersDeps() {
@@ -312,7 +312,11 @@ describe("runWinningNumbersSync: ganadores y jornadas aislados", () => {
       writes,
       readAutomatic: async (id) =>
         id === TODAY
-          ? { resultados: [{ nombreLoteria: "Boyacá", slug: "boyaca", numero: "1234" }] }
+          ? {
+              resultados: [{ nombreLoteria: "Boyacá", slug: "boyaca", numero: "1234" }],
+              // Reemplazo de las 13:30 con las loterías de día del propio día.
+              updatedAt: { toMillis: () => Date.parse("2026-10-02T18:30:00Z") },
+            }
           : null,
       readManual: async () => null,
       readStored: async () => null,

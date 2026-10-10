@@ -6,7 +6,9 @@
 //
 // Decidido por el usuario: cada 60 minutos; procesa hoy y ayer en hora de
 // Bogotá; si el resultado sale vacío no escribe nada (deja lo que había);
-// escribe solo si cambió. `discarded` solo va al log (qué hacer con él sigue
+// escribe solo si cambió. El resultado automático de un día T NO se lee de
+// `resultados_loterias/T` sino, mientras exista, de `resultados_loterias/T+1`
+// (ver `automaticSourceFor`). `discarded` solo va al log (qué hacer con él sigue
 // PENDIENTE). Se escribe `{ numbers, entries }`: `numbers` (lista de textos,
 // la forma de siempre) y `entries` (la pareja lotería + número de cada ganador).
 
@@ -31,10 +33,23 @@ const COLLECTIONS = {
 const BOGOTA_OFFSET_MS = -5 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+// Hora de Bogotá (UTC-5 fijo) del día D a partir de la cual el documento
+// `resultados_loterias/D` deja de ser el resultado completo del día D-1.
+// Hechos observados en el ERP: el documento D se crea a las 20:30 de D-1 y se
+// reescribe a las 06:30 de D con TODOS los resultados de D-1 (día, tarde y
+// noche); a las 13:30 de D su contenido se REEMPLAZA por las 9 loterías de día
+// de D. Las 13:00 quedan entre la escritura de las 06:30 y el reemplazo de las
+// 13:30. Se compara contra el `updatedAt` del documento (un Timestamp de
+// Firestore dentro de los datos, no el metadato).
+const AUTOMATIC_DOC_SWITCH_TIME = "T13:00:00-05:00";
+
 const STATUS = {
   written: "escrita",
   unchanged: "sin-cambios",
   skippedEmpty: "omitida-vacia",
+  // El documento T+1 ya fue reemplazado: el resultado completo de T ya no
+  // existe en el ERP y se conserva lo guardado.
+  skippedReplaced: "omitida-reemplazada",
   error: "error",
 };
 
@@ -48,6 +63,48 @@ function bogotaDateId(ms) {
 /** [hoy, ayer] en hora de Bogotá, como ids `yyyy-MM-dd`. */
 function bogotaDateIds(nowMs) {
   return [bogotaDateId(nowMs), bogotaDateId(nowMs - DAY_MS)];
+}
+
+/** `yyyy-MM-dd` del día siguiente a un id `yyyy-MM-dd`. */
+function nextDateId(dateId) {
+  return new Date(Date.parse(`${dateId}T00:00:00Z`) + DAY_MS)
+    .toISOString()
+    .slice(0, 10);
+}
+
+/** Instante (ms) de AUTOMATIC_DOC_SWITCH_TIME del día `dateId`. */
+function switchTimeMs(dateId) {
+  return Date.parse(`${dateId}${AUTOMATIC_DOC_SWITCH_TIME}`);
+}
+
+/** `updatedAt` del documento (Timestamp de Firestore) en ms; NaN si falta. */
+function updatedAtMs(doc) {
+  const value = doc.updatedAt;
+  return value && typeof value.toMillis === "function" ? value.toMillis() : NaN;
+}
+
+/**
+ * Fuente automática del resultado del día `dateId`:
+ *  1. Si `resultados_loterias/(T+1)` existe y su `updatedAt` es anterior a las
+ *     13:00 de T+1, ese documento es el resultado completo de T.
+ *  2. Si T+1 no existe, la fuente es `resultados_loterias/T` solo si su
+ *     `updatedAt` es posterior a las 13:00 de T; si no, T no tiene fuente
+ *     automática todavía (`doc: null`).
+ *  3. Si T+1 existe con `updatedAt` posterior a las 13:00 de T+1, el resultado
+ *     de T ya se perdió: `replaced: true`, no se escribe T.
+ * @returns {Promise<{doc: object|null, replaced: boolean}>}
+ */
+async function automaticSourceFor(dateId, readAutomatic) {
+  const nextId = nextDateId(dateId);
+  const next = await readAutomatic(nextId);
+  if (next) {
+    return updatedAtMs(next) < switchTimeMs(nextId)
+      ? { doc: next, replaced: false }
+      : { doc: null, replaced: true };
+  }
+  const own = await readAutomatic(dateId);
+  const usable = own && updatedAtMs(own) > switchTimeMs(dateId);
+  return { doc: usable ? own : null, replaced: false };
 }
 
 /** Tipo de un error, para el log (nunca su contenido). */
@@ -90,15 +147,22 @@ function sameEntries(stored, entries) {
 async function syncDate(dateId, deps) {
   const { readAutomatic, readManual, readStored, writeNumbers, logger } = deps;
 
-  // a. Un documento que no existe llega como null y cuenta como vacío.
-  const [automaticDoc, manualDoc] = await Promise.all([
-    readAutomatic(dateId),
+  // a. Un documento que no existe llega como null y cuenta como vacío. La
+  // manual sigue siendo `manual_lotteries/{dateId}` (su campo `date` es el día).
+  const [automatic, manualDoc] = await Promise.all([
+    automaticSourceFor(dateId, readAutomatic),
     readManual(dateId),
   ]);
 
+  // El documento T+1 ya fue reemplazado: no se escribe T, queda lo guardado.
+  if (automatic.replaced) {
+    logger.info(`${LOG_TAG} ${dateId} su resultado completo ya fue reemplazado: no se escribe`);
+    return STATUS.skippedReplaced;
+  }
+
   // b. La mezcla, sin cambios.
   const { numbers, entries, discarded } = mergeWinningNumbers(
-    automaticDoc ?? null,
+    automatic.doc,
     manualDoc?.list ?? null
   );
 
@@ -138,7 +202,8 @@ async function syncDate(dateId, deps) {
  * fecha: la registra como `error` (sin escribirla) y sigue con la otra.
  *
  * @param {{
- *   readAutomatic: (dateId: string) => Promise<object|null>,
+ *   readAutomatic: (dateId: string) => Promise<object|null>, // doc de
+ *     `resultados_loterias/{dateId}` con su `updatedAt` (Timestamp)
  *   readManual: (dateId: string) => Promise<object|null>,
  *   readStored: (dateId: string) => Promise<object|null>,
  *   writeNumbers: (dateId: string, numbers: string[],
@@ -251,6 +316,7 @@ module.exports = {
   runWinningNumbersSync,
   firestoreSources,
   bogotaDateIds,
+  nextDateId,
   STATUS,
   COLLECTIONS,
   WHATS_APUESTAS_SECRET_NAME,

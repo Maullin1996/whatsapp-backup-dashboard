@@ -1,22 +1,28 @@
 // Pruebas de syncWinningNumbers (pieza b2): dependencias falsas en memoria, sin
-// Admin SDK ni Firebase. Usa el mergeWinningNumbers real. Se ejecutan con
+// conexión a Firebase (solo se usa la clase Timestamp, la misma que devuelve
+// Firestore en `updatedAt`). Usa el mergeWinningNumbers real. Se ejecutan con
 // `npm test`.
 const { test, describe } = require("node:test");
 const assert = require("node:assert/strict");
+const { Timestamp } = require("firebase-admin/firestore");
 const {
   syncWinningNumbers,
   runWinningNumbersSync,
   firestoreSources,
   bogotaDateIds,
+  nextDateId,
   STATUS,
   COLLECTIONS,
   WHATS_APUESTAS_SECRET_NAME,
 } = require("../winningNumbersSync.js");
 
-// 2026-10-02 12:00 en Bogotá → hoy 2026-10-02, ayer 2026-10-01.
-const NOW = Date.parse("2026-10-02T17:00:00Z");
+// 2026-10-02 15:00 en Bogotá → hoy 2026-10-02, ayer 2026-10-01.
+const NOW = Date.parse("2026-10-02T20:00:00Z");
 const TODAY = "2026-10-02";
 const YESTERDAY = "2026-10-01";
+
+/** `updatedAt` como lo devuelve Firestore: un Timestamp. */
+const ts = (iso) => Timestamp.fromDate(new Date(iso));
 
 function autoEntry(slug, numero) {
   return { nombreLoteria: `Lotería ${slug}`, slug, numero, serie: null };
@@ -35,7 +41,9 @@ function fakeLogger() {
 /**
  * Dependencias falsas. `automatic`, `manual` y `stored` son mapas fecha →
  * documento (ausente = no existe). `fail` es un mapa fecha → error que lanza
- * cualquier lectura de esa fecha.
+ * cualquier lectura de esa fecha. Un documento automático sin `updatedAt` se
+ * lee con uno de las 13:30 de Bogotá de su propia fecha (el reemplazo del ERP
+ * con las loterías de día).
  */
 function fakeDeps({ automatic = {}, manual = {}, stored = {}, fail = {} } = {}) {
   const writes = [];
@@ -45,12 +53,17 @@ function fakeDeps({ automatic = {}, manual = {}, stored = {}, fail = {} } = {}) 
     if (fail[id]) throw fail[id];
     return source[id] ?? null;
   };
+  const readAutomatic = async (id) => {
+    const doc = await read(automatic)(id);
+    if (!doc || "updatedAt" in doc) return doc;
+    return { ...doc, updatedAt: ts(`${id}T13:30:00-05:00`) };
+  };
   return {
     writes,
     entryWrites,
     store,
     logger: fakeLogger(),
-    readAutomatic: read(automatic),
+    readAutomatic,
     readManual: read(manual),
     readStored: read(store),
     writeNumbers: async (id, numbers, entries) => {
@@ -129,7 +142,8 @@ describe("syncWinningNumbers", () => {
     assert.deepEqual(deps.store[TODAY], { numbers: ["1234"] });
     assert.deepEqual(deps.store[YESTERDAY], { numbers: ["5678"] });
     assert.equal(statusOf(summary, TODAY), STATUS.skippedEmpty);
-    assert.equal(statusOf(summary, YESTERDAY), STATUS.skippedEmpty);
+    // El documento de hoy ya fue reemplazado a las 13:30: ayer no se escribe.
+    assert.equal(statusOf(summary, YESTERDAY), STATUS.skippedReplaced);
     assert.ok(
       deps.logger.lines.some(
         (l) => l.level === "info" && l.message.includes(TODAY) && l.message.includes("no se escribe")
@@ -157,20 +171,19 @@ describe("syncWinningNumbers", () => {
       code: "unavailable",
     });
     const deps = fakeDeps({
-      automatic: {
-        [TODAY]: { resultados: [autoEntry("boyaca", "1234")] },
-        [YESTERDAY]: { resultados: [autoEntry("cauca", "5678")] },
-      },
-      fail: { [TODAY]: boom },
+      // Hoy: solo manual. Ayer: la lectura de su automática falla.
+      manual: { [TODAY]: { list: [manualEntry("huila", "4444")] } },
+      automatic: { [YESTERDAY]: { resultados: [autoEntry("cauca", "5678")] } },
+      fail: { [YESTERDAY]: boom },
     });
     const summary = await syncWinningNumbers(deps);
-    assert.deepEqual(deps.writes, [{ id: YESTERDAY, numbers: ["5678"] }]);
+    assert.deepEqual(deps.writes, [{ id: TODAY, numbers: ["4444"] }]);
     assert.deepEqual(summary, [
-      { date: TODAY, status: STATUS.error },
-      { date: YESTERDAY, status: STATUS.written },
+      { date: TODAY, status: STATUS.written },
+      { date: YESTERDAY, status: STATUS.error },
     ]);
     const errorLine = deps.logger.lines.find((l) => l.level === "error");
-    assert.deepEqual(errorLine.data, { date: TODAY, errorType: "unavailable" });
+    assert.deepEqual(errorLine.data, { date: YESTERDAY, errorType: "unavailable" });
     assert.ok(!JSON.stringify(deps.logger.lines).includes("detalle que no va al log"));
   });
 
@@ -296,7 +309,7 @@ describe("syncWinningNumbers", () => {
     const summary = await syncWinningNumbers(deps);
     assert.deepEqual(summary, [
       { date: TODAY, status: STATUS.written },
-      { date: YESTERDAY, status: STATUS.skippedEmpty },
+      { date: YESTERDAY, status: STATUS.skippedReplaced },
     ]);
     const last = deps.logger.lines.at(-1);
     assert.equal(last.level, "info");
@@ -306,6 +319,159 @@ describe("syncWinningNumbers", () => {
     const again = await syncWinningNumbers(deps);
     assert.equal(statusOf(again, TODAY), STATUS.unchanged);
     assert.equal(deps.writes.length, 1);
+  });
+});
+
+describe("fuente automática: el resultado completo de T vive en T+1", () => {
+  // Resultados reales de resultados_loterias/2026-10-10 a las 06:30 de Bogotá:
+  // los 32 del día 2026-10-09 (9 de día y 23 de tarde/noche).
+  const FULL_OF_1009 = [
+    ["medellín", "0169"], ["santander", "3794"], ["risaralda", "7531"],
+    ["dorado_mañana", "6125"], ["dorado_tarde", "0457"], ["dorado_noche", "5570"],
+    ["culona", "5910"], ["astro_sol", "8121"], ["astro_luna", "4611"],
+    ["pijao_de_oro", "5311"], ["paisita_día", "8988"], ["paisita_noche", "4342"],
+    ["chontico_día", "6626"], ["chontico_noche", "7882"], ["cafeterito_tarde", "9014"],
+    ["cafeterito_noche", "1617"], ["sinuano_día", "8640"], ["sinuano_noche", "8696"],
+    ["cash_three_día", "174"], ["cash_three_noche", "097"], ["play_four_día", "2033"],
+    ["play_four_noche", "1197"], ["saman_día", "8871"], ["caribeña_día", "2137"],
+    ["caribeña_noche", "4595"], ["motilón_tarde", "7859"], ["motilón_noche", "8818"],
+    ["fantástica_día", "0401"], ["fantástica_noche", "9852"], ["antioqueñita_día", "0298"],
+    ["antioqueñita_tarde", "2740"], ["culona_noche", "4273"],
+  ];
+  // resultados_loterias/2026-10-10 después del reemplazo de las 13:30:31.
+  const DAY_OF_1010 = [
+    ["dorado_mañana", "5429"], ["paisita_día", "2130"], ["chontico_día", "7976"],
+    ["cafeterito_tarde", "8181"], ["cash_three_día", "744"], ["play_four_día", "3547"],
+    ["saman_día", "0731"], ["fantástica_día", "4294"], ["antioqueñita_día", "8252"],
+  ];
+  const doc = (pairs, updatedAt) => ({
+    resultados: pairs.map(([slug, numero]) => autoEntry(slug, numero)),
+    updatedAt: ts(updatedAt),
+  });
+  const D09 = "2026-10-09";
+  const D10 = "2026-10-10";
+  const D11 = "2026-10-11";
+  const at = (iso) => ({ now: () => Date.parse(iso) });
+
+  test("06:55 del 10-10 (doc 10-10 con 32): 10-09 produce 32 y 10-10 no produce nada", async () => {
+    const deps = {
+      ...fakeDeps({
+        automatic: {
+          [D10]: doc(FULL_OF_1009, "2026-10-10T11:30:33Z"),
+          // El 10-09 del ERP (las 9 de día) no se usa mientras exista el 10-10.
+          [D09]: doc(DAY_OF_1010, "2026-10-09T18:30:53Z"),
+        },
+      }),
+      ...at("2026-10-10T11:55:00Z"),
+    };
+    const summary = await syncWinningNumbers(deps);
+    assert.equal(deps.writes.length, 1);
+    assert.equal(deps.writes[0].id, D09);
+    assert.equal(deps.writes[0].numbers.length, 32);
+    assert.equal(deps.store[D09].entries.length, 32);
+    assert.ok(
+      deps.store[D09].entries.some(
+        (e) => e.loteria === "dorado_manana" && e.numero === "6125"
+      )
+    );
+    assert.equal(statusOf(summary, D09), STATUS.written);
+    assert.equal(statusOf(summary, D10), STATUS.skippedEmpty);
+    assert.equal(deps.store[D10], undefined);
+  });
+
+  test("13:55 del 10-10 (doc 10-10 ya reemplazado con 9): 10-09 no se escribe y 10-10 produce 9", async () => {
+    const saved = {
+      numbers: ["0169", "3794"],
+      entries: [{ loteria: "medellin", numero: "0169" }],
+    };
+    const deps = {
+      ...fakeDeps({
+        automatic: { [D10]: doc(DAY_OF_1010, "2026-10-10T18:30:31Z") },
+        stored: { [D09]: saved },
+      }),
+      ...at("2026-10-10T18:55:00Z"),
+    };
+    const summary = await syncWinningNumbers(deps);
+    assert.deepEqual(deps.writes.map((w) => w.id), [D10]);
+    assert.equal(deps.writes[0].numbers.length, 9);
+    assert.equal(statusOf(summary, D10), STATUS.written);
+    assert.equal(statusOf(summary, D09), STATUS.skippedReplaced);
+    assert.deepEqual(deps.store[D09], saved);
+  });
+
+  test("15:00 con T+1 inexistente: T produce las 9 de día", async () => {
+    const deps = {
+      ...fakeDeps({ automatic: { [D10]: doc(DAY_OF_1010, "2026-10-10T18:30:31Z") } }),
+      ...at("2026-10-10T20:00:00Z"),
+    };
+    const summary = await syncWinningNumbers(deps);
+    assert.equal(statusOf(summary, D10), STATUS.written);
+    assert.deepEqual(deps.store[D10].numbers, [
+      "0731", "2130", "3547", "4294", "5429", "744", "7976", "8181", "8252",
+    ]);
+  });
+
+  test("T+1 inexistente y T anterior a las 13:00: T no tiene fuente automática, solo la manual", async () => {
+    const deps = {
+      ...fakeDeps({
+        automatic: { [D10]: doc(FULL_OF_1009, "2026-10-10T11:30:33Z") },
+        manual: {
+          [D10]: {
+            list: [{ lottery: "Doramaña", slug: "doramaña", date: D10, result: "5429", series: "000" }],
+          },
+        },
+      }),
+      ...at("2026-10-10T17:20:00Z"),
+    };
+    await syncWinningNumbers(deps);
+    assert.deepEqual(deps.store[D10], {
+      numbers: ["5429"],
+      entries: [{ loteria: "dorado_manana", numero: "5429" }],
+    });
+  });
+
+  test("21:00 del 10-10: el doc 10-11 recién creado (20:30) es la fuente de 10-10", async () => {
+    const deps = {
+      ...fakeDeps({
+        automatic: {
+          [D10]: doc(DAY_OF_1010, "2026-10-10T18:30:31Z"),
+          [D11]: doc(
+            [["dorado_mañana", "5429"], ["dorado_noche", "9999"]],
+            "2026-10-11T01:30:10Z"
+          ),
+        },
+      }),
+      ...at("2026-10-11T02:00:00Z"),
+    };
+    const summary = await syncWinningNumbers(deps);
+    // Hoy es 10-10 (Bogotá): su fuente es el doc 10-11; ayer (10-09) ya no.
+    assert.deepEqual(deps.store[D10].numbers, ["5429", "9999"]);
+    assert.equal(statusOf(summary, D10), STATUS.written);
+    assert.equal(statusOf(summary, D09), STATUS.skippedReplaced);
+  });
+
+  test("la manual de T reemplaza a la automática tomada de T+1 (usa manual_lotteries/T)", async () => {
+    const deps = {
+      ...fakeDeps({
+        automatic: { [D10]: doc(FULL_OF_1009, "2026-10-10T11:30:33Z") },
+        manual: {
+          [D09]: {
+            list: [{ lottery: "MEDELLÍN", slug: "medellín", date: D09, result: "9999", series: "238" }],
+          },
+        },
+      }),
+      ...at("2026-10-10T11:55:00Z"),
+    };
+    await syncWinningNumbers(deps);
+    assert.ok(deps.store[D09].numbers.includes("9999"));
+    assert.ok(!deps.store[D09].numbers.includes("0169"));
+    assert.equal(deps.store[D09].numbers.length, 32);
+  });
+
+  test("nextDateId: cambio de mes y de año", () => {
+    assert.equal(nextDateId("2026-10-09"), "2026-10-10");
+    assert.equal(nextDateId("2026-09-30"), "2026-10-01");
+    assert.equal(nextDateId("2026-12-31"), "2027-01-01");
   });
 });
 
