@@ -318,14 +318,24 @@ class _UserCard extends ConsumerWidget {
                     ],
                   ),
                 ),
-                Switch(
-                  value: !user.disabled,
-                  activeThumbColor: AppColors.primaryGreen,
-                  onChanged: state.isSubmitting
-                      ? null
-                      : (value) => ref
-                            .read(adminProvider.notifier)
-                            .toggleUserStatus(uid: user.uid, disabled: !value),
+                // Sin colores propios: la perilla blanca sobre el track verde
+                // sale del tema (con `activeThumbColor` verde la perilla se
+                // confundía con el track y no parecía un interruptor).
+                Tooltip(
+                  message: user.disabled
+                      ? 'Usuario deshabilitado: tocar para habilitarlo'
+                      : 'Usuario habilitado: tocar para deshabilitarlo',
+                  child: Switch(
+                    value: !user.disabled,
+                    onChanged: state.isSubmitting
+                        ? null
+                        : (value) => ref
+                              .read(adminProvider.notifier)
+                              .toggleUserStatus(
+                                uid: user.uid,
+                                disabled: !value,
+                              ),
+                  ),
                 ),
               ],
             ),

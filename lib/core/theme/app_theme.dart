@@ -73,9 +73,7 @@ abstract class AppTheme {
       foregroundColor: Colors.white,
     ),
     iconButtonTheme: const IconButtonThemeData(
-      style: ButtonStyle(
-        iconColor: WidgetStatePropertyAll(Colors.black87),
-      ),
+      style: ButtonStyle(iconColor: WidgetStatePropertyAll(Colors.black87)),
     ),
 
     // ── Tarjetas / diálogos / bottom sheets ──
@@ -129,12 +127,24 @@ abstract class AppTheme {
     ),
 
     // ── Selección / control ─────────────────
+    // Encendido: perilla blanca sobre track verde. Apagado: perilla gris
+    // oscura con borde sobre track gris claro (blanco sobre gris claro casi
+    // no se distinguía). Nunca la perilla del mismo color que el track.
     switchTheme: SwitchThemeData(
-      thumbColor: const WidgetStatePropertyAll(Colors.white),
+      thumbColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.selected)
+            ? Colors.white
+            : Colors.grey.shade600,
+      ),
       trackColor: WidgetStateProperty.resolveWith(
         (states) => states.contains(WidgetState.selected)
             ? AppColors.primaryGreen
-            : Colors.grey.shade300,
+            : Colors.grey.shade200,
+      ),
+      trackOutlineColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.selected)
+            ? Colors.transparent
+            : Colors.grey.shade500,
       ),
     ),
     checkboxTheme: CheckboxThemeData(
